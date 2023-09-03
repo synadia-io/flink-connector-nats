@@ -26,11 +26,28 @@ java {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/releases/"
+    }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
 }
 
 dependencies {
+    ext.flinkVersion='1.17.1'
+
+    implementation 'io.nats:jnats:2.16.15-SNAPSHOT'
+
+    implementation "org.apache.flink:flink-core:${flinkVersion}"
+    implementation "org.apache.flink:flink-java:${flinkVersion}"
+    implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
+    implementation "org.apache.flink:flink-clients:${flinkVersion}"
+    implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
+
+    testImplementation 'io.nats:jnats-server-runner:1.2.5'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
