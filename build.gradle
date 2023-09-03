@@ -1,0 +1,152 @@
+import org.gradle.internal.os.OperatingSystem
+
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'jacoco'
+    id 'com.github.kt3k.coveralls' version '2.12.0'
+    id "org.gradle.test-retry" version "1.1.9"
+    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'signing'
+}
+
+def jarVersion = "0.0.1"
+group = 'io.synadia'
+
+def isMerge = System.getenv("BUILD_EVENT") == "push"
+def isRelease = System.getenv("BUILD_EVENT") == "release"
+
+// version is the variable the build actually uses.
+version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
+    testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
+    testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+}
+
+test {
+    // Use junit platform for unit tests
+    useJUnitPlatform()
+}
+
+javadoc {
+    options.overview = 'src/main/javadoc/overview.html' // relative to source root
+    source = sourceSets.main.allJava
+    title = "Synadia Communications Inc. Java Flink Connector To Nats"
+    classpath = sourceSets.main.runtimeClasspath
+    doLast {
+        if (!OperatingSystem.current().isWindows()) {
+            exec {
+                println "Updating favicon on all html files"
+                workingDir 'build/docs/javadoc'
+                // Only on linux, mac at this point
+                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
+            }
+            copy {
+                println "Copying images to javadoc folder"
+                from 'src/main/javadoc/images'
+                into 'build/docs/javadoc'
+            }
+        }
+    }
+}
+
+task javadocJar(type: Jar) {
+    archiveClassifier.set('javadoc')
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allSource
+}
+
+jacoco {
+    toolVersion = "0.8.6"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true // coveralls plugin depends on xml format report
+        html.enabled = true
+    }
+    afterEvaluate { // only report on main library not examples
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it,
+                    exclude: ['**/examples**'])
+        }))
+    }
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+if (isMerge || isRelease) {
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = System.getenv('OSSRH_USERNAME')
+                password = System.getenv('OSSRH_PASSWORD')
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+            pom {
+                name = rootProject.name
+                packaging = 'jar'
+                groupId = group
+                artifactId = archivesBaseName
+                description = 'Synadia Communications Inc. Java Flink Connector To Nats'
+                url = 'https://github.com/synadia-io/flink-connector-nats'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = "synadia"
+                        name = "Synadia"
+                        email = "info@synadia.com"
+                        url = "https://nats.io"
+                    }
+                }
+                scm {
+                    url = 'https://github.com/synadia-io/flink-connector-nats'
+                }
+            }
+        }
+    }
+}
+
+if (isRelease) {
+    signing {
+        def signingKeyId = System.getenv('SIGNING_KEY_ID')
+        def signingKey = System.getenv('SIGNING_KEY')
+        def signingPassword = System.getenv('SIGNING_PASSWORD')
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        sign configurations.archives
+        sign publishing.publications.mavenJava
+    }
+}
