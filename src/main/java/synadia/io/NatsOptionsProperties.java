@@ -2,5 +2,7 @@
 
 package synadia.io;
 
-public class Placeholder {
+import java.util.Properties;
+
+public class NatsOptionsProperties extends Properties {
 }

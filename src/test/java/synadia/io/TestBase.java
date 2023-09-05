@@ -25,11 +25,16 @@ public class TestBase {
         public final String stream;
         public final String subject;
         public final String[] subjects;
-        public StreamInfo si;
+        public final StreamInfo si;
 
         public TestStream(JetStreamManagement jsm) throws JetStreamApiException, IOException {
+            this(jsm, subject());
+        }
+
+        public TestStream(JetStreamManagement jsm, String... subjects) throws JetStreamApiException, IOException {
+
             stream = stream();
-            subjects = new String[]{subject()};
+            this.subjects = subjects;
             subject = subjects[0];
 
             StreamConfiguration sc = StreamConfiguration.builder()

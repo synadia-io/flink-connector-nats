@@ -9,7 +9,7 @@ Copyright (c) 2023 Synadia Communications Inc.  All Rights Reserved.
         </encoder>
     </appender>
 
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

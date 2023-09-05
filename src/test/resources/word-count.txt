@@ -1,8 +1,87 @@
-NATS is an open-source messaging system (sometimes called message-oriented middleware).
-The NATS server is written in the Go programming language.
-Client libraries to interface with the server are available for dozens of major programming languages.
-The core design principles of NATS are performance, scalability, and ease of use.
-The acronym NATS stands for Neural Autonomic Transport System.
-Synadia develops and provides support for NATS.
-NATS was originally developed as the messaging control plane for Cloud Foundry and was written in Ruby.
-NATS was later ported to Go.
+NATS
+is
+an
+open-source
+messaging
+system
+sometimes
+called
+message-oriented
+middleware
+The
+NATS
+server
+is
+written
+in
+the
+Go
+programming
+language
+Client
+libraries
+to
+interface
+with
+the
+server
+are
+available
+for
+dozens
+of
+major
+programming
+languages
+The
+core
+design
+principles
+of
+NATS
+are
+performance
+scalability
+and
+ease
+of
+use
+The
+acronym
+NATS
+stands
+for
+Neural
+Autonomic
+Transport
+System
+Synadia
+develops
+and
+provides
+support
+for
+NATS
+NATS
+was
+originally
+developed
+as
+the
+messaging
+control
+plane
+for
+Cloud
+Foundry
+and
+was
+written
+in
+Ruby
+NATS
+was
+later
+ported
+to
+Go
