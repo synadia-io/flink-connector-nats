@@ -39,6 +39,7 @@ repositories {
 dependencies {
     ext.flinkVersion='1.17.1'
 
+    implementation 'org.slf4j:slf4j-api:2.0.9'
     implementation 'io.nats:jnats:2.16.15-SNAPSHOT'
 
     implementation "org.apache.flink:flink-core:${flinkVersion}"
@@ -47,6 +48,7 @@ dependencies {
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
 
+    testImplementation 'org.slf4j:slf4j-simple:2.0.9'
     testImplementation 'io.nats:jnats-server-runner:1.2.5'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'

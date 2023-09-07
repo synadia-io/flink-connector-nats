@@ -1,4 +1,4 @@
-package synadia.io;
+package io.synadia;
 
 import io.nats.client.*;
 import io.nats.client.api.StorageType;
@@ -6,6 +6,13 @@ import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.io.IOException;
 import java.util.List;
@@ -21,6 +28,26 @@ public class TestBase {
         NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
     }
 
+
+    public static StreamExecutionEnvironment getStreamExecutionEnvironment() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
+        return env;
+    }
+
+    public static DataStream<String> getStringDataStream(StreamExecutionEnvironment env) {
+        FileSource.FileSourceBuilder<String> builder =
+            FileSource.forRecordStreamFormat(
+                new TextLineInputFormat(),
+                new Path("src/test/resources/words.txt")
+            );
+
+        return env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input");
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // JetStream support
+    // ----------------------------------------------------------------------------------------------------
     public static class TestStream {
         public final String stream;
         public final String subject;
@@ -49,30 +76,51 @@ public class TestBase {
     // runners
     // ----------------------------------------------------------------------------------------------------
     public interface InServerTest {
-        void test(Connection nc) throws Exception;
+        void test(Connection nc, String url) throws Exception;
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
-        try (NatsServerRunner runner = new NatsServerRunner(false, true);
+        runInServer(false, inServerTest);
+    }
+
+    public static void runInServer(boolean jetstream, InServerTest inServerTest) throws Exception {
+        try (NatsServerRunner runner = new NatsServerRunner(false, jetstream);
              Connection nc = Nats.connect(runner.getURI()))
         {
             try {
-                inServerTest.test(nc);
+                inServerTest.test(nc, getUrl(nc));
             }
             finally {
-                cleanupJs(nc);
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
             }
         }
     }
 
     public static void runInExternalServer(InServerTest inServerTest) throws Exception {
-        runInExternalServer(Options.DEFAULT_URL, inServerTest);
+        runInExternalServer(Options.DEFAULT_URL, false, inServerTest);
     }
 
-    public static void runInExternalServer(String url, InServerTest inServerTest) throws Exception {
+    public static void runInExternalServer(boolean jetstream, InServerTest inServerTest) throws Exception {
+        runInExternalServer(Options.DEFAULT_URL, jetstream, inServerTest);
+    }
+
+    public static void runInExternalServer(String url, boolean jetstream, InServerTest inServerTest) throws Exception {
         try (Connection nc = Nats.connect(url)) {
-            inServerTest.test(nc);
+            try {
+                inServerTest.test(nc, url);
+            }
+            finally {
+                if (jetstream) {
+                    cleanupJs(nc);
+                }
+            }
         }
+    }
+
+    private static String getUrl(Connection nc) {
+        return "nats://localhost:" + nc.getServerInfo().getPort();
     }
 
     private static void cleanupJs(Connection c)
@@ -87,21 +135,24 @@ public class TestBase {
         } catch (Exception ignore) {}
     }
 
+    public static String random() {
+        return NUID.nextGlobalSequence();
+    }
 
-    public static String variant(String prefix) {
+    public static String random(String prefix) {
         return prefix + "-" + NUID.nextGlobalSequence();
     }
 
     public static String stream() {
-        return variant("stream");
+        return random("stream");
     }
 
     public static String subject() {
-        return variant("subject");
+        return random("subject");
     }
 
     public static String name() {
-        return variant("name");
+        return random("name");
     }
 
     // ----------------------------------------------------------------------------------------------------

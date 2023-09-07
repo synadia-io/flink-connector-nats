@@ -1,6 +1,7 @@
-// Copyright (c) 2023 Synadia Communications Inc.  All Rights Reserved.
+// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details. 
 
-package synadia.io;
+package io.synadia;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -14,30 +15,31 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class NatsSubjectWriter<InputT> implements SinkWriter<InputT>, Serializable {
+public class SubjectWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NatsSubjectWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SubjectWriter.class);
 
-    private final String subject;
+    private final List<String> subjects;
     private final Properties connectionOptionProps;
-    private final NatsPayloadSerializer<InputT> natsPayloadSerializer;
+    private final PayloadSerializer<InputT> payloadSerializer;
     private final Sink.InitContext sinkInitContext;
+
     private transient Connection connection;
 
-    public NatsSubjectWriter(String subject,
-                             Properties connectionOptionProps,
-                             NatsPayloadSerializer<InputT> natsPayloadSerializer,
-                             Sink.InitContext sinkInitContext)
+    public SubjectWriter(List<String> subjects,
+                         Properties connectionOptionProps,
+                         PayloadSerializer<InputT> payloadSerializer,
+                         Sink.InitContext sinkInitContext)
     {
-        this.subject = subject;
+        this.subjects = subjects;
         this.connectionOptionProps = checkNotNull(connectionOptionProps);
-        this.natsPayloadSerializer = checkNotNull(natsPayloadSerializer);
-//        this.sinkInitContext = checkNotNull(sinkInitContext, "sinkInitContext");
-        this.sinkInitContext = null;
+        this.payloadSerializer = checkNotNull(payloadSerializer);
+        this.sinkInitContext = sinkInitContext;
 
         createConnection(connectionOptionProps);
     }
@@ -45,7 +47,6 @@ public class NatsSubjectWriter<InputT> implements SinkWriter<InputT>, Serializab
     private void createConnection(Properties connectionOptionProps) {
         try {
             connection = Nats.connect(new Options.Builder().properties(connectionOptionProps).build());
-            System.out.println("Connection Created: " + connection.getServerInfo());
         }
         catch (Exception e) {
             throw new FlinkRuntimeException("Cannot connect to NATS server.", e);
@@ -54,8 +55,10 @@ public class NatsSubjectWriter<InputT> implements SinkWriter<InputT>, Serializab
 
     @Override
     public void write(InputT element, Context context) throws IOException, InterruptedException {
-        System.out.println("WRITE " + element);
-        connection.publish(subject, natsPayloadSerializer.getBytes(element, context));
+        byte[] payload = payloadSerializer.getBytes(element, context);
+        for (String subject : subjects) {
+            connection.publish(subject, payload);
+        }
     }
 
     @Override
