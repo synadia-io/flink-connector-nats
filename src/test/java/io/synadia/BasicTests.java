@@ -7,54 +7,19 @@ import io.nats.client.*;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BasicTests extends TestBase {
-
-    static final Map<String, Integer> testResultMap = new HashMap<>();
-    static final CountDownLatch testLatch = new CountDownLatch(1);
-
-    @BeforeAll
-    public static void beforeAll() throws Exception {
-        StreamExecutionEnvironment env = getStreamExecutionEnvironment();
-        DataStream<String> text = getStringDataStream(env);
-
-        WordCountSinkFunction function = new WordCountSinkFunction();
-        text.addSink(function);
-
-        env.execute("BasicFlink");
-
-        testLatch.await();
-        assertTrue(testResultMap.containsKey("nats"));
-        assertEquals(7, testResultMap.get("nats"));
-    }
-
-    static class WordCountSinkFunction implements SinkFunction<String> {
-        @Override
-        public void invoke(String value, Context context) throws Exception {
-            testResultMap.merge(value.toLowerCase(), 1, Integer::sum);
-        }
-
-        @Override
-        public void finish() throws Exception {
-            testLatch.countDown();
-        }
-    }
 
     @Test
     public void testInServer() throws Exception {
         runInServer((nc, url) -> {
-
             String subject = random();
             Subscriber sub = new Subscriber(nc, subject);
 
@@ -80,7 +45,7 @@ public class BasicTests extends TestBase {
 
     static class Subscriber implements MessageHandler {
         public final Dispatcher d;
-        static final Map<String, Integer> resultMap = new HashMap<>();
+        final Map<String, Integer> resultMap = new HashMap<>();
 
         public Subscriber(Connection nc, String subject) {
             d = nc.createDispatcher();
@@ -94,10 +59,10 @@ public class BasicTests extends TestBase {
         }
 
         public void assertAllMessagesReceived() {
-            assertEquals(testResultMap.size(), resultMap.size());
+            assertEquals(WORD_COUNT_MAP.size(), resultMap.size());
             for (String key : resultMap.keySet()) {
                 Integer ri = resultMap.get(key);
-                Integer tri = testResultMap.get(key);
+                Integer tri = WORD_COUNT_MAP.get(key);
                 assertEquals(ri, tri);
             }
         }

@@ -14,20 +14,33 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import java.io.IOException;
-import java.util.List;
+import java.io.*;
+import java.nio.file.Files;
+import java.util.*;
 import java.util.logging.Level;
 
 public class TestBase {
+    static final String PLAIN_ASCII = "hello world ascii";
+    static final List<String> UTF8_TEST_STRINGS = new ArrayList<>();
+    static final List<String> WORD_COUNT_JSONS = new ArrayList<>();
+    static final Map<String, Integer> WORD_COUNT_MAP = new HashMap<>();
+
     static {
         NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
         quiet();
+
+        UTF8_TEST_STRINGS.addAll(resourceAsLines("utf8-test-strings.txt"));
+        WORD_COUNT_JSONS.addAll(resourceAsLines("word_count_jsons.txt"));
+
+        List<String> words = resourceAsLines("words.txt");
+        for (String word : words) {
+            WORD_COUNT_MAP.merge(word.toLowerCase(), 1, Integer::sum);
+        }
     }
 
     public static void quiet() {
         NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
     }
-
 
     public static StreamExecutionEnvironment getStreamExecutionEnvironment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -156,8 +169,42 @@ public class TestBase {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // utils / macro utils
+    // ssl utils
     // ----------------------------------------------------------------------------------------------------
+    public static String KEYSTORE_PATH = "src/test/resources/keystore.jks";
+    public static String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
+    public static String PASSWORD = "password";
+
+    public static Properties AddTestSslProperties(Properties props) {
+        props.setProperty(Options.PROP_KEYSTORE, KEYSTORE_PATH);
+        props.setProperty(Options.PROP_KEYSTORE_PASSWORD, PASSWORD);
+        props.setProperty(Options.PROP_TRUSTSTORE, TRUSTSTORE_PATH);
+        props.setProperty(Options.PROP_TRUSTSTORE_PASSWORD, PASSWORD);
+        return props;
+    }
+
+    public static void setKeystoreSystemParameters() {
+        System.setProperty("javax.net.ssl.keyStore", KEYSTORE_PATH);
+        System.setProperty("javax.net.ssl.keyStorePassword", PASSWORD);
+        System.setProperty("javax.net.ssl.trustStore",TRUSTSTORE_PATH);
+        System.setProperty("javax.net.ssl.trustStorePassword", PASSWORD);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // misc / macro utils
+    // ----------------------------------------------------------------------------------------------------
+    public static List<String> resourceAsLines(String fileName) {
+        try {
+            ClassLoader classLoader = TestBase.class.getClassLoader();
+            //noinspection DataFlowIssue
+            File file = new File(classLoader.getResource(fileName).getFile());
+            return Files.readAllLines(file.toPath());
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static void sleep(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) { /* ignored */ }
     }
@@ -181,5 +228,18 @@ public class TestBase {
             sb.append(o);
         }
         System.out.println(sb.toString());
+    }
+
+    public static Object javaSerializeDeserializeObject(Serializable inObject) throws IOException, ClassNotFoundException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(baos);
+        objectOutputStream.writeObject(inObject);
+        objectOutputStream.flush();
+        objectOutputStream.close();
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        ObjectInputStream objectInputStream = new ObjectInputStream(bais);
+        Object outObject = objectInputStream.readObject();
+        objectInputStream.close();
+        return outObject;
     }
 }
