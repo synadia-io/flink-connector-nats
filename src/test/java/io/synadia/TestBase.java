@@ -30,7 +30,7 @@ public class TestBase {
         quiet();
 
         UTF8_TEST_STRINGS.addAll(resourceAsLines("utf8-test-strings.txt"));
-        WORD_COUNT_JSONS.addAll(resourceAsLines("word_count_jsons.txt"));
+        WORD_COUNT_JSONS.addAll(resourceAsLines("word-count-jsons.txt"));
 
         List<String> words = resourceAsLines("words.txt");
         for (String word : words) {
@@ -176,6 +176,7 @@ public class TestBase {
     public static String PASSWORD = "password";
 
     public static Properties AddTestSslProperties(Properties props) {
+        props = props == null ? new Properties() : props;
         props.setProperty(Options.PROP_KEYSTORE, KEYSTORE_PATH);
         props.setProperty(Options.PROP_KEYSTORE_PASSWORD, PASSWORD);
         props.setProperty(Options.PROP_TRUSTSTORE, TRUSTSTORE_PATH);
@@ -183,16 +184,20 @@ public class TestBase {
         return props;
     }
 
-    public static void setKeystoreSystemParameters() {
-        System.setProperty("javax.net.ssl.keyStore", KEYSTORE_PATH);
-        System.setProperty("javax.net.ssl.keyStorePassword", PASSWORD);
-        System.setProperty("javax.net.ssl.trustStore",TRUSTSTORE_PATH);
-        System.setProperty("javax.net.ssl.trustStorePassword", PASSWORD);
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // misc / macro utils
     // ----------------------------------------------------------------------------------------------------
+
+    public static String createTempPropertiesFile(Properties prop) throws IOException {
+        File f = File.createTempFile("fcn", ".properties");
+        BufferedWriter writer = new BufferedWriter(new FileWriter(f));
+        for (String key : prop.stringPropertyNames()) {
+            writer.write(key + "=" + prop.getProperty(key) + System.lineSeparator());
+        }
+        writer.flush();
+        writer.close();
+        return f.getAbsolutePath();
+    }
     public static List<String> resourceAsLines(String fileName) {
         try {
             ClassLoader classLoader = TestBase.class.getClassLoader();

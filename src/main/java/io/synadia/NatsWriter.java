@@ -6,11 +6,10 @@ package io.synadia;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.synadia.payload.PayloadSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -18,35 +17,42 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static io.synadia.Constants.SINK_PROPERTIES_FILE;
+import static io.synadia.Utils.loadProperties;
 
-public class SubjectWriter<InputT> implements SinkWriter<InputT>, Serializable {
-
-    private static final Logger LOG = LoggerFactory.getLogger(SubjectWriter.class);
+public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private final List<String> subjects;
-    private final Properties connectionOptionProps;
+    private final Properties sinkProperties;
     private final PayloadSerializer<InputT> payloadSerializer;
     private final Sink.InitContext sinkInitContext;
 
     private transient Connection connection;
 
-    public SubjectWriter(List<String> subjects,
-                         Properties connectionOptionProps,
-                         PayloadSerializer<InputT> payloadSerializer,
-                         Sink.InitContext sinkInitContext)
+    public NatsWriter(List<String> subjects,
+                      Properties sinkProperties,
+                      PayloadSerializer<InputT> payloadSerializer,
+                      Sink.InitContext sinkInitContext)
     {
         this.subjects = subjects;
-        this.connectionOptionProps = checkNotNull(connectionOptionProps);
-        this.payloadSerializer = checkNotNull(payloadSerializer);
+        this.sinkProperties = sinkProperties;
+        this.payloadSerializer = payloadSerializer;
         this.sinkInitContext = sinkInitContext;
 
-        createConnection(connectionOptionProps);
+        createConnection(sinkProperties);
     }
 
-    private void createConnection(Properties connectionOptionProps) {
+    private void createConnection(Properties sinkProperties) {
         try {
-            connection = Nats.connect(new Options.Builder().properties(connectionOptionProps).build());
+            String spFile = sinkProperties.getProperty(SINK_PROPERTIES_FILE);
+            Options options;
+            if (spFile == null) {
+                options = new Options.Builder().properties(sinkProperties).build();
+            }
+            else {
+                options = new Options.Builder().properties(loadProperties(spFile)).build();
+            }
+            connection = Nats.connect(options);
         }
         catch (Exception e) {
             throw new FlinkRuntimeException("Cannot connect to NATS server.", e);
@@ -54,7 +60,7 @@ public class SubjectWriter<InputT> implements SinkWriter<InputT>, Serializable {
     }
 
     @Override
-    public void write(InputT element, Context context) throws IOException, InterruptedException {
+    public void write(InputT element, SinkWriter.Context context) throws IOException, InterruptedException {
         byte[] payload = payloadSerializer.getBytes(element, context);
         for (String subject : subjects) {
             connection.publish(subject, payload);
@@ -73,6 +79,6 @@ public class SubjectWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        createConnection(connectionOptionProps);
+        createConnection(sinkProperties);
     }
 }

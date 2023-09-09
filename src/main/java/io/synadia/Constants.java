@@ -4,7 +4,7 @@
 package io.synadia;
 
 public interface Constants {
-    String PFX = "FCN_";
-
-    String SERIALIZER_CHARSET = PFX + "SERIALIZER_CHARSET";
+    String SOURCE_PROPERTIES_FILE = "source.properties.file";
+    String SINK_PROPERTIES_FILE = "sink.properties.file";
+    String SINK_SUBJECTS = "sink.subjects";
 }

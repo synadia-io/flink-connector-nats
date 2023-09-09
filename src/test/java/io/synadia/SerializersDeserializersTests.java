@@ -4,6 +4,10 @@
 package io.synadia;
 
 import io.nats.client.support.*;
+import io.synadia.payload.PayloadDeserializer;
+import io.synadia.payload.PayloadSerializer;
+import io.synadia.payload.StringPayloadDeserializer;
+import io.synadia.payload.StringPayloadSerializer;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.Test;
@@ -68,25 +72,6 @@ public class SerializersDeserializersTests extends TestBase {
             bytes = spsUtf8.getBytes(su, null);
             assertNotEquals(su, spdAscii.getObject(bytes, null));
             assertEquals(su, spdUtf8.getObject(bytes, null));
-        }
-    }
-
-    @Test
-    public void testJsonSerializablePayload() throws Exception {
-        JsonSerializablePayloadSerializer ser = new JsonSerializablePayloadSerializer();
-        JsonSerializablePayloadDeserializer dser = new JsonSerializablePayloadDeserializer();
-
-        for (String json : WORD_COUNT_JSONS) {
-            JsonValue jv = JsonParser.parse(json);
-            byte[] bytes = ser.getBytes(jv, null);
-            String s = new String(bytes);
-            assertEquals(json, s);
-
-            s = dser.getObject(bytes, null).toJson();
-            jv = JsonParser.parse(s);
-            bytes = ser.getBytes(jv, null);
-            s = new String(bytes);
-            assertEquals(json, s);
         }
     }
 
