@@ -23,10 +23,10 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-      - name: Setup GO
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.19.9'
+#      - name: Setup GO
+#        uses: actions/setup-go@v3
+#        with:
+#          go-version: '1.19.9'
       - name: Install Nats Server
         run: |
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@$main | PREFIX=. sh
