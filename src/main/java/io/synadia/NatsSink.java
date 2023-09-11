@@ -11,6 +11,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+/**
+ *
+ * @param <InputT>
+ */
 public class NatsSink<InputT> implements Sink<InputT> {
     private final List<String> subjects;
     private final Properties sinkProperties;
@@ -22,8 +26,35 @@ public class NatsSink<InputT> implements Sink<InputT> {
         this.payloadSerializer = payloadSerializer;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public SinkWriter<InputT> createWriter(InitContext context) throws IOException {
         return new NatsWriter<>(subjects, sinkProperties, payloadSerializer, context);
+    }
+
+    /**
+     * Get the subjects registered for this sink.
+     * @return the subjects.
+     */
+    public List<String> getSubjects() {
+        return subjects;
+    }
+
+    /**
+     * Get the properties registered for this sink
+     * @return a copy of the properties object
+     */
+    public Properties getSinkProperties() {
+        return new Properties(sinkProperties);
+    }
+
+    /**
+     * Get the payload serializer registered for this sink
+     * @return the serializer
+     */
+    public PayloadSerializer<InputT> getPayloadSerializer() {
+        return payloadSerializer;
     }
 }

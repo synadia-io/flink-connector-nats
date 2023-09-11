@@ -17,40 +17,44 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.Constants.SINK_PROPERTIES_FILE;
-import static io.synadia.Utils.loadProperties;
+import static io.synadia.Constants.SINK_CONNECTION_PROPERTIES_FILE;
+import static io.synadia.Utils.loadPropertiesFromFile;
 
+/**
+ * This class is responsible to publish to one or more NATS subjects
+ *
+ * @param <InputT> The type of the input elements.
+ */
 public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private final List<String> subjects;
-    private final Properties sinkProperties;
+    private final Properties properties;
     private final PayloadSerializer<InputT> payloadSerializer;
     private final Sink.InitContext sinkInitContext;
 
     private transient Connection connection;
 
     public NatsWriter(List<String> subjects,
-                      Properties sinkProperties,
+                      Properties properties,
                       PayloadSerializer<InputT> payloadSerializer,
                       Sink.InitContext sinkInitContext)
     {
         this.subjects = subjects;
-        this.sinkProperties = sinkProperties;
+        this.properties = properties;
         this.payloadSerializer = payloadSerializer;
         this.sinkInitContext = sinkInitContext;
-
-        createConnection(sinkProperties);
+        createConnection();
     }
 
-    private void createConnection(Properties sinkProperties) {
+    private void createConnection() {
         try {
-            String spFile = sinkProperties.getProperty(SINK_PROPERTIES_FILE);
+            String path = properties.getProperty(SINK_CONNECTION_PROPERTIES_FILE);
             Options options;
-            if (spFile == null) {
-                options = new Options.Builder().properties(sinkProperties).build();
+            if (path == null) {
+                options = new Options.Builder().properties(properties).build();
             }
             else {
-                options = new Options.Builder().properties(loadProperties(spFile)).build();
+                options = new Options.Builder().properties(loadPropertiesFromFile(path)).build();
             }
             connection = Nats.connect(options);
         }
@@ -79,6 +83,6 @@ public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        createConnection(sinkProperties);
+        createConnection();
     }
 }

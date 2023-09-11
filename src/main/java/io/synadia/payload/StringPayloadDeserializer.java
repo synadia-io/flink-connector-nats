@@ -8,38 +8,55 @@ import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 
+/**
+ * A StringPayloadDeserializer takes a byte array and converts it to a String.
+ */
 public class StringPayloadDeserializer implements PayloadDeserializer<String> {
     private static final long serialVersionUID = 1L;
 
-    private String charsetName;
+    private final String charsetName;
 
     private transient Charset charset;
 
+    /**
+     * Construct a StringPayloadDeserializer for the default character set, UTF-8
+     */
     public StringPayloadDeserializer() {
-        setCharsetName("UTF-8");
+        this("UTF-8");
     }
 
+    /**
+     * Construct a StringPayloadDeserializer for the provided character set.
+     * @param  charsetName
+     *         The name of the requested charset; may be either
+     *         a canonical name or an alias
+     * @throws IllegalCharsetNameException
+     *          If the given charset name is illegal
+     * @throws  IllegalArgumentException
+     *          If the given {@code charsetName} is null
+     * @throws UnsupportedCharsetException
+     *          If no support for the named charset is available
+     *          in this instance of the Java virtual machine
+     */
     public StringPayloadDeserializer(String charsetName) {
-        setCharsetName(charsetName);
+        Charset tempInCaseException = Charset.forName(charsetName);
+        this.charsetName = charsetName;
+        this.charset = tempInCaseException;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getObject(byte[] input, Context context) {
         return new String(input, charset);
     }
 
-    public void setCharsetName(String charsetName) {
-        this.charsetName = charsetName;
-        prepareCharset();
-    }
-
-    private void prepareCharset() {
-        charset = Charset.forName(charsetName);
-    }
-
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        prepareCharset();
+        charset = Charset.forName(charsetName);
     }
 }

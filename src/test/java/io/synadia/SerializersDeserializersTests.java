@@ -24,19 +24,11 @@ public class SerializersDeserializersTests extends TestBase {
 
     @Test
     public void testStringPayload() throws Exception {
-
         // validate works from construction
         StringPayloadDeserializer spdAscii = new StringPayloadDeserializer("ASCII");
         StringPayloadDeserializer spdUtf8 = new StringPayloadDeserializer();
         StringPayloadSerializer spsAscii = new StringPayloadSerializer("ASCII");
         StringPayloadSerializer spsUtf8 = new StringPayloadSerializer();
-        validateStringPayload(spdAscii, spdUtf8, spsAscii, spsUtf8);
-
-        // validate works after setCharsetName called
-        spdAscii.setCharsetName("ASCII");
-        spdUtf8.setCharsetName("UTF-8");
-        spsAscii.setCharsetName("ASCII");
-        spsUtf8.setCharsetName("UTF-8");
         validateStringPayload(spdAscii, spdUtf8, spsAscii, spsUtf8);
 
         // validate works after java serialization round trip

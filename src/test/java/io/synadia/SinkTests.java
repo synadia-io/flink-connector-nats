@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
-import static io.synadia.Constants.SINK_PROPERTIES_FILE;
+import static io.synadia.Constants.SINK_CONNECTION_PROPERTIES_FILE;
 
 public class SinkTests extends TestBase {
 
@@ -34,7 +34,7 @@ public class SinkTests extends TestBase {
 
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         final NatsSink<String> natsSink = new NatsSinkBuilder<String>()
-            .subjects(subject).sinkProperties(props).payloadSerializer(serializer).build();
+            .setSubjects(subject).setProperties(props).payloadSerializer(serializer).build();
 
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> text = getStringDataStream(env);
@@ -68,7 +68,7 @@ public class SinkTests extends TestBase {
             props.put(Options.PROP_URL, url);
             String propertiesFileLocation = createTempPropertiesFile(props);
             Properties sinkProps = new Properties();
-            sinkProps.put(SINK_PROPERTIES_FILE, propertiesFileLocation);
+            sinkProps.put(SINK_CONNECTION_PROPERTIES_FILE, propertiesFileLocation);
 
             Options options = Options.builder().properties(props).build();
             try (Connection nc = Nats.connect(options)) {
