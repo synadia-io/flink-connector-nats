@@ -3,43 +3,57 @@
 
 package io.synadia;
 
+import io.nats.client.NUID;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 
 public abstract class Utils {
 
     /**
      * Create and load a properties object from a file.
-     * @param path a resolvable path from the location the application is running, etiher relative or absolute
+     * @param propertiesFilePath a resolvable path to a file from the location the application is running, either relative or absolute
      * @return the properties object loaded from the file
      */
-    public static Properties loadPropertiesFromFile(String path) {
-        try {
-            Properties properties = new Properties();
-            properties.load(new FileInputStream(path));
-            return properties;
-        }
-        catch (IOException e) {
-            throw new FlinkRuntimeException("Cannot load properties file: ", e);
-        }
+    public static Properties loadPropertiesFromFile(String propertiesFilePath) throws IOException {
+        Properties properties = new Properties();
+        properties.load(Files.newInputStream(Paths.get(propertiesFilePath)));
+        return properties;
     }
 
     /**
-     * Get a list for a key in the properties. Value should be comma delimited, i.e. a,b,c
-     * The method returns {@code null} if the property is not found.
-     * @param key the property key
-     * @return the list represented by the key or null if the key is not found
+     * Function to generate a unique id.
+     * @return an id
      */
-    public static List<String> getPropertyAsList(Properties properties, String key) {
-        String val = properties.getProperty(key);
-        if (val == null) {
-            return null;
+    public static String generateId() {
+        return new NUID().next();
+    }
+
+    /**
+     * Execute a jitter sleep
+     * @param minConnectionJitter the minimum jitter
+     * @param maxConnectionJitter the maximum jitter
+     */
+    public static void jitter(long minConnectionJitter, long maxConnectionJitter) {
+        long sleep;
+        if (maxConnectionJitter <= minConnectionJitter) {
+            if (minConnectionJitter < 1) {
+                return;
+            }
+            sleep = ThreadLocalRandom.current().nextLong(minConnectionJitter);
         }
-        return Arrays.asList(val.split(","));
+        else {
+            sleep = ThreadLocalRandom.current().nextLong(minConnectionJitter, maxConnectionJitter);
+        }
+        try {
+            Thread.sleep(sleep);
+        }
+        catch (InterruptedException e) {
+            throw new FlinkRuntimeException(e);
+        }
     }
 }

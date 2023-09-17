@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia;
+package io.synadia.sink;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -9,7 +9,6 @@ import io.nats.client.Options;
 import io.synadia.payload.PayloadSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -17,50 +16,61 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.Constants.SINK_CONNECTION_PROPERTIES_FILE;
-import static io.synadia.Utils.loadPropertiesFromFile;
+import static io.synadia.Utils.*;
 
 /**
  * This class is responsible to publish to one or more NATS subjects
- *
  * @param <InputT> The type of the input elements.
  */
 public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private final List<String> subjects;
-    private final Properties properties;
+    private final Properties connectionProperties;
+    private final String connectionPropertiesFile;
     private final PayloadSerializer<InputT> payloadSerializer;
+    private final long minConnectionJitter;
+    private final long maxConnectionJitter;
     private final Sink.InitContext sinkInitContext;
 
+    private transient String id;
     private transient Connection connection;
 
     public NatsWriter(List<String> subjects,
-                      Properties properties,
+                      Properties connectionProperties,
+                      String connectionPropertiesFile,
                       PayloadSerializer<InputT> payloadSerializer,
-                      Sink.InitContext sinkInitContext)
-    {
+                      long minConnectionJitter,
+                      long maxConnectionJitter,
+                      Sink.InitContext sinkInitContext) throws IOException {
+        this.id = generateId();
         this.subjects = subjects;
-        this.properties = properties;
+        this.connectionProperties = connectionProperties;
+        this.connectionPropertiesFile = connectionPropertiesFile;
         this.payloadSerializer = payloadSerializer;
+        this.minConnectionJitter = minConnectionJitter;
+        this.maxConnectionJitter = maxConnectionJitter;
         this.sinkInitContext = sinkInitContext;
         createConnection();
     }
 
-    private void createConnection() {
+    private void createConnection() throws IOException {
+        Options.Builder builder = new Options.Builder();
+        if (connectionPropertiesFile == null) {
+            builder = builder.properties(connectionProperties);
+        }
+        else {
+            builder = builder.properties(loadPropertiesFromFile(connectionPropertiesFile));
+        }
+
         try {
-            String path = properties.getProperty(SINK_CONNECTION_PROPERTIES_FILE);
-            Options options;
-            if (path == null) {
-                options = new Options.Builder().properties(properties).build();
-            }
-            else {
-                options = new Options.Builder().properties(loadPropertiesFromFile(path)).build();
-            }
+            Options options = builder.maxReconnects(0).build();
+            jitter(minConnectionJitter, maxConnectionJitter);
             connection = Nats.connect(options);
         }
         catch (Exception e) {
-            throw new FlinkRuntimeException("Cannot connect to NATS server.", e);
+            throw new IOException("Cannot connect to NATS server.", e);
         }
+
     }
 
     @Override
@@ -73,7 +83,9 @@ public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     @Override
     public void flush(boolean endOfInput) throws IOException, InterruptedException {
-        connection.flushBuffer();
+        if (connection.getStatus() == Connection.Status.CONNECTED) {
+            connection.flushBuffer();
+        }
     }
 
     @Override
@@ -83,6 +95,15 @@ public class NatsWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
+        id = generateId();
         createConnection();
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public List<String> getSubjects() {
+        return subjects;
     }
 }
