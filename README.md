@@ -13,38 +13,6 @@ Connect NATS to Flink with Java
 [![Build Main Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml)
 
-# Source
-In order to construct a source, you must use the builder.
-* The NatsSourceBuilder is generic. It's generic type, &lt;OutputT&gt; is the type of object you will provide to a sink that the byte[] payload of a message represents.
-* You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
-  For connection properties see the [NATS - Java Client readme Options section](https://github.com/nats-io/nats.java#options)
-* The builder has these methods:
-    ```
-    subjects(String... subjects)
-    subjects(List<String> subjects)
-    connectionProperties(Properties connectionProperties)
-    connectionPropertiesFile(String connectionPropertiesFile)
-    minConnectionJitter(long minConnectionJitter)
-    maxConnectionJitter(long maxConnectionJitter)
-    payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer)
-    payloadDeserializerClass(String payloadDeserializerClass)
-    ```
-* When using the builder, the last call value is used, they are not additive.
-  * Calling multiple variations or instances of `subjects`
-  * Calling `properties` or `propertiesFile`
-  * Calling `payloadSerializer` or `payloadSerializerClass`
-
-```java
-NatsSource<String> source = NatsSource.<String>builder
-    .subjects("source1", "source2")
-    .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
-    .payloadSerializerClass("com.mycompany.StringPayloadDeserializer")
-    .minConnectionJitter(1000)
-    .maxConnectionJitter(5000)        
-    .build();
-```
-
-
 ## Sink
 In order to construct a sink, you must use the builder. 
 * The NatsSinkBuilder is generic. It's generic type, &lt;InputT&gt; is the type of object you expect from a source that will become the byte[] payload of a message represents.
