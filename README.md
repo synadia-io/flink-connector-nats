@@ -35,8 +35,8 @@ In order to construct a source, you must use the builder.
   * Calling `payloadSerializer` or `payloadSerializerClass`
 
 ```java
-NatsSource<String> sink = NatsSource.<String>builder
-    .subjects("subject1", "subject2")
+NatsSource<String> source = NatsSource.<String>builder
+    .subjects("source1", "source2")
     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
     .payloadSerializerClass("com.mycompany.StringPayloadDeserializer")
     .minConnectionJitter(1000)
@@ -68,7 +68,7 @@ In order to construct a sink, you must use the builder.
 
 ```java
 NatsSink<String> sink = NatsSink.<String>builder
-    .subjects("subject1", "subject2")
+    .subjects("sink1", "sink2")
     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
     .payloadSerializerClass("com.mycompany.StringPayloadSerializer")
     .minConnectionJitter(1000)

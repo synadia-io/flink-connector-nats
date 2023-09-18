@@ -3,7 +3,7 @@
 
 package io.synadia.sink;
 
-import io.synadia.common.NatsSubjectsConnectionBuilder;
+import io.synadia.common.NatsSubjectsAndConnectionBuilder;
 import io.synadia.payload.PayloadSerializer;
 
 /**
@@ -23,7 +23,7 @@ import io.synadia.payload.PayloadSerializer;
  * @see NatsSink
  * @param <InputT> type of the records written to Kafka
  */
-public class NatsSinkBuilder<InputT> extends NatsSubjectsConnectionBuilder<NatsSinkBuilder<InputT>> {
+public class NatsSinkBuilder<InputT> extends NatsSubjectsAndConnectionBuilder<NatsSinkBuilder<InputT>> {
     private PayloadSerializer<InputT> payloadSerializer;
     private String payloadSerializerClass;
 
@@ -76,10 +76,6 @@ public class NatsSinkBuilder<InputT> extends NatsSubjectsConnectionBuilder<NatsS
             }
         }
 
-        return new NatsSink<>(subjects,
-            connectionProperties,
-            connectionPropertiesFile,
-            minConnectionJitter, maxConnectionJitter,
-            payloadSerializer);
+        return new NatsSink<>(subjects, payloadSerializer, createConnectionFactory());
     }
 }

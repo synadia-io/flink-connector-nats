@@ -3,7 +3,7 @@
 
 package io.synadia.source;
 
-import io.synadia.common.NatsSubjectsConnectionBuilder;
+import io.synadia.common.NatsSubjectsAndConnectionBuilder;
 import io.synadia.payload.PayloadDeserializer;
 
 /**
@@ -23,12 +23,12 @@ import io.synadia.payload.PayloadDeserializer;
  * @see NatsSource
  * @param <OutputT> type of the records written to Kafka
  */
-public class NatsSourceBuilder<OutputT> extends NatsSubjectsConnectionBuilder<NatsSourceBuilder<OutputT>> {
+public class NatsPayloadSourceBuilder<OutputT> extends NatsSubjectsAndConnectionBuilder<NatsPayloadSourceBuilder<OutputT>> {
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
 
     @Override
-    protected NatsSourceBuilder<OutputT> getThis() {
+    protected NatsPayloadSourceBuilder<OutputT> getThis() {
         return null;
     }
 
@@ -37,7 +37,7 @@ public class NatsSourceBuilder<OutputT> extends NatsSubjectsConnectionBuilder<Na
      * @param payloadDeserializer the deserializer.
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
+    public NatsPayloadSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
         this.payloadDeserializer = payloadDeserializer;
         this.payloadDeserializerClass = null;
         return this;
@@ -48,7 +48,7 @@ public class NatsSourceBuilder<OutputT> extends NatsSubjectsConnectionBuilder<Na
      * @param payloadDeserializerClass the serializer class name.
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
+    public NatsPayloadSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
         this.payloadDeserializer = null;
         this.payloadDeserializerClass = payloadDeserializerClass;
         return this;
@@ -76,10 +76,6 @@ public class NatsSourceBuilder<OutputT> extends NatsSubjectsConnectionBuilder<Na
             }
         }
 
-        return new NatsSource<>(subjects,
-            connectionProperties,
-            connectionPropertiesFile,
-            minConnectionJitter, maxConnectionJitter,
-            payloadDeserializer);
+        return new NatsSource<>(subjects, payloadDeserializer, createConnectionFactory());
     }
 }

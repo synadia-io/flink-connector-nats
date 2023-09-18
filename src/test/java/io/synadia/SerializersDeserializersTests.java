@@ -8,7 +8,6 @@ import io.synadia.payload.PayloadDeserializer;
 import io.synadia.payload.PayloadSerializer;
 import io.synadia.payload.StringPayloadDeserializer;
 import io.synadia.payload.StringPayloadSerializer;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.Test;
 
@@ -45,25 +44,25 @@ public class SerializersDeserializersTests extends TestBase {
                                               StringPayloadSerializer spsUtf8) {
 
         byte[] bytes = PLAIN_ASCII.getBytes();
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes, null));
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes));
 
-        bytes = spsAscii.getBytes(PLAIN_ASCII, null);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes, null));
+        bytes = spsAscii.getBytes(PLAIN_ASCII);
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes));
 
-        bytes = spsUtf8.getBytes(PLAIN_ASCII, null);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes, null));
+        bytes = spsUtf8.getBytes(PLAIN_ASCII);
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(bytes));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(bytes));
 
         for (String su : UTF8_TEST_STRINGS) {
             bytes = su.getBytes(StandardCharsets.UTF_8);
-            assertNotEquals(su, spdAscii.getObject(bytes, null));
-            assertEquals(su, spdUtf8.getObject(bytes, null));
+            assertNotEquals(su, spdAscii.getObject(bytes));
+            assertEquals(su, spdUtf8.getObject(bytes));
 
-            bytes = spsUtf8.getBytes(su, null);
-            assertNotEquals(su, spdAscii.getObject(bytes, null));
-            assertEquals(su, spdUtf8.getObject(bytes, null));
+            bytes = spsUtf8.getBytes(su);
+            assertNotEquals(su, spdAscii.getObject(bytes));
+            assertEquals(su, spdUtf8.getObject(bytes));
         }
     }
 
@@ -73,10 +72,10 @@ public class SerializersDeserializersTests extends TestBase {
         WordCountDeserializer dser = new WordCountDeserializer();
         for (String json : WORD_COUNT_JSONS) {
             WordCount wc = new WordCount(json);
-            byte[] bytes = ser.getBytes(wc, null);
+            byte[] bytes = ser.getBytes(wc);
             WordCount wc2 = new WordCount(bytes);
             assertEquals(wc, wc2);
-            wc2 = dser.getObject(bytes, null);
+            wc2 = dser.getObject(bytes);
             assertEquals(wc, wc2);
         }
     }
@@ -129,14 +128,14 @@ public class SerializersDeserializersTests extends TestBase {
 
     static class WordCountSerializer implements PayloadSerializer<WordCount> {
         @Override
-        public byte[] getBytes(WordCount input, SinkWriter.Context context) {
+        public byte[] getBytes(WordCount input) {
             return input.serialize();
         }
     }
 
     static class WordCountDeserializer implements PayloadDeserializer<WordCount> {
         @Override
-        public WordCount getObject(byte[] input, SinkWriter.Context context) {
+        public WordCount getObject(byte[] input) {
             return new WordCount(input);
         }
     }

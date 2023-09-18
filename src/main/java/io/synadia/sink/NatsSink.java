@@ -3,6 +3,7 @@
 
 package io.synadia.sink;
 
+import io.synadia.common.ConnectionFactory;
 import io.synadia.common.NatsSubjectsConnection;
 import io.synadia.payload.PayloadSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -10,7 +11,6 @@ import org.apache.flink.api.connector.sink2.SinkWriter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * Flink Sink to publish data to one or more NATS subjects
@@ -20,12 +20,10 @@ public class NatsSink<InputT> extends NatsSubjectsConnection implements Sink<Inp
     private final PayloadSerializer<InputT> payloadSerializer;
 
     NatsSink(List<String> subjects,
-             Properties connectionProperties,
-             String connectionPropertiesFile,
-             long minConnectionJitter, long maxConnectionJitter,
-             PayloadSerializer<InputT> payloadSerializer
-    ) {
-        super(subjects, connectionProperties, connectionPropertiesFile, minConnectionJitter, maxConnectionJitter);
+             PayloadSerializer<InputT> payloadSerializer,
+             ConnectionFactory connectionFactory)
+    {
+        super(subjects, connectionFactory);
         this.payloadSerializer = payloadSerializer;
     }
 
@@ -34,8 +32,7 @@ public class NatsSink<InputT> extends NatsSubjectsConnection implements Sink<Inp
      */
     @Override
     public SinkWriter<InputT> createWriter(InitContext context) throws IOException {
-        return new NatsWriter<>(subjects, connectionProperties, connectionPropertiesFile,
-            payloadSerializer, minConnectionJitter, maxConnectionJitter, context);
+        return new NatsSinkWriter<>(subjects, payloadSerializer, connectionFactory, context);
     }
 
     /**

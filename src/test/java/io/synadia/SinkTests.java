@@ -78,8 +78,8 @@ public class SinkTests extends TestBase {
         }
 
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
-        DataStream<String> text = getStringDataStream(env);
-        text.sinkTo(builder.build());
+        DataStream<String> dataStream = getPayloadDataStream(env);
+        dataStream.sinkTo(builder.build());
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
         env.execute("TestSink");
 

@@ -48,7 +48,7 @@ public class TestBase {
         return env;
     }
 
-    public static DataStream<String> getStringDataStream(StreamExecutionEnvironment env) {
+    public static DataStream<String> getPayloadDataStream(StreamExecutionEnvironment env) {
         FileSource.FileSourceBuilder<String> builder =
             FileSource.forRecordStreamFormat(
                 new TextLineInputFormat(),

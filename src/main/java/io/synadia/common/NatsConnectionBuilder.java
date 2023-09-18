@@ -6,44 +6,15 @@ package io.synadia.common;
 import io.synadia.Utils;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Properties;
 
-public abstract class NatsSubjectsConnectionBuilder<T> {
-    protected List<String> subjects;
+public abstract class NatsConnectionBuilder<BuilderT> {
     protected Properties connectionProperties;
     protected String connectionPropertiesFile;
     protected long minConnectionJitter = 0;
     protected long maxConnectionJitter = 0;
 
-    protected abstract T getThis();
-    
-    /**
-     * Set one or more subjects for the sink. Replaces all subjects previously set in the builder.
-     * @param subjects the subjects
-     * @return the builder
-     */
-    public T subjects(String... subjects) {
-        this.subjects = subjects == null || subjects.length == 0 ? null : Arrays.asList(subjects);
-        return getThis();
-    }
-
-    /**
-     * Set the subjects for the sink. Replaces all subjects previously set in the builder.
-     * @param subjects the list of subjects
-     * @return the builder
-     */
-    public T subjects(List<String> subjects) {
-        if (subjects == null || subjects.isEmpty()) {
-            this.subjects = null;
-        }
-        else {
-            this.subjects = new ArrayList<>(subjects);
-        }
-        return getThis();
-    }
+    protected abstract BuilderT getThis();
 
     /**
      * Set the properties used to instantiate the {@link io.nats.client.Connection Connection}
@@ -52,7 +23,7 @@ public abstract class NatsSubjectsConnectionBuilder<T> {
      * @param connectionProperties the properties
      * @return the builder
      */
-    public T connectionProperties(Properties connectionProperties) {
+    public BuilderT connectionProperties(Properties connectionProperties) {
         this.connectionProperties = connectionProperties;
         this.connectionPropertiesFile = null;
         return getThis();
@@ -63,7 +34,7 @@ public abstract class NatsSubjectsConnectionBuilder<T> {
      * @param connectionPropertiesFile the properties file path that would be available on all servers executing the job.
      * @return the builder
      */
-    public T connectionPropertiesFile(String connectionPropertiesFile) {
+    public BuilderT connectionPropertiesFile(String connectionPropertiesFile) {
         this.connectionProperties = null;
         this.connectionPropertiesFile = connectionPropertiesFile;
         return getThis();
@@ -75,7 +46,7 @@ public abstract class NatsSubjectsConnectionBuilder<T> {
      * @param minConnectionJitter the minimum jitter value
      * @return the builder
      */
-    public T minConnectionJitter(long minConnectionJitter) {
+    public BuilderT minConnectionJitter(long minConnectionJitter) {
         this.minConnectionJitter = minConnectionJitter;
         return getThis();
     }
@@ -86,7 +57,7 @@ public abstract class NatsSubjectsConnectionBuilder<T> {
      * @param maxConnectionJitter the maximum jitter value
      * @return the builder
      */
-    public T maxConnectionJitter(long maxConnectionJitter) {
+    public BuilderT maxConnectionJitter(long maxConnectionJitter) {
         this.maxConnectionJitter = maxConnectionJitter;
         return getThis();
     }
@@ -109,12 +80,16 @@ public abstract class NatsSubjectsConnectionBuilder<T> {
             }
         }
 
-        if (subjects == null || subjects.isEmpty()) {
-            throw new IllegalStateException("One or more subjects must be provided.");
-        }
-
         if (minConnectionJitter > maxConnectionJitter) {
             throw new IllegalStateException("Minimum jitter must be less than or equal to maximum jitter.");
         }
+    }
+
+    protected ConnectionFactory createConnectionFactory() {
+        return new ConnectionFactory(
+            connectionProperties,
+            connectionPropertiesFile,
+            minConnectionJitter,
+            maxConnectionJitter);
     }
 }

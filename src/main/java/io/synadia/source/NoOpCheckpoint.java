@@ -5,5 +5,5 @@ package io.synadia.source;
 
 import java.io.Serializable;
 
-public class NoCheckpoint<SplitT> implements Serializable {
+public class NoOpCheckpoint<SplitT> implements Serializable {
 }
