@@ -48,13 +48,12 @@ public class TestBase {
         return env;
     }
 
-    public static DataStream<String> getStringDataStream(StreamExecutionEnvironment env) {
+    public static DataStream<String> getPayloadDataStream(StreamExecutionEnvironment env) {
         FileSource.FileSourceBuilder<String> builder =
             FileSource.forRecordStreamFormat(
                 new TextLineInputFormat(),
                 new Path("src/test/resources/words.txt")
             );
-
         return env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "file-input");
     }
 
@@ -188,16 +187,17 @@ public class TestBase {
     // misc / macro utils
     // ----------------------------------------------------------------------------------------------------
 
-    public static String createTempPropertiesFile(Properties prop) throws IOException {
+    public static String createTempPropertiesFile(Properties props) throws IOException {
         File f = File.createTempFile("fcn", ".properties");
         BufferedWriter writer = new BufferedWriter(new FileWriter(f));
-        for (String key : prop.stringPropertyNames()) {
-            writer.write(key + "=" + prop.getProperty(key) + System.lineSeparator());
+        for (String key : props.stringPropertyNames()) {
+            writer.write(key + "=" + props.getProperty(key) + System.lineSeparator());
         }
         writer.flush();
         writer.close();
         return f.getAbsolutePath();
     }
+
     public static List<String> resourceAsLines(String fileName) {
         try {
             ClassLoader classLoader = TestBase.class.getClassLoader();

@@ -3,8 +3,6 @@
 
 package io.synadia.payload;
 
-import org.apache.flink.api.connector.sink2.SinkWriter.Context;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
@@ -51,7 +49,7 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public String getObject(byte[] input, Context context) {
+    public String getObject(byte[] input) {
         return new String(input, charset);
     }
 
