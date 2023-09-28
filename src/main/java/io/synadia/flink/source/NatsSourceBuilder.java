@@ -29,7 +29,7 @@ public class NatsSourceBuilder<OutputT> extends NatsSubjectsAndConnectionBuilder
 
     @Override
     protected NatsSourceBuilder<OutputT> getThis() {
-        return null;
+        return this;
     }
 
     /**
