@@ -117,6 +117,7 @@ if (isMerge || isRelease) {
     nexusPublishing {
         repositories {
             sonatype {
+                nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
                 username = System.getenv('OSSRH_USERNAME')
                 password = System.getenv('OSSRH_PASSWORD')
             }
