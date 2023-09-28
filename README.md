@@ -119,3 +119,87 @@ There is nothing significantly different, it is simply a developer's preference.
 * must be of the proper input or output type for the sink or source
 * must `implements Serializable`, which is usually trivial since there is should not be any state.
   If any of these conditions are not met, a terminal exception will be thrown.
+
+## Deployed Library
+
+### Using Gradle
+
+The NATS client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
+
+```groovy
+dependencies {
+    implementation 'io.synadia:jnats:{major.minor.patch}'
+}
+```
+
+If you need the latest and greatest before Maven central updates, you can use:
+
+```groovy
+repositories {
+    mavenCentral()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/releases"
+    }
+}
+```
+
+If you need a snapshot version, you must add the url for the snapshots and change your dependency.
+
+```groovy
+repositories {
+    mavenCentral()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+
+dependencies {
+   implementation 'io.synadia:flink-connector-nats:{major.minor.patch}-SNAPSHOT'
+}
+```
+
+### Using Maven
+
+The NATS client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
+
+```xml
+<dependency>
+    <groupId>io.synadia</groupId>
+    <artifactId>flink-connector-nats</artifactId>
+    <version>{major.minor.patch}</version>
+</dependency>
+```
+
+If you need the absolute latest, before it propagates to maven central, you can use the repository:
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype releases</id>
+        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <releases>
+           <enabled>true</enabled>
+        </releases>
+    </repository>
+</repositories>
+```
+
+If you need a snapshot version, you must enable snapshots and change your dependency.
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype snapshots</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>io.synadia</groupId>
+    <artifactId>flink-connector-nats</artifactId>
+    <version>{major.minor.patch}-SNAPSHOT</version>
+</dependency>
+```
