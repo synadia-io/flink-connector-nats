@@ -41,7 +41,7 @@ In order to construct a sink, you must use the builder.
   * Calling `payloadSerializer` or `payloadSerializerClass`
 
   ```java
-  NatsSink<String> sink = NatsSink.<String>builder
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
       .subjects("sink1", "sink2")
       .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
       .minConnectionJitter(1000)
@@ -61,7 +61,7 @@ this must be an existing path on every instance of Flink in the cluster environm
 otherwise it will not be found and the sink or source won't be able to connect.
 
   ```java
-  NatsSink<String> sink = NatsSink.<String>builder
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
       ...
       .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
       ...        
@@ -78,7 +78,7 @@ necessarily secure.
 
   ```java
   Properties connectionProperties = ...
-  NatsSink<String> sink = NatsSink.<String>builder
+  NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .connectionProperties(connectionProperties)
       ...        
@@ -104,7 +104,7 @@ There are 2 ways to get a serializer into your sink and the parallel for getting
 
 1\. By giving the fully qualified class name.
   ```java
-  NatsSink<String> sink = NatsSink.<String>builder
+  NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .payloadSerializerClass("io.synadia.payload.StringPayloadSerializer")
       ...
@@ -114,7 +114,7 @@ There are 2 ways to get a serializer into your sink and the parallel for getting
 2\. By supplying an instance of the serializer
   ```java
   StringPayloadSerializer serializer = new StringPayloadSerializer();
-  NatsSink<String> sink = NatsSink.<String>builder
+  NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .payloadSerializer(serializer)
       ...
