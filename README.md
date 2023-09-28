@@ -15,6 +15,11 @@ Connect NATS to Flink with Java
 [![Build Main Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml)
 
+## Java Version
+
+The connector requires Java version 11 or later to be compatible with Flink libraries. 
+The JNATS library is built with Java 8 and is compatible being run by a later version of Java.  
+
 ## Sink
 In order to construct a sink, you must use the builder. 
 * The NatsSinkBuilder is generic. It's generic type, &lt;InputT&gt; is the type of object you expect from a source that will become the byte[] payload of a message.
