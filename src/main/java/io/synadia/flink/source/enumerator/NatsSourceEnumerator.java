@@ -3,9 +3,9 @@
 
 package io.synadia.flink.source.enumerator;
 
+import com.esotericsoftware.minlog.Log;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.support.Debug;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -48,7 +48,7 @@ public class NatsSourceEnumerator<SplitT> implements SplitEnumerator<NatsSubject
 
     @Override
     public void start() {
-        Debug.dbg("NatsSourceEnumerator start");
+        Log.debug("NatsSourceEnumerator start");
     }
 
 //    private List<NatsSubjectSplit> periodicallyDiscoverSplits() {
@@ -57,7 +57,7 @@ public class NatsSourceEnumerator<SplitT> implements SplitEnumerator<NatsSubject
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        Debug.dbg("NatsSourceEnumerator.start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
+        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
         NatsSubjectSplit split = null;
         if (split == null) {
             context.signalNoMoreSplits(subtaskId);
@@ -69,7 +69,7 @@ public class NatsSourceEnumerator<SplitT> implements SplitEnumerator<NatsSubject
 
     @Override
     public void addSplitsBack(List<NatsSubjectSplit> splits, int subtaskId) {
-        Debug.dbg("NatsSourceEnumerator.addSplitsBack | splits:" + (splits == null ? -1 : splits.size()) + " | subtaskId:" + subtaskId);
+        Log.debug("NatsSourceEnumerator.addSplitsBack | splits:" + (splits == null ? -1 : splits.size()) + " | subtaskId:" + subtaskId);
         if (!splitAssignment.containsKey(subtaskId)) {
             LOG.warn(
                 "Unable to add splits back for subtask {} since it is not assigned any splits. Splits: {}",
@@ -82,13 +82,13 @@ public class NatsSourceEnumerator<SplitT> implements SplitEnumerator<NatsSubject
 
     @Override
     public void addReader(int subtaskId) {
-        Debug.dbg("NatsSourceEnumerator.start | subtaskId:" + subtaskId);
+        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId);
         splitAssignment.putIfAbsent(subtaskId, new HashSet<>());
     }
 
     @Override
     public NatsSubjectSourceEnumeratorState snapshotState(long checkpointId) throws Exception {
-        Debug.dbg("NatsSourceEnumerator.snapshotState | checkpointId:" + checkpointId);
+        Log.debug("NatsSourceEnumerator.snapshotState | checkpointId:" + checkpointId);
         return new NatsSubjectSourceEnumeratorState(unassignedSplits);
     }
 
