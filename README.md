@@ -6,6 +6,8 @@
 
 Connect NATS to Flink with Java
 
+**Current Release**: N/A &nbsp; **Current Snapshot**: 0.0.1-SNAPSHOT
+
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
 [![javadoc](https://javadoc.io/badge2/io.synadia/flink-connector-nats/javadoc.svg)](https://javadoc.io/doc/io.synadia/flink-connector-nats)
@@ -128,7 +130,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.synadia:jnats:{major.minor.patch}'
+    implementation 'io.synadia:flink-connector-nats:{major.minor.patch}'
 }
 ```
 
@@ -138,7 +140,7 @@ If you need the latest and greatest before Maven central updates, you can use:
 repositories {
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/releases"
+        url "https://s01.oss.sonatype.org/content/repositories/releases"
     }
 }
 ```
@@ -149,7 +151,7 @@ If you need a snapshot version, you must add the url for the snapshots and chang
 repositories {
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots"
+        url "https://s01.oss.sonatype.org/content/repositories/snapshots"
     }
 }
 
@@ -176,7 +178,7 @@ If you need the absolute latest, before it propagates to maven central, you can 
 <repositories>
     <repository>
         <id>sonatype releases</id>
-        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <url>https://s01.oss.sonatype.org/content/repositories/releases</url>
         <releases>
            <enabled>true</enabled>
         </releases>
@@ -190,7 +192,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <repositories>
     <repository>
         <id>sonatype snapshots</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         <snapshots>
             <enabled>true</enabled>
         </snapshots>
