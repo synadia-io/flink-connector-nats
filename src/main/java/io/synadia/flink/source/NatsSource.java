@@ -6,18 +6,20 @@ package io.synadia.flink.source;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.common.NatsSubjectsConnection;
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.source.enumerator.NatsSubjectSourceEnumeratorState;
+import io.synadia.flink.source.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.source.split.NatsSubjectSplit;
+import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
  * Flink Source to consumer data from one or more NATS subjects
  * @param <OutputT> the type of object to convert message payload data to
  */
-public class NatsSource<OutputT> extends NatsSubjectsConnection implements Source<OutputT, NatsSubjectSplit, NatsSubjectSourceEnumeratorState> {
+public class NatsSource<OutputT> extends NatsSubjectsConnection implements Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>> {
     private final PayloadDeserializer<OutputT> payloadDeserializer;
 
     /**
@@ -42,32 +44,27 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements Sourc
     }
 
     @Override
-    public SplitEnumerator<NatsSubjectSplit, NatsSubjectSourceEnumeratorState> createEnumerator(SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception {
+    public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
+        SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception
+    {
         return restoreEnumerator(enumContext, null);
     }
 
     @Override
-    public SplitEnumerator<NatsSubjectSplit, NatsSubjectSourceEnumeratorState>
-    restoreEnumerator(SplitEnumeratorContext<NatsSubjectSplit> enumContext,
-                      NatsSubjectSourceEnumeratorState checkpoint) throws Exception
+    public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> restoreEnumerator(
+        SplitEnumeratorContext<NatsSubjectSplit> enumContext,
+        Collection<NatsSubjectSplit> checkpoint)
     {
-//        return new NatsSourceEnumerator(
-//            enumContext,
-//            streamArn,
-//            sourceConfig,
-//            createKinesisStreamProxy(sourceConfig),
-//            kinesisShardAssigner,
-//            checkpoint);
-        return null;
+        return new NatsSourceEnumerator(enumContext, checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<NatsSubjectSplit> getSplitSerializer() {
-        return null;
+        return new NatsSubjectSplitSerializer();
     }
 
     @Override
-    public SimpleVersionedSerializer<NatsSubjectSourceEnumeratorState> getEnumeratorCheckpointSerializer() {
+    public SimpleVersionedSerializer<Collection<NatsSubjectSplit>> getEnumeratorCheckpointSerializer() {
         return null;
     }
 
