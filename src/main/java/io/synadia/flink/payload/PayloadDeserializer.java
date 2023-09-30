@@ -3,9 +3,11 @@
 
 package io.synadia.flink.payload;
 
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+
 import java.io.Serializable;
 
-public interface PayloadDeserializer<OutputT> extends Serializable {
+public interface PayloadDeserializer<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
 
     /**
      * Get an object from message payload bytes

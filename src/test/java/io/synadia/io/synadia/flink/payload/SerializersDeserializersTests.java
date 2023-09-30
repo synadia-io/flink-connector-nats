@@ -3,20 +3,16 @@
 
 package io.synadia.io.synadia.flink.payload;
 
-import io.nats.client.support.*;
-import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.payload.PayloadSerializer;
 import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.payload.StringPayloadSerializer;
 import io.synadia.io.synadia.flink.TestBase;
-import org.apache.flink.util.FlinkRuntimeException;
+import io.synadia.io.synadia.flink.WordCount;
+import io.synadia.io.synadia.flink.WordCountDeserializer;
+import io.synadia.io.synadia.flink.WordCountSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -81,63 +77,4 @@ public class SerializersDeserializersTests extends TestBase {
         }
     }
 
-    static class WordCount implements JsonSerializable {
-        public String word;
-        public int count;
-
-        public WordCount(byte[] json) {
-            this(new String(json));
-        }
-
-        public WordCount(String json) {
-            try {
-                JsonValue jv = JsonParser.parse(json);
-                word = JsonValueUtils.readString(jv, "word");
-                count = JsonValueUtils.readInteger(jv, "count");
-            }
-            catch (Exception e) {
-                throw new FlinkRuntimeException("Invalid Json: " + e);
-            }
-        }
-
-        @Override
-        public String toJson() {
-            StringBuilder sb = beginJson();
-            JsonUtils.addField(sb, "word", word);
-            JsonUtils.addField(sb, "count", count);
-            return endJson(sb).toString();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            WordCount wordCount = (WordCount) o;
-
-            if (count != wordCount.count) return false;
-            return Objects.equals(word, wordCount.word);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = word != null ? word.hashCode() : 0;
-            result = 31 * result + count;
-            return result;
-        }
-    }
-
-    static class WordCountSerializer implements PayloadSerializer<WordCount> {
-        @Override
-        public byte[] getBytes(WordCount input) {
-            return input.serialize();
-        }
-    }
-
-    static class WordCountDeserializer implements PayloadDeserializer<WordCount> {
-        @Override
-        public WordCount getObject(byte[] input) {
-            return new WordCount(input);
-        }
-    }
 }

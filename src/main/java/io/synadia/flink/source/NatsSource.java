@@ -7,10 +7,15 @@ import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.common.NatsSubjectsConnection;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.enumerator.NatsSourceEnumerator;
+import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
@@ -19,7 +24,12 @@ import java.util.List;
  * Flink Source to consumer data from one or more NATS subjects
  * @param <OutputT> the type of object to convert message payload data to
  */
-public class NatsSource<OutputT> extends NatsSubjectsConnection implements Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>> {
+public class NatsSource<OutputT> extends NatsSubjectsConnection implements
+    Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>>,
+    ResultTypeQueryable<OutputT>
+{
+    private static final Logger LOG = LoggerFactory.getLogger(NatsSource.class);
+
     private final PayloadDeserializer<OutputT> payloadDeserializer;
 
     /**
@@ -40,6 +50,7 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements Sourc
 
     @Override
     public Boundedness getBoundedness() {
+        LOG.debug("Boundedness");
         return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
@@ -47,6 +58,7 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements Sourc
     public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
         SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception
     {
+        LOG.debug("createEnumerator");
         return restoreEnumerator(enumContext, null);
     }
 
@@ -55,22 +67,26 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements Sourc
         SplitEnumeratorContext<NatsSubjectSplit> enumContext,
         Collection<NatsSubjectSplit> checkpoint)
     {
+        LOG.debug("restoreEnumerator");
         return new NatsSourceEnumerator(enumContext, checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<NatsSubjectSplit> getSplitSerializer() {
+        LOG.debug("getSplitSerializer");
         return new NatsSubjectSplitSerializer();
     }
 
     @Override
     public SimpleVersionedSerializer<Collection<NatsSubjectSplit>> getEnumeratorCheckpointSerializer() {
-        return null;
+        LOG.debug("getEnumeratorCheckpointSerializer");
+        return new NatsSubjectCheckpointSerializer();
     }
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return null;
+        LOG.debug("createReader");
+        return new NatsSourceReader<>(connectionFactory, payloadDeserializer, readerContext);
     }
 
     /**
@@ -78,6 +94,12 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements Sourc
      * @return the deserializer
      */
     public PayloadDeserializer<OutputT> getPayloadDeserializer() {
+        LOG.debug("getPayloadDeserializer");
         return payloadDeserializer;
+    }
+
+    @Override
+    public TypeInformation<OutputT> getProducedType() {
+        return payloadDeserializer.getProducedType();
     }
 }

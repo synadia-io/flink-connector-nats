@@ -3,7 +3,6 @@
 
 package io.synadia.flink.source.enumerator;
 
-import com.esotericsoftware.minlog.Log;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -28,22 +27,22 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
                                 Collection<NatsSubjectSplit> splits)
     {
         this.context = checkNotNull(context);
-        this.remainingSplits = new ArrayDeque<>(splits);
+        this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
     }
 
     @Override
     public void start() {
-        Log.debug("NatsSourceEnumerator start");
+        LOG.debug("start");
     }
 
     @Override
     public void close() {
-        Log.debug("NatsSourceEnumerator close");
+        LOG.debug("close");
     }
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
+        LOG.debug("start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
         final NatsSubjectSplit nextSplit = remainingSplits.poll();
         if (nextSplit != null) {
             context.assignSplit(nextSplit, subtaskId);
@@ -54,13 +53,13 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
 
     @Override
     public void addSplitsBack(List<NatsSubjectSplit> splits, int subtaskId) {
-        Log.debug("NatsSourceEnumerator.addSplitsBack | splits:" + (splits == null ? -1 : splits.size()) + " | subtaskId:" + subtaskId);
+        LOG.debug("addSplitsBack | splits:" + (splits == null ? -1 : splits.size()) + " | subtaskId:" + subtaskId);
         remainingSplits.addAll(splits);
     }
 
     @Override
     public void addReader(int subtaskId) {
-        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId);
+        LOG.debug("start | subtaskId:" + subtaskId);
     }
 
     @Override
