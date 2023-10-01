@@ -14,12 +14,4 @@ public class NatsSubjectsConnection implements Serializable {
         this.subjects = subjects;
         this.connectionFactory = connectionFactory;
     }
-
-    /**
-     * Get the subjects registered for this sink.
-     * @return the subjects.
-     */
-    public List<String> getSubjects() {
-        return subjects;
-    }
 }

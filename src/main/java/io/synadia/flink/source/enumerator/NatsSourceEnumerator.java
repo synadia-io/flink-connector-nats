@@ -26,6 +26,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     public NatsSourceEnumerator(SplitEnumeratorContext<NatsSubjectSplit> context,
                                 Collection<NatsSubjectSplit> splits)
     {
+        LOG.debug("construct " + splits);
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
     }
@@ -42,8 +43,8 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        LOG.debug("start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
         final NatsSubjectSplit nextSplit = remainingSplits.poll();
+        LOG.debug("handleSplitRequest | subtaskId:" + subtaskId + " | " + nextSplit);
         if (nextSplit != null) {
             context.assignSplit(nextSplit, subtaskId);
         } else {
@@ -59,11 +60,13 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
 
     @Override
     public void addReader(int subtaskId) {
-        LOG.debug("start | subtaskId:" + subtaskId);
+        LOG.debug("addReader | subtaskId:" + subtaskId);
+        handleSplitRequest(subtaskId, null);
     }
 
     @Override
     public Collection<NatsSubjectSplit> snapshotState(long checkpointId) throws Exception {
+        LOG.debug("snapshotState | checkpointId:" + checkpointId);
         return remainingSplits;
     }
 }

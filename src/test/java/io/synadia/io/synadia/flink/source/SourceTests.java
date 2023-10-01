@@ -27,7 +27,7 @@ public class SourceTests extends TestBase {
         runInServer((nc, url) -> {
             Properties connectionProperties = new Properties() ;
             connectionProperties.put(Options.PROP_URL, url);
-            String subject = random();
+            String subject = "subject-" + random();
             Thread t = new Thread(new Publisher(nc, subject));
             t.start();
             _testSource(subject, connectionProperties, null);

@@ -18,11 +18,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @SuppressWarnings("SameParameterValue")
 public abstract class Debug {
-    private static final Logger LOG = LoggerFactory.getLogger("DBG");
+    public static final Logger LOG = LoggerFactory.getLogger("Debug");
 
     public static boolean DO_NOT_TRUNCATE = true;
 
-    private Debug() {}  /* ensures cannot be constructed */
+    public Debug() {}  /* ensures cannot be constructed */
 
     public static void msg(Message msg) {
         msg(null, msg, null);
@@ -53,13 +53,13 @@ public abstract class Debug {
         }
     }
 
-    private static void _dbg(String label, Message msg, Object extra, boolean forMsg) {
+    public static void _dbg(String label, Message msg, Object extra, boolean forMsg) {
 
         if (label == null || label.isEmpty()) {
-            label = "> ";
+            label = "";
         }
         else {
-            label ="> " + label;
+            label ="" + label;
         }
 
         extra = extra == null ? "" : " | " + extra;
@@ -89,12 +89,12 @@ public abstract class Debug {
         debugHdr(label.length() + 1, msg);
     }
 
-    private static String time() {
+    public static String time() {
         String t = "" + System.currentTimeMillis();
         return t.substring(t.length() - 9);
     }
 
-    private static String dataToString(byte[] data) {
+    public static String dataToString(byte[] data) {
         if (data == null || data.length == 0) {
             return "<no data>";
         }
@@ -111,7 +111,7 @@ public abstract class Debug {
         return s.substring(at, at2);
     }
 
-    private final static String PAD = "                                                            ";
+    public final static String PAD = "                                                            ";
     public static void debugHdr(int indent, Message msg) {
         Headers h = msg.getHeaders();
         if (h != null && !h.isEmpty()) {

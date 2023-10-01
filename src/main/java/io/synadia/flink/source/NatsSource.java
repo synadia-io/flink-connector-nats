@@ -17,6 +17,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -59,7 +60,11 @@ public class NatsSource<OutputT> extends NatsSubjectsConnection implements
         SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception
     {
         LOG.debug("createEnumerator");
-        return restoreEnumerator(enumContext, null);
+        List<NatsSubjectSplit> list = new ArrayList<>();
+        for (String subject : subjects) {
+            list.add(new NatsSubjectSplit(subject));
+        }
+        return restoreEnumerator(enumContext, list);
     }
 
     @Override
