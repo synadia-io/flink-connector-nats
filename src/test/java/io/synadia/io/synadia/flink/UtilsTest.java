@@ -1,7 +1,6 @@
-package io.synadia.io.synadia.flink.source;
+package io.synadia.io.synadia.flink;
 
 import io.synadia.flink.Utils;
-import io.synadia.io.synadia.flink.WordCount;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.junit.jupiter.api.Test;
 

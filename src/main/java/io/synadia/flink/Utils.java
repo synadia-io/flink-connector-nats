@@ -32,12 +32,13 @@ public abstract class Utils {
         return properties;
     }
 
-    /**
-     * Function to generate a unique id.
-     * @return an id
-     */
     public static String generateId() {
-        return new NUID().next();
+        return NUID.nextGlobal().substring(0, 4);
+    }
+
+    public static String generatePrefixedId(String prefix) {
+        String temp = NUID.nextGlobal();
+        return prefix + "-" + temp.substring(temp.length() - 5);
     }
 
     /**

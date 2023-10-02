@@ -6,6 +6,7 @@ package io.synadia.flink.source;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
@@ -24,15 +25,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(NatsSourceReader.class);
-    private static final AtomicInteger ID_MAKER = new AtomicInteger();
 
-    private final int id;
+    private final String id;
     private final ConnectionFactory connectionFactory;
     private final PayloadDeserializer<OutputT> payloadDeserializer;
     private final SourceReaderContext readerContext;
@@ -41,10 +40,11 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private Connection connection;
     private Dispatcher dispatcher;
 
-    public NatsSourceReader(ConnectionFactory connectionFactory,
+    public NatsSourceReader(String sourceId,
+                            ConnectionFactory connectionFactory,
                             PayloadDeserializer<OutputT> payloadDeserializer,
                             SourceReaderContext readerContext) {
-        id = ID_MAKER.incrementAndGet();
+        id = sourceId + "-" + Utils.generatePrefixedId(sourceId);
         this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
         this.readerContext = checkNotNull(readerContext);
@@ -54,11 +54,10 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public void start() {
-        LOG.debug(id + " | start");
+        LOG.debug("{} | start", id);
         try {
             connection = connectionFactory.connect();
             dispatcher = connection.createDispatcher(m -> {
-//                LOG.debug(id + " | Message Received " + m.getSubject() + " | " + Debug.dataToString(m.getData()));
                 messages.put(1, m);
             });
         }
@@ -71,18 +70,18 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
         Message m = messages.poll();
         if (m == null) {
-            LOG.debug(id + " | pollNext no message NOTHING_AVAILABLE");
+            LOG.debug("{} | pollNext no message NOTHING_AVAILABLE", id);
             return InputStatus.NOTHING_AVAILABLE;
         }
-        output.collect(payloadDeserializer.getObject(m.getData()));
+        output.collect(payloadDeserializer.getObject(m.getSubject(), m.getData(), m.getHeaders()));
         InputStatus is = messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
-        LOG.debug(id + " | pollNext had message then " + is);
+        LOG.debug("{} | pollNext had message, then {}", id, is);
         return is;
     }
 
     @Override
     public List<NatsSubjectSplit> snapshotState(long checkpointId) {
-        LOG.debug(id + " | snapshotState");
+        LOG.debug("{} | snapshotState", id);
         return Collections.unmodifiableList(subbedSplits);
     }
 
@@ -94,7 +93,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     @Override
     public void addSplits(List<NatsSubjectSplit> splits) {
         for (NatsSubjectSplit split : splits) {
-            LOG.debug(id + " | addSplits " + split);
+            LOG.debug("{} | addSplits {}", id, split);
             int ix = subbedSplits.indexOf(split);
             if (ix == -1) {
                 dispatcher.subscribe(split.getSubject());
@@ -105,17 +104,25 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public void notifyNoMoreSplits() {
-        LOG.debug(id + " | notifyNoMoreSplits");
+        LOG.debug("{} | notifyNoMoreSplits", id);
     }
 
     @Override
     public void close() throws Exception {
-        LOG.debug(id + " | close");
+        LOG.debug("{} | close", id);
         connection.close();
     }
 
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
-        LOG.debug(id + " | handleSourceEvents " + sourceEvent);
+        LOG.debug("{} | handleSourceEvents {}", id, sourceEvent);
+    }
+
+    @Override
+    public String toString() {
+        return "NatsSourceReader{" +
+            "id='" + id + '\'' +
+            ", subbedSplits=" + subbedSplits +
+            '}';
     }
 }

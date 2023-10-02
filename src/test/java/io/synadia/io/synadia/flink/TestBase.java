@@ -4,6 +4,9 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.sink.NatsSink;
+import io.synadia.flink.sink.NatsSinkBuilder;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.RuntimeExecutionMode;
@@ -174,13 +177,35 @@ public class TestBase {
     public static String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
     public static String PASSWORD = "password";
 
-    public static Properties AddTestSslProperties(Properties props) {
+    public static Properties defaultConnectionProperties(String url) {
+        Properties connectionProperties = new Properties() ;
+        connectionProperties.put(Options.PROP_URL, url);
+        connectionProperties.put(Options.PROP_ERROR_LISTENER, "io.synadia.io.synadia.flink.NoOpErrorListener");
+        return connectionProperties;
+    }
+
+    public static Properties addTestSslProperties(Properties props) {
         props = props == null ? new Properties() : props;
         props.setProperty(Options.PROP_KEYSTORE, KEYSTORE_PATH);
         props.setProperty(Options.PROP_KEYSTORE_PASSWORD, PASSWORD);
         props.setProperty(Options.PROP_TRUSTSTORE, TRUSTSTORE_PATH);
         props.setProperty(Options.PROP_TRUSTSTORE_PASSWORD, PASSWORD);
         return props;
+    }
+
+    public static NatsSink<String> newNatsSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
+            .subjects(subject)
+            .payloadSerializer(serializer);
+
+        if (connectionProperties == null) {
+            builder.connectionPropertiesFile(connectionPropertiesFile);
+        }
+        else {
+            builder.connectionProperties(connectionProperties);
+        }
+        return builder.build();
     }
 
     // ----------------------------------------------------------------------------------------------------

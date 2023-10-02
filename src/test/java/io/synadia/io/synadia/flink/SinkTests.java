@@ -1,15 +1,12 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.io.synadia.flink.sink;
+package io.synadia.io.synadia.flink;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.synadia.flink.payload.StringPayloadSerializer;
-import io.synadia.flink.sink.NatsSinkBuilder;
-import io.synadia.io.synadia.flink.TestBase;
-import io.synadia.io.synadia.flink.WordSubscriber;
+import io.synadia.flink.sink.NatsSink;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
@@ -24,9 +21,7 @@ public class SinkTests extends TestBase {
     @Test
     public void testSink() throws Exception {
         runInServer((nc, url) -> {
-            Properties connectionProperties = new Properties() ;
-            connectionProperties.put(Options.PROP_URL, url);
-            _testSink(nc, random(), connectionProperties, null);
+            _testSink(nc, random(), defaultConnectionProperties(url), null);
         });
     }
 
@@ -35,7 +30,7 @@ public class SinkTests extends TestBase {
         try (NatsServerRunner ts = new NatsServerRunner("src/test/resources/tls.conf", false)) {
             String subject = random();
             String url = ts.getURI();
-            Properties connectionProperties = AddTestSslProperties(null);
+            Properties connectionProperties = addTestSslProperties(defaultConnectionProperties(url));
             connectionProperties.put(Options.PROP_URL, url);
             Options options = Options.builder().properties(connectionProperties).build();
             try (Connection nc = Nats.connect(options)) {
@@ -50,8 +45,7 @@ public class SinkTests extends TestBase {
             String subject = random();
             String url = ts.getURI();
 
-            Properties props = AddTestSslProperties(null);
-            props.put(Options.PROP_URL, url);
+            Properties props = addTestSslProperties(defaultConnectionProperties(url));
             String connectionPropertiesFile = createTempPropertiesFile(props);
 
             Options options = Options.builder().properties(props).build();
@@ -67,21 +61,11 @@ public class SinkTests extends TestBase {
     {
         WordSubscriber sub = new WordSubscriber(nc, subject);
 
-        final StringPayloadSerializer serializer = new StringPayloadSerializer();
-        NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
-            .subjects(subject)
-            .payloadSerializer(serializer);
-
-        if (connectionProperties == null) {
-            builder.connectionPropertiesFile(connectionPropertiesFile);
-        }
-        else {
-            builder.connectionProperties(connectionProperties);
-        }
+        NatsSink<String> sink = newNatsSink(subject, connectionProperties, connectionPropertiesFile);
 
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> dataStream = getPayloadDataStream(env);
-        dataStream.sinkTo(builder.build());
+        dataStream.sinkTo(sink);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
         env.execute("TestSink");
 
