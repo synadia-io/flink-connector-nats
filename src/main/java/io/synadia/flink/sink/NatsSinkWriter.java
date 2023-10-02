@@ -14,7 +14,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
 
-import static io.synadia.flink.Utils.generateId;
+import static io.synadia.flink.Utils.generatePrefixedId;
 
 /**
  * This class is responsible to publish to one or more NATS subjects
@@ -22,6 +22,7 @@ import static io.synadia.flink.Utils.generateId;
  */
 public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
+    private final String sinkId;
     private final List<String> subjects;
     private final ConnectionFactory connectionFactory;
     private final PayloadSerializer<InputT> payloadSerializer;
@@ -30,11 +31,13 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
     private transient String id;
     private transient Connection connection;
 
-    public NatsSinkWriter(List<String> subjects,
+    public NatsSinkWriter(String sinkId,
+                          List<String> subjects,
                           PayloadSerializer<InputT> payloadSerializer,
                           ConnectionFactory connectionFactory,
                           Sink.InitContext sinkInitContext) throws IOException {
-        this.id = generateId();
+        this.sinkId = sinkId;
+        this.id = generatePrefixedId(sinkId);
         this.subjects = subjects;
         this.payloadSerializer = payloadSerializer;
         this.connectionFactory = connectionFactory;
@@ -64,15 +67,15 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        id = generateId();
+        id = generatePrefixedId(sinkId);
         connection = connectionFactory.connect();
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public List<String> getSubjects() {
-        return subjects;
+    @Override
+    public String toString() {
+        return "NatsSinkWriter{" +
+            "id='" + id + '\'' +
+            ", subjects=" + subjects +
+            '}';
     }
 }

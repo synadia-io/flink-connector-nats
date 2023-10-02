@@ -3,6 +3,10 @@
 
 package io.synadia.flink.payload;
 
+import io.nats.client.impl.Headers;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
@@ -49,12 +53,17 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public String getObject(byte[] input) {
+    public String getObject(String subject, byte[] input, Headers headers) {
         return new String(input, charset);
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         charset = Charset.forName(charsetName);
+    }
+
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return BasicTypeInfo.STRING_TYPE_INFO;
     }
 }

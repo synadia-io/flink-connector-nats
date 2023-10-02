@@ -21,18 +21,18 @@ package io.synadia.flink.source.split;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * Serializes and deserializes the {@link NatsSubjectSplit}. This class needs to handle
  * deserializing splits from older versions.
  */
 @Internal
-public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<NatsSubjectSplit> {
+public class NatsSubjectCheckpointSerializer implements SimpleVersionedSerializer<Collection<NatsSubjectSplit>> {
 
     public static final int CURRENT_VERSION = 1;
 
@@ -42,27 +42,30 @@ public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<Nat
     }
 
     @Override
-    public byte[] serialize(NatsSubjectSplit split) throws IOException {
-        final DataOutputSerializer out =
-            new DataOutputSerializer(split.splitId().length());
-        serializeV1(out, split);
+    public byte[] serialize(Collection<NatsSubjectSplit> splits) throws IOException {
+        int startSize = 4; // account for first value number of splits
+        for (NatsSubjectSplit split : splits) {
+            startSize += split.splitId().length();
+        }
+        final DataOutputSerializer out = new DataOutputSerializer(startSize);
+        out.writeInt(splits.size());
+        for (NatsSubjectSplit split : splits) {
+            NatsSubjectSplitSerializer.serializeV1(out, split);
+        }
         return out.getCopyOfBuffer();
     }
 
-    public static void serializeV1(DataOutputView out, NatsSubjectSplit split) throws IOException {
-        out.writeUTF(split.splitId());
-    }
-
     @Override
-    public NatsSubjectSplit deserialize(int version, byte[] serialized) throws IOException {
+    public Collection<NatsSubjectSplit> deserialize(int version, byte[] serialized) throws IOException {
         if (version != CURRENT_VERSION) {
             throw new IOException("Unrecognized version: " + version);
         }
         final DataInputDeserializer in = new DataInputDeserializer(serialized);
-        return deserializeV1(in);
-    }
-
-    static NatsSubjectSplit deserializeV1(DataInputView in) throws IOException {
-        return new NatsSubjectSplit(in.readUTF());
+        final int num = in.readInt();
+        final ArrayList<NatsSubjectSplit> result = new ArrayList<>(num);
+        for (int x = 0; x < num; x++) {
+            result.add(NatsSubjectSplitSerializer.deserializeV1(in));
+        }
+        return result;
     }
 }

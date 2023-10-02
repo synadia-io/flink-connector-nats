@@ -4,11 +4,18 @@
 package io.synadia.flink;
 
 import io.nats.client.NUID;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.PojoField;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -25,12 +32,13 @@ public abstract class Utils {
         return properties;
     }
 
-    /**
-     * Function to generate a unique id.
-     * @return an id
-     */
     public static String generateId() {
-        return new NUID().next();
+        return NUID.nextGlobal().substring(0, 4);
+    }
+
+    public static String generatePrefixedId(String prefix) {
+        String temp = NUID.nextGlobal();
+        return prefix + "-" + temp.substring(temp.length() - 5);
     }
 
     /**
@@ -55,5 +63,14 @@ public abstract class Utils {
         catch (InterruptedException e) {
             throw new FlinkRuntimeException(e);
         }
+    }
+
+    public static <T> TypeInformation<T> getTypeInformation(Class<T> clazz) {
+        Field[] fields = clazz.getDeclaredFields();
+        List<PojoField> pojoFields = new ArrayList<>(fields.length);
+        for (Field field : fields) {
+            pojoFields.add(new PojoField(field, BasicTypeInfo.of(field.getType())));
+        }
+        return new PojoTypeInfo<T>(clazz, pojoFields);
     }
 }

@@ -20,10 +20,41 @@ Connect NATS to Flink with Java
 The connector requires Java version 11 or later to be compatible with Flink libraries. 
 The JNATS library is built with Java 8 and is compatible being run by a later version of Java.  
 
+## Source
+In order to construct a source, you must use the builder.
+* The NatsSourceBuilder is generic. It's generic type, &lt;OutputT&gt; is the type of object that will be created from a 
+  message's subject, headers and payload data byte[]
+* You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
+* The builder has these methods:
+    ```
+    subjects(String... subjects)
+    subjects(List<String> subjects)
+    connectionProperties(Properties connectionProperties)
+    connectionPropertiesFile(String connectionPropertiesFile)
+    minConnectionJitter(long minConnectionJitter)
+    maxConnectionJitter(long maxConnectionJitter)
+    payloadDeserializer(PayloadDeserializer<InputT> payloadDeserializer)
+    payloadDeserializerClass(String payloadDeserializerClass)
+    ```
+* When using the builder, the last call value is used, they are not additive.
+  * Calling multiple variations or instances of `subjects`
+  * Calling `properties` or `propertiesFile`
+  * Calling `payloadSerializer` or `payloadSerializerClass`
+
+  ```java
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
+      .subjects("subject1", "subject1")
+      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .minConnectionJitter(1000)
+      .maxConnectionJitter(5000)
+      .payloadDeserializer("io.synadia.payload.StringPayloadDeserializer")
+      .build();
+  ```
+
 ## Sink
-In order to construct a sink, you must use the builder. 
+In order to construct a sink, you must use the builder.
 * The NatsSinkBuilder is generic. It's generic type, &lt;InputT&gt; is the type of object you expect from a source that will become the byte[] payload of a message.
-* You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security. 
+* You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
 * The builder has these methods:
     ```
     subjects(String... subjects)
@@ -42,7 +73,7 @@ In order to construct a sink, you must use the builder.
 
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>()
-      .subjects("sink1", "sink2")
+      .subjects("subject1", "subject2")
       .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
       .minConnectionJitter(1000)
       .maxConnectionJitter(5000)

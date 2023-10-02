@@ -3,102 +3,64 @@
 
 package io.synadia.flink.source.enumerator;
 
-import com.esotericsoftware.minlog.Log;
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
+import io.synadia.flink.Utils;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.List;
+import java.util.Queue;
 
-public class NatsSourceEnumerator<SplitT> implements SplitEnumerator<NatsSubjectSplit, NatsSubjectSourceEnumeratorState> {
-    private static final Logger LOG = LoggerFactory.getLogger(NatsSourceEnumerator.class);
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> {
+    private final String id;
     private final SplitEnumeratorContext<NatsSubjectSplit> context;
+    private final Queue<NatsSubjectSplit> remainingSplits;
 
-    private final NatsSubjectSourceEnumeratorState state;
-    private final Map<Integer, Set<NatsSubjectSplit>> splitAssignment = new HashMap<>();
-    private final Set<String> assignedSplitIds = new HashSet<>();
-    private final Set<NatsSubjectSplit> unassignedSplits;
-
-    private Connection connection;
-    private Dispatcher dispatcher;
-
-    public NatsSourceEnumerator(SplitEnumeratorContext<NatsSubjectSplit> context,
-                                Set<String> subjects)
+    public NatsSourceEnumerator(String sourceId,
+                                SplitEnumeratorContext<NatsSubjectSplit> context,
+                                Collection<NatsSubjectSplit> splits)
     {
-        this.context = context;
-        this.state = null; // new NatsSubjectSourceEnumeratorState(subjects);
-        unassignedSplits = new HashSet<>();
+        id = Utils.generatePrefixedId(sourceId);
+        this.context = checkNotNull(context);
+        this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
     }
-
-//    public NatsSourceEnumerator(ConnectionFactory connectionFactory,
-//                                SplitEnumeratorContext<NatsSubjectSplit> context,
-//                                NatsSubjectSourceEnumeratorState natsSubjectSourceEnumeratorState)
-//    {
-//        this.connectionFactory = connectionFactory;
-//        this.context = context;
-//        this.state = natsSubjectSourceEnumeratorState;
-//    }
 
     @Override
     public void start() {
-        Log.debug("NatsSourceEnumerator start");
     }
 
-//    private List<NatsSubjectSplit> periodicallyDiscoverSplits() {
-//        return mapToSplits(shards, InitialPosition.TRIM_HORIZON);
-//    }
+    @Override
+    public void close() {
+    }
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId + " | requesterHostname:" + requesterHostname);
-        NatsSubjectSplit split = null;
-        if (split == null) {
-            context.signalNoMoreSplits(subtaskId);
+        final NatsSubjectSplit nextSplit = remainingSplits.poll();
+        if (nextSplit != null) {
+            context.assignSplit(nextSplit, subtaskId);
         }
         else {
-            context.assignSplit(split, subtaskId);
+            context.signalNoMoreSplits(subtaskId);
         }
     }
 
     @Override
     public void addSplitsBack(List<NatsSubjectSplit> splits, int subtaskId) {
-        Log.debug("NatsSourceEnumerator.addSplitsBack | splits:" + (splits == null ? -1 : splits.size()) + " | subtaskId:" + subtaskId);
-        if (!splitAssignment.containsKey(subtaskId)) {
-            LOG.warn(
-                "Unable to add splits back for subtask {} since it is not assigned any splits. Splits: {}",
-                subtaskId,
-                splits);
-            return;
-        }
-//        state.addSplitsBack(splits);
+        remainingSplits.addAll(splits);
     }
 
     @Override
     public void addReader(int subtaskId) {
-        Log.debug("NatsSourceEnumerator.start | subtaskId:" + subtaskId);
-        splitAssignment.putIfAbsent(subtaskId, new HashSet<>());
+        handleSplitRequest(subtaskId, null);
     }
 
     @Override
-    public NatsSubjectSourceEnumeratorState snapshotState(long checkpointId) throws Exception {
-        Log.debug("NatsSourceEnumerator.snapshotState | checkpointId:" + checkpointId);
-        return new NatsSubjectSourceEnumeratorState(unassignedSplits);
-    }
-
-    @Override
-    public void close() throws IOException {
-        try {
-            connection.close();
-        }
-        catch (InterruptedException e) {
-            throw new IOException(e);
-        }
+    public Collection<NatsSubjectSplit> snapshotState(long checkpointId) throws Exception {
+        return remainingSplits;
     }
 }
