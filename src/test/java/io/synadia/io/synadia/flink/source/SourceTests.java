@@ -81,7 +81,7 @@ public class SourceTests extends TestBase {
         NatsSource<String> natsSource = builder.build();
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-input");
-        ds.sinkTo(new PrintSink<String>());
+        ds.sinkTo(new PrintSink<String>("PrintSink"));
 
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
         env.execute("TestSource");

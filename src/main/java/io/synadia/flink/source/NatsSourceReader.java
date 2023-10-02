@@ -13,6 +13,7 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
@@ -23,10 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,9 +37,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private final PayloadDeserializer<OutputT> payloadDeserializer;
     private final SourceReaderContext readerContext;
     private final List<NatsSubjectSplit> subbedSplits;
-    private final LinkedBlockingQueue<Message> messages;
-    private CompletableFuture<Void> availabilityFuture;
-    private AtomicReference<CountDownLatch> availabilityLatch;
+    private final FutureCompletingBlockingQueue<Message> messages;
     private Connection connection;
     private Dispatcher dispatcher;
 
@@ -52,21 +48,18 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
         this.readerContext = checkNotNull(readerContext);
-        this.availabilityLatch = new AtomicReference<>();
         subbedSplits = new ArrayList<>();
-        messages = new LinkedBlockingQueue<>();
+        messages = new FutureCompletingBlockingQueue<>();
     }
 
     @Override
     public void start() {
         LOG.debug(id + " | start");
         try {
-            availabilityLatch.set(new CountDownLatch(1));
             connection = connectionFactory.connect();
             dispatcher = connection.createDispatcher(m -> {
 //                LOG.debug(id + " | Message Received " + m.getSubject() + " | " + Debug.dataToString(m.getData()));
-                messages.add(m);
-                availabilityLatch.get().countDown();
+                messages.put(1, m);
             });
         }
         catch (IOException e) {
@@ -95,21 +88,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public CompletableFuture<Void> isAvailable() {
-        if (availabilityFuture == null || availabilityFuture.isDone()) {
-            LOG.debug(id + " | isAvailable making new");
-            availabilityFuture = CompletableFuture.runAsync(() -> {
-                try {
-                    availabilityLatch.get().await();
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
-        else {
-            LOG.debug(id + " | isAvailable exists");
-        }
-        return availabilityFuture;
+        return messages.getAvailabilityFuture();
     }
 
     @Override
