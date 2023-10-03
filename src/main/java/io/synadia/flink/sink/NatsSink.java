@@ -39,4 +39,14 @@ public class NatsSink<InputT> implements Sink<InputT> {
     public SinkWriter<InputT> createWriter(InitContext context) throws IOException {
         return new NatsSinkWriter<>(id, subjects, payloadSerializer, connectionFactory, context);
     }
+
+    @Override
+    public String toString() {
+        return "NatsSink{" +
+            "id='" + id + '\'' +
+            ", subjects=" + subjects +
+            ", payloadSerializer=" + payloadSerializer.getClass().getCanonicalName() +
+            ", connectionFactory=" + connectionFactory +
+            '}';
+    }
 }

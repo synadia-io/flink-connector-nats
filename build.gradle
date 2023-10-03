@@ -1,3 +1,4 @@
+import aQute.bnd.gradle.Bundle
 import org.gradle.internal.os.OperatingSystem
 
 plugins {
@@ -6,12 +7,13 @@ plugins {
     id 'maven-publish'
     id 'jacoco'
     id 'com.github.kt3k.coveralls' version '2.12.0'
+    id 'biz.aQute.bnd.builder' version '5.1.2'
     id "org.gradle.test-retry" version "1.1.9"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
     id 'signing'
 }
 
-def jarVersion = "0.0.1"
+def jarVersion = "1.0.0-beta1"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
@@ -26,7 +28,6 @@ java {
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
     maven {
         url "https://oss.sonatype.org/content/repositories/releases/"
@@ -40,7 +41,7 @@ dependencies {
     ext.flinkVersion='1.17.1'
 
     implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'io.nats:jnats:2.16.15-SNAPSHOT'
+    implementation 'io.nats:jnats:2.17.0-SNAPSHOT'
 
     implementation "org.apache.flink:flink-core:${flinkVersion}"
     implementation "org.apache.flink:flink-java:${flinkVersion}"
@@ -53,6 +54,35 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java','src/examples/java']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+task bundle(type: Bundle) {
+    from sourceSets.main.output
+    exclude("io/synadia/examples/**")
+}
+
+jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    }
+    bnd (['Implementation-Title': 'Flink Connector Nats',
+          'Implementation-Version': jarVersion,
+          'Implementation-Vendor': 'synadia.io']
+    )
+    exclude("io/synadia/examples/**")
 }
 
 test {
@@ -79,6 +109,18 @@ javadoc {
                 into 'build/docs/javadoc'
             }
         }
+    }
+}
+
+task examplesJar(type: Jar) {
+    archiveClassifier.set('examples')
+    manifest {
+        attributes('Implementation-Title': 'Java Nats Examples',
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'nats.io')
+    }
+    from(sourceSets.main.output) {
+        include "io/synadia/examples/**"
     }
 }
 
@@ -110,7 +152,7 @@ jacocoTestReport {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar
+    archives javadocJar, sourcesJar, examplesJar
 }
 
 if (isMerge || isRelease) {
@@ -131,6 +173,7 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             artifact sourcesJar
+            artifact examplesJar
             artifact javadocJar
             pom {
                 name = rootProject.name
@@ -150,7 +193,7 @@ publishing {
                         id = "synadia"
                         name = "Synadia"
                         email = "info@synadia.com"
-                        url = "https://nats.io"
+                        url = "https://synadia.io"
                     }
                 }
                 scm {

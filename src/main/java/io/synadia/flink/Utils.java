@@ -10,16 +10,43 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
 public abstract class Utils {
+    /**
+     * Current version of the library
+     */
+    public static final String CLIENT_VERSION;
+
+    static {
+        String cv;
+        try { cv = Utils.class.getPackage().getImplementationVersion(); }
+        catch (Exception ignore) { cv = null; }
+        if (cv == null) {
+            try {
+                List<String> lines = Files.readAllLines(new File("build.gradle").toPath());
+                for (String l : lines) {
+                    if (l.startsWith("def jarVersion")) {
+                        int at = l.indexOf('"');
+                        int lat = l.lastIndexOf('"');
+                        cv = l.substring(at + 1, lat) + ".dev";
+                        break;
+                    }
+                }
+            }
+            catch (Exception ignore) {}
+        }
+        CLIENT_VERSION = cv == null ? "development" : cv;
+    }
 
     /**
      * Create and load a properties object from a file.
@@ -31,14 +58,46 @@ public abstract class Utils {
         properties.load(Files.newInputStream(Paths.get(propertiesFilePath)));
         return properties;
     }
-
-    public static String generateId() {
-        return NUID.nextGlobal().substring(0, 4);
+    /**
+     * Get a list for a key in the properties. Value should be comma delimited, i.e. a,b,c
+     * The method returns {@code null} if the property is not found.
+     * @param key the property key
+     * @return the list represented by the key or null if the key is not found
+     */
+    public static List<String> getPropertyAsList(Properties properties, String key) {
+        String val = properties.getProperty(key);
+        if (val == null) {
+            return Collections.emptyList();
+        }
+        String[] split = val.split(",");
+        List<String> list = new ArrayList<>();
+        for (String s : split) {
+            String trim = s.trim();
+            if (!trim.isEmpty()) {
+                list.add(trim);
+            }
+        }
+        return list;
     }
 
-    public static String generatePrefixedId(String prefix) {
-        String temp = NUID.nextGlobal();
-        return prefix + "-" + temp.substring(temp.length() - 5);
+    public static int getIntProperty(Properties properties, String key, int dflt) {
+        try {
+            String temp = properties.getProperty(key, "" + dflt);
+            return Integer.parseInt(temp);
+        }
+        catch (Exception e) {
+            return dflt;
+        }
+    }
+
+    public static long getLongProperty(Properties properties, String key, long dflt) {
+        try {
+            String temp = properties.getProperty(key, "" + dflt);
+            return Long.parseLong(temp);
+        }
+        catch (Exception e) {
+            return dflt;
+        }
     }
 
     /**
@@ -72,5 +131,14 @@ public abstract class Utils {
             pojoFields.add(new PojoField(field, BasicTypeInfo.of(field.getType())));
         }
         return new PojoTypeInfo<T>(clazz, pojoFields);
+    }
+
+    public static String generateId() {
+        return NUID.nextGlobal().substring(0, 4);
+    }
+
+    public static String generatePrefixedId(String prefix) {
+        String temp = NUID.nextGlobal();
+        return prefix + "-" + temp.substring(temp.length() - 5);
     }
 }

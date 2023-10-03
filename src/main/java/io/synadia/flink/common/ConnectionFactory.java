@@ -17,6 +17,22 @@ public class ConnectionFactory implements Serializable {
     private final long minConnectionJitter;
     private final long maxConnectionJitter;
 
+    public ConnectionFactory(Properties connectionProperties) {
+        this(connectionProperties, null, 0, 0);
+    }
+
+    public ConnectionFactory(Properties connectionProperties, long minConnectionJitter, long maxConnectionJitter) {
+        this(connectionProperties, null, minConnectionJitter, maxConnectionJitter);
+    }
+
+    public ConnectionFactory(String connectionPropertiesFile) {
+        this(null, connectionPropertiesFile, 0, 0);
+    }
+
+    public ConnectionFactory(String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
+        this(null, connectionPropertiesFile, minConnectionJitter, maxConnectionJitter);
+    }
+
     public ConnectionFactory(Properties connectionProperties, String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
         this.connectionProperties = connectionProperties;
         this.connectionPropertiesFile = connectionPropertiesFile;
@@ -73,5 +89,15 @@ public class ConnectionFactory implements Serializable {
      */
     public long getMaxConnectionJitter() {
         return maxConnectionJitter;
+    }
+
+    @Override
+    public String toString() {
+        return "ConnectionFactory{" +
+            "connectionProperties=" + connectionProperties +
+            ", connectionPropertiesFile='" + connectionPropertiesFile + '\'' +
+            ", minConnectionJitter=" + minConnectionJitter +
+            ", maxConnectionJitter=" + maxConnectionJitter +
+            '}';
     }
 }

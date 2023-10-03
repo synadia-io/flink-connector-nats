@@ -3,8 +3,14 @@
 
 package io.synadia.flink.source;
 
-import io.synadia.flink.common.NatsSubjectsAndConnectionBuilder;
+import io.synadia.flink.Utils;
+import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import io.synadia.flink.payload.PayloadDeserializer;
+
+import java.util.List;
+import java.util.Properties;
+
+import static io.synadia.flink.Constants.*;
 
 /**
  * Builder to construct {@link NatsSource}.
@@ -23,7 +29,7 @@ import io.synadia.flink.payload.PayloadDeserializer;
  * @see NatsSource
  * @param <OutputT> type of the records written to Kafka
  */
-public class NatsSourceBuilder<OutputT> extends NatsSubjectsAndConnectionBuilder<NatsSourceBuilder<OutputT>> {
+public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSourceBuilder<OutputT>> {
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
 
@@ -40,6 +46,36 @@ public class NatsSourceBuilder<OutputT> extends NatsSubjectsAndConnectionBuilder
     public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
         this.payloadDeserializer = payloadDeserializer;
         this.payloadDeserializerClass = null;
+        return this;
+    }
+
+    /**
+     * Set source properties from a properties object
+     * See the readme and {@link io.synadia.flink.Constants} for property keys
+     * @param properties the properties object
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
+        List<String> subjects = Utils.getPropertyAsList(properties, SOURCE_SUBJECTS);
+        if (!subjects.isEmpty()) {
+            subjects(subjects);
+        }
+
+        String s = properties.getProperty(SOURCE_PAYLOAD_DESERIALIZER);
+        if (s != null) {
+            payloadDeserializerClass(s);
+        }
+
+        long l = Utils.getLongProperty(properties, SOURCE_STARTUP_JITTER_MIN, -1);
+        if (l != -1) {
+            minConnectionJitter(l);
+        }
+
+        l = Utils.getLongProperty(properties, SOURCE_STARTUP_JITTER_MAX, -1);
+        if (l != -1) {
+            maxConnectionJitter(l);
+        }
+
         return this;
     }
 

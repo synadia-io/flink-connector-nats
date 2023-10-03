@@ -95,4 +95,14 @@ public class NatsSource<OutputT> implements
     public TypeInformation<OutputT> getProducedType() {
         return payloadDeserializer.getProducedType();
     }
+
+    @Override
+    public String toString() {
+        return "NatsSource{" +
+            "id='" + id + '\'' +
+            ", subjects=" + subjects +
+            ", payloadDeserializer=" + payloadDeserializer.getClass().getCanonicalName() +
+            ", connectionFactory=" + connectionFactory +
+            '}';
+    }
 }

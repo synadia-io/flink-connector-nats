@@ -3,8 +3,14 @@
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.common.NatsSubjectsAndConnectionBuilder;
+import io.synadia.flink.Utils;
+import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import io.synadia.flink.payload.PayloadSerializer;
+
+import java.util.List;
+import java.util.Properties;
+
+import static io.synadia.flink.Constants.*;
 
 /**
  * Builder to construct {@link NatsSink}.
@@ -23,7 +29,7 @@ import io.synadia.flink.payload.PayloadSerializer;
  * @see NatsSink
  * @param <InputT> type of the records written to Kafka
  */
-public class NatsSinkBuilder<InputT> extends NatsSubjectsAndConnectionBuilder<NatsSinkBuilder<InputT>> {
+public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBuilder<InputT>> {
     private PayloadSerializer<InputT> payloadSerializer;
     private String payloadSerializerClass;
 
@@ -51,6 +57,37 @@ public class NatsSinkBuilder<InputT> extends NatsSubjectsAndConnectionBuilder<Na
     public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
         this.payloadSerializer = null;
         this.payloadSerializerClass = payloadSerializerClass;
+        return this;
+    }
+
+
+    /**
+     * Set sink properties from a properties object
+     * See the readme and {@link io.synadia.flink.Constants} for property keys
+     * @param properties the properties object
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
+        List<String> subjects = Utils.getPropertyAsList(properties, SINK_SUBJECTS);
+        if (!subjects.isEmpty()) {
+            subjects(subjects);
+        }
+
+        String s = properties.getProperty(SINK_PAYLOAD_SERIALIZER);
+        if (s != null) {
+            payloadSerializerClass(s);
+        }
+
+        long l = Utils.getLongProperty(properties, SINK_STARTUP_JITTER_MIN, -1);
+        if (l != -1) {
+            minConnectionJitter(l);
+        }
+
+        l = Utils.getLongProperty(properties, SINK_STARTUP_JITTER_MAX, -1);
+        if (l != -1) {
+            maxConnectionJitter(l);
+        }
+
         return this;
     }
 

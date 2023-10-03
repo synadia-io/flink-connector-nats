@@ -22,7 +22,7 @@ The JNATS library is built with Java 8 and is compatible being run by a later ve
 
 ## Source
 In order to construct a source, you must use the builder.
-* The NatsSourceBuilder is generic. It's generic type, &lt;OutputT&gt; is the type of object that will be created from a 
+* The NatsSourceBuilder is generic. It's generic type, `<OutputT>` is the type of object that will be created from a 
   message's subject, headers and payload data byte[]
 * You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
 * The builder has these methods:
@@ -35,14 +35,17 @@ In order to construct a source, you must use the builder.
     maxConnectionJitter(long maxConnectionJitter)
     payloadDeserializer(PayloadDeserializer<InputT> payloadDeserializer)
     payloadDeserializerClass(String payloadDeserializerClass)
+    sourceProperties(Properties properties)
     ```
 * When using the builder, the last call value is used, they are not additive.
   * Calling multiple variations or instances of `subjects`
-  * Calling `properties` or `propertiesFile`
+  * Calling `connectionProperties` or `connectionPropertiesFile`
   * Calling `payloadSerializer` or `payloadSerializerClass`
+  * Calling `sourceProperties`
 
+* You can supply source settings with code
   ```java
-  NatsSink<String> sink = new NatsSinkBuilder<String>()
+  NatsSource<String> source = new NatsSourceBuilder<String>()
       .subjects("subject1", "subject1")
       .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
       .minConnectionJitter(1000)
@@ -50,10 +53,49 @@ In order to construct a source, you must use the builder.
       .payloadDeserializer("io.synadia.payload.StringPayloadDeserializer")
       .build();
   ```
+  
+* You can also supply source properties from a file.
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/source.properties");
+  NatsSource<String> source = new NatsSourceBuilder<String>()
+      .sourceProperties(props)
+      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .build();
+  ```
+
+* The source supports these property keys
+  ```properties
+  source.subjects
+  source.payload.deserializer
+  source.startup.jitter.min
+  source.startup.jitter.max
+  ```
+
+* It's okay to use the combine the source properties and the connection properties
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sourceAndConnection.properties");
+  NatsSource<String> source = new NatsSourceBuilder<String>()
+      .sourceProperties(props)
+      .connectionProperties(props)
+      .build();
+  ```
+
+  -or-
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sourceAndConnection.properties");
+  NatsSource<String> source = new NatsSourceBuilder<String>()
+      .sourceProperties(props)
+      .connectionPropertiesFile("/path/to/sourceAndConnection.properties")
+      .build();
+  ```
 
 ## Sink
+
 In order to construct a sink, you must use the builder.
-* The NatsSinkBuilder is generic. It's generic type, &lt;InputT&gt; is the type of object you expect from a source that will become the byte[] payload of a message.
+* The NatsSinkBuilder is generic. It's generic type, `<InputT>` is the type of object you expect from a source that will become the byte[] payload of a message.
 * You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
 * The builder has these methods:
     ```
@@ -65,11 +107,16 @@ In order to construct a sink, you must use the builder.
     maxConnectionJitter(long maxConnectionJitter)
     payloadSerializer(PayloadSerializer<InputT> payloadSerializer)
     payloadSerializerClass(String payloadSerializerClass)
+    sinkProperties(Properties properties)
     ```
+  
 * When using the builder, the last call value is used, they are not additive.
   * Calling multiple variations or instances of `subjects`
-  * Calling `properties` or `propertiesFile`
+  * Calling `connectionProperties` or `connectionPropertiesFile`
   * Calling `payloadSerializer` or `payloadSerializerClass`
+  * Calling `sinkProperties`
+
+* You can supply sink settings with code
 
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>()
@@ -81,9 +128,47 @@ In order to construct a sink, you must use the builder.
       .build();
   ```
 
+* You can also supply sink properties from a file.
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sink.properties");
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
+      .sinkProperties(props)
+      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .build();
+  ```
+
+* The sink supports these property keys
+  ```properties
+  sink.subjects
+  sink.payload.serializer
+  sink.startup.jitter.min
+  sink.startup.jitter.max
+  ```
+
+* It's okay to use the combine the sink properties and the connection properties
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sinkAndConnection.properties");
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
+      .sinkProperties(props)
+      .connectionProperties(props)
+      .build();
+  ```
+  -or-
+
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sinkAndConnection.properties");
+  NatsSink<String> sink = new NatsSinkBuilder<String>()
+      .sinkProperties(props)
+      .connectionPropertiesFile("/path/to/sinkAndConnection.properties")
+      .build();
+  ```
+
 ## Connection Properties
 
-There are 2 ways to get the connection properties into the sink or source:
+If it was not clear from the source and sink sections, 
+there are two ways to get the connection properties into the sink or source:
 
 1\. by passing a file location via `.connectionPropertiesFile(String)`
 
@@ -119,7 +204,7 @@ necessarily secure.
 #### Connection Properties Reference
 For full connection properties see the [NATS - Java Client, README Options Properties](https://github.com/nats-io/nats.java#options---properties)
 
-#### Example Properties File
+#### Example Connection Properties File
 
 ```properties
 io.nats.client.keyStorePassword=kspassword
@@ -131,13 +216,21 @@ io.nats.client.url=tls://myhost:4222
 
 ## Serializers / Deserializers
 
-There are 2 ways to get a serializer into your sink and the parallel for getting a desrializer into your source.
+There are 3 ways to get a de/serializer into your source/sink.
 
 1\. By giving the fully qualified class name.
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
-      .payloadSerializerClass("io.synadia.payload.StringPayloadSerializer")
+      .payloadSerializerClass("io.synadia.flink.payload.StringPayloadSerializer")
+      ...
+      .build();
+  ```
+
+  ```java
+  NatsSource<String> source = new NatsSourceBuilder<String>
+      ...
+      .payloadDeserializerClass("io.synadia.flink.payload.StringPayloadDeserializer")
       ...
       .build();
   ```
@@ -148,6 +241,40 @@ There are 2 ways to get a serializer into your sink and the parallel for getting
   NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .payloadSerializer(serializer)
+      ...
+      .build();
+  ```
+
+  ```java
+  StringPayloadDeserializer serializer = new StringPayloadDeserializer();
+  NatsSource<String> source = new NatsSourceBuilder<String>
+      ...
+      .payloadDeserializer(serializer)
+      ...
+      .build();
+  ```
+
+3\. By supplying the fully qualified name as a property 
+  ```properties
+  sink.payload.serializer=com.mycompany.MySerializer
+  ```
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/sink.properties");
+  NatsSink<MySerializerType> sink = new NatsSinkBuilder<MySerializerType>
+      ...
+      .sinkProperties(props)
+      ...
+      .build();
+  ```
+
+  ```properties
+  source.payload.deserializer=com.mycompany.MyDeserializer
+  ```
+  ```java
+  Properties props = Utils.loadPropertiesFromFile("/path/to/source.properties");
+  NatsSource<MyDeserializerType> source = new NatsSourceBuilder<MyDeserializerType>
+      ...
+      .sourceProperties(props)
       ...
       .build();
   ```

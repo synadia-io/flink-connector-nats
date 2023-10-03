@@ -6,9 +6,13 @@ package io.synadia.flink.common;
 import io.synadia.flink.Utils;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
-public abstract class NatsConnectionBuilder<BuilderT> {
+public abstract class NatsSinkOrSourceBuilder<BuilderT> {
+    protected List<String> subjects;
     protected Properties connectionProperties;
     protected String connectionPropertiesFile;
     protected long minConnectionJitter = 0;
@@ -61,16 +65,43 @@ public abstract class NatsConnectionBuilder<BuilderT> {
         this.maxConnectionJitter = maxConnectionJitter;
         return getThis();
     }
-    
+
+    /**
+     * Set one or more subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public BuilderT subjects(String... subjects) {
+        this.subjects = subjects == null || subjects.length == 0 ? null : Arrays.asList(subjects);
+        return getThis();
+    }
+
+    /**
+     * Set the subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public BuilderT subjects(List<String> subjects) {
+        if (subjects == null || subjects.isEmpty()) {
+            this.subjects = null;
+        }
+        else {
+            this.subjects = new ArrayList<>(subjects);
+        }
+        return getThis();
+    }
+
     protected void beforeBuild() {
+        if (subjects == null || subjects.isEmpty()) {
+            throw new IllegalStateException("One or more subjects must be provided.");
+        }
+
         // must have one or the other
         if (connectionProperties == null && connectionPropertiesFile == null) {
             throw new IllegalStateException ("Sink properties or propertiesFile must be provided.");
         }
 
         // if there is a file, we must be able to load it
-        // I considered not loading it and letting it only be necessary when the writer needs it,
-        // but wanted it to fail before execution
         if (connectionPropertiesFile != null) {
             try {
                 Utils.loadPropertiesFromFile(connectionPropertiesFile);

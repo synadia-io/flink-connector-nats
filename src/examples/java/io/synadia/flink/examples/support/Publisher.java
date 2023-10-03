@@ -1,22 +1,24 @@
-package io.synadia.io.synadia.flink;
+package io.synadia.flink.examples.support;
 
 import io.nats.client.Connection;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Publisher implements Runnable {
     final Connection nc;
-    final String[] subjects;
+    final List<String> subjects;
     final AtomicInteger counter;
     final long delay;
     final AtomicBoolean keepGoing;
 
-    public Publisher(Connection nc, String... subjects) {
-        this(nc, 200, subjects);
+    public Publisher(Connection nc, List<String> subjects) throws IOException {
+        this(nc, 500, subjects);
     }
 
-    public Publisher(Connection nc, long delay, String... subjects) {
+    public Publisher(Connection nc, long delay, List<String> subjects) throws IOException {
         this.nc = nc;
         this.delay = delay;
         this.subjects = subjects;
@@ -33,7 +35,9 @@ public class Publisher implements Runnable {
         while (keepGoing.get()) {
             for (String subject : subjects) {
                 int num = counter.incrementAndGet();
-                nc.publish(subject, ("data-" + subject + "-" + num).getBytes());
+                String payload = "data-" + subject + "-" + num;
+                nc.publish(subject, payload.getBytes());
+                System.out.printf("Publishing. Subject: %s Payload: %s\n", subject, payload);
             }
             try {
                 //noinspection BusyWait

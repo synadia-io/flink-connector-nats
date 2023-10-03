@@ -5,9 +5,7 @@ package io.synadia.flink;
 
 public interface Constants {
     String SOURCE_SUBJECTS = "source.subjects";
-    String SOURCE_MAX_MESSAGES_QUEUE = "source.max.messages.queue";
-    String SOURCE_DISCARD_STRATEGY = "source.discard.strategy";
-    String SOURCE_PAYLOAD_SERIALIZER = "source.payload.deserializer";
+    String SOURCE_PAYLOAD_DESERIALIZER = "source.payload.deserializer";
     String SOURCE_STARTUP_JITTER_MIN = "source.startup.jitter.min";
     String SOURCE_STARTUP_JITTER_MAX = "source.startup.jitter.max";
 
