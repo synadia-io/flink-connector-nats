@@ -32,22 +32,19 @@ repositories {
     maven {
         url "https://oss.sonatype.org/content/repositories/releases/"
     }
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
-    }
 }
 
 dependencies {
+    implementation 'io.nats:jnats:2.17.0'
+
     ext.flinkVersion='1.17.1'
-
-    implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'io.nats:jnats:2.17.0-SNAPSHOT'
-
     implementation "org.apache.flink:flink-core:${flinkVersion}"
     implementation "org.apache.flink:flink-java:${flinkVersion}"
     implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
+
+    implementation 'org.slf4j:slf4j-api:2.0.9'
 
     testImplementation 'org.slf4j:slf4j-simple:2.0.9'
     testImplementation 'io.nats:jnats-server-runner:1.2.5'
