@@ -1,11 +1,14 @@
+// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details.
+
 package io.synadia.io.synadia.flink;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.nats.client.api.SequenceInfo;
 import io.nats.client.api.StreamConfiguration;
-import io.synadia.flink.source.NATSConsumerConfig;
-import io.synadia.flink.source.NATSJetstreamSource;
-import io.synadia.flink.source.NATSJetstreamSourceBuilder;
+import io.synadia.flink.source.NatsConsumerConfig;
+import io.synadia.flink.source.NatsJetstreamSource;
+import io.synadia.flink.source.NatsJetstreamSourceBuilder;
 import java.util.Properties;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -16,7 +19,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
-public class NATSJetstreamSourceTest extends TestBase{
+public class NatsJetstreamSourceTest extends TestBase{
 
     @Test
     public void testSource() throws Exception {
@@ -35,15 +38,15 @@ public class NATSJetstreamSourceTest extends TestBase{
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
             DeserializationSchema<String> deserializer = new SimpleStringSchema();
-            NATSConsumerConfig consumerConfig = new NATSConsumerConfig.Builder().withConsumerName(consumerName).
+            NatsConsumerConfig consumerConfig = new NatsConsumerConfig.Builder().withConsumerName(consumerName).
                     withBatchSize(5).build();
-            NATSJetstreamSourceBuilder<String> builder = new NATSJetstreamSourceBuilder<String>()
+            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
                     .subjects(sourceSubject1)
                     .payloadDeserializer(deserializer)
                     .consumerConfig(consumerConfig);
             builder.connectionProperties(connectionProperties);
 
-            NATSJetstreamSource<String> natsSource = builder.build();
+            NatsJetstreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(),"nats-source-input");
             ds.map(String::toUpperCase);//To Avoid Sink Dependency
