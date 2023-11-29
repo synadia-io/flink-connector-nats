@@ -94,7 +94,7 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
             boolean ackMessageFlag = (i == messages.size() - 1);
             processMessage(output, message, ackMessageFlag);
         }
-        InputStatus is = messages.isEmpty() || messages == null ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+        InputStatus is = messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
         LOG.debug("{} | pollNext had message, then {}", id, is);
         return is;
     }
@@ -128,7 +128,6 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
             LOG.debug("{} | addSplits {}", id, split);
             int ix = subbedSplits.indexOf(split);
             if (ix == -1) {
-
                 subbedSplits.add(split);
             }
         }
