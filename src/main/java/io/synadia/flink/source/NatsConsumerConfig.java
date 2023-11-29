@@ -1,12 +1,15 @@
+// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details.
+
 package io.synadia.flink.source;
 import java.io.Serializable;
 
-public class NATSConsumerConfig implements Serializable {
+public class NatsConsumerConfig implements Serializable {
 
     private final String consumerName;
     private final int batchSize;
 
-    private NATSConsumerConfig(Builder builder) {
+    private NatsConsumerConfig(Builder builder) {
         this.consumerName = builder.consumerName;
         this.batchSize = builder.batchSize;
 
@@ -20,9 +23,6 @@ public class NATSConsumerConfig implements Serializable {
         return batchSize;
     }
 
-    public boolean isCumulativeAck() {
-        return true;
-    }
 
     public static class Builder {
         private String consumerName;
@@ -41,8 +41,8 @@ public class NATSConsumerConfig implements Serializable {
             return this;
         }
 
-        public NATSConsumerConfig build() {
-            return new NATSConsumerConfig(this);
+        public NatsConsumerConfig build() {
+            return new NatsConsumerConfig(this);
         }
     }
 }
