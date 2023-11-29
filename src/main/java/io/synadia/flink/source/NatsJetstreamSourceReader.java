@@ -1,3 +1,5 @@
+// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details.
 package io.synadia.flink.source;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -30,25 +32,25 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NatsJetstreamSourceReader<T> implements SourceReader<T, NatsSubjectSplit> {
+public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
 
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetstreamSourceReader.class);
 
     private final String id;
     private final ConnectionFactory connectionFactory;
-    private final DeserializationSchema<T> payloadDeserializer;
+    private final DeserializationSchema<OutputT> payloadDeserializer;
     private final SourceReaderContext readerContext;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> messages;
     private Connection connection;
     private Subscription subscription;
-    private NATSConsumerConfig config;
+    private NatsConsumerConfig config;
     private JetStream js;
     private String subject;
     public NatsJetstreamSourceReader(String sourceId,
                             ConnectionFactory connectionFactory,
-                            NATSConsumerConfig natsConsumerConfig,
-                            DeserializationSchema<T> payloadDeserializer,
+                            NatsConsumerConfig natsConsumerConfig,
+                            DeserializationSchema<OutputT> payloadDeserializer,
                             SourceReaderContext readerContext,
                                      String subject) {
         id = sourceId + "-" + Utils.generatePrefixedId(sourceId);
@@ -83,7 +85,7 @@ public class NatsJetstreamSourceReader<T> implements SourceReader<T, NatsSubject
     }
 
     @Override
-    public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
+    public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
         List<Message> messages =
                 ((JetStreamSubscription) subscription).fetch(config.getBatchSize(), Duration.ofSeconds(5));
         for (int i = 0; i < messages.size(); i++) {
@@ -96,9 +98,9 @@ public class NatsJetstreamSourceReader<T> implements SourceReader<T, NatsSubject
         return is;
     }
 
-    private void processMessage(ReaderOutput<T> readerOutput, Message message, boolean ackMessage) throws IOException {
+    private void processMessage(ReaderOutput<OutputT> readerOutput, Message message, boolean ackMessage) throws IOException {
         try {
-            T data = payloadDeserializer.deserialize(message.getData());
+            OutputT data = payloadDeserializer.deserialize(message.getData());
             readerOutput.collect(data);
             if (ackMessage) {
                 message.ack();
