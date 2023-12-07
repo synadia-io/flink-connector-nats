@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.source;
+package io.synadia.flink.source.js;
 import java.io.Serializable;
 
 public class NatsConsumerConfig implements Serializable {
