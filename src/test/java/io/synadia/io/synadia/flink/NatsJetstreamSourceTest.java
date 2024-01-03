@@ -3,13 +3,10 @@
 
 package io.synadia.io.synadia.flink;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import io.nats.client.api.SequenceInfo;
-import io.nats.client.api.StreamConfiguration;
+import io.nats.client.api.*;
 import io.synadia.flink.source.js.NatsConsumerConfig;
 import io.synadia.flink.source.js.NatsJetstreamSource;
 import io.synadia.flink.source.js.NatsJetstreamSourceBuilder;
-import java.util.Properties;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -18,6 +15,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
+
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NatsJetstreamSourceTest extends TestBase{
 
@@ -32,14 +33,21 @@ public class NatsJetstreamSourceTest extends TestBase{
             // publish to the source's subjects
             StreamConfiguration stream = new StreamConfiguration.Builder().name(streamName).subjects(sourceSubject1).build();
             nc.jetStreamManagement().addStream(stream);
+
+            // Create and configure a consumer
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(consumerName).ackPolicy(AckPolicy.All).filterSubject(sourceSubject1).build();
+            nc.jetStreamManagement().addOrUpdateConsumer(streamName, cc);
+
+            // Publish messages
             nc.jetStream().publish(sourceSubject1, "Hi".getBytes());
             nc.jetStream().publish(sourceSubject1, "Hello".getBytes());
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
             DeserializationSchema<String> deserializer = new SimpleStringSchema();
-            NatsConsumerConfig consumerConfig = new NatsConsumerConfig.Builder().withConsumerName(consumerName).
-                    withBatchSize(5).build();
+            NatsConsumerConfig consumerConfig = new NatsConsumerConfig.Builder().withConsumerName(consumerName)
+                    .withStreamName(streamName)
+                    .withBatchSize(5).build();
             NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
                     .subjects(sourceSubject1)
                     .payloadDeserializer(deserializer)

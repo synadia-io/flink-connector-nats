@@ -3,19 +3,18 @@
 
 package io.synadia.flink.source.js;
 
-import static io.synadia.flink.Constants.SOURCE_STARTUP_JITTER_MAX;
-import static io.synadia.flink.Constants.SOURCE_STARTUP_JITTER_MIN;
-import static io.synadia.flink.Constants.SOURCE_SUBJECTS;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.NatsSinkOrSourceBuilder;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+
 import java.util.List;
 import java.util.Properties;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
+
+import static io.synadia.flink.Constants.*;
 
 public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetstreamSourceBuilder<OutputT>> {
 
     private DeserializationSchema<OutputT> deserializationSchema;
-
     private NatsConsumerConfig natsConsumerConfig;
 
     @Override
