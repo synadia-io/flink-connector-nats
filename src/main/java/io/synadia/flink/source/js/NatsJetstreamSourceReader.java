@@ -3,25 +3,10 @@
 
 package io.synadia.flink.source.js;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import io.nats.client.Connection;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
-import io.nats.client.Subscription;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.*;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import java.io.IOException;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -32,6 +17,15 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
 
@@ -71,10 +65,8 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
         try {
             connection = connectionFactory.connect();
             js = connection.jetStream();
-            ConsumerConfiguration consumerConfiguration = ConsumerConfiguration.builder().name(config.getConsumerName())
-                    .ackPolicy(AckPolicy.All).build();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .configuration(consumerConfiguration).durable(config.getConsumerName())
+                    .stream(config.getStreamName()).bind(true).durable(config.getConsumerName())
                     .build();
             subscription = js.subscribe(subject, pullOptions);
         }

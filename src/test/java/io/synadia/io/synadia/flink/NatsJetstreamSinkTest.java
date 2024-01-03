@@ -5,17 +5,17 @@ package io.synadia.io.synadia.flink;
 
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
-import io.synadia.flink.sink.js.NATSJetstreamSinkBuilder;
-import io.synadia.flink.sink.js.NATSStreamConfig;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+import io.synadia.flink.sink.js.NATSJetstreamSinkBuilder;
+import io.synadia.flink.sink.js.NATSStreamConfig;
 
 import java.util.Collections;
 import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NatsJetstreamSinkTest extends TestBase {
 
@@ -24,7 +24,7 @@ public class NatsJetstreamSinkTest extends TestBase {
         String sinkSubject = "test-sink";
         String streamName = "test-stream";
 
-        runInExternalServer(true, (nc, url) -> {
+        runInServer(true, (nc, url) -> {
 
             Properties connectionProperties = defaultConnectionProperties(url);
             StreamConfiguration stream = new StreamConfiguration.Builder()
