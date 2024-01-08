@@ -29,14 +29,16 @@ public class NatsJetstreamSource<OutputT> implements Source<OutputT, NatsSubject
     private final NatsConsumerConfig config;
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetstreamSource.class);
     private final String id;
+    private final Boundedness mode;
 
     // Package-private constructor to ensure usage of the Builder for object creation
-    NatsJetstreamSource(DeserializationSchema<OutputT> deserializationSchema, ConnectionFactory connectionFactory, String natsSubject, NatsConsumerConfig config) {
+    NatsJetstreamSource(DeserializationSchema<OutputT> deserializationSchema, ConnectionFactory connectionFactory, String natsSubject, NatsConsumerConfig config, Boundedness mode) {
         id = Utils.generateId();
         this.deserializationSchema = deserializationSchema;
         this.connectionFactory = connectionFactory;
         this.natsSubject = natsSubject;
         this.config = config;
+        this.mode = mode;
     }
 
     @Override
@@ -46,7 +48,7 @@ public class NatsJetstreamSource<OutputT> implements Source<OutputT, NatsSubject
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.BOUNDED;
+        return this.mode;
     }
 
     @Override
@@ -81,7 +83,7 @@ public class NatsJetstreamSource<OutputT> implements Source<OutputT, NatsSubject
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
         LOG.debug("{} | createReader", id);
-        return new NatsJetstreamSourceReader<>(id, connectionFactory, config, deserializationSchema, readerContext, natsSubject);
+        return new NatsJetstreamSourceReader<>(id, connectionFactory, config, deserializationSchema, readerContext, natsSubject, mode);
     }
 
     @Override
