@@ -6,6 +6,7 @@ package io.synadia.flink.source.js;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.connector.source.Boundedness;
 
 import java.util.List;
 import java.util.Properties;
@@ -16,6 +17,7 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
 
     private DeserializationSchema<OutputT> deserializationSchema;
     private NatsConsumerConfig natsConsumerConfig;
+    private Boundedness mode = Boundedness.BOUNDED; //default
 
     @Override
     protected NatsJetstreamSourceBuilder<OutputT> getThis() {
@@ -62,6 +64,11 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return this;
     }
 
+    public NatsJetstreamSourceBuilder<OutputT> boundedness(Boundedness mode) {
+        this.mode = mode;
+        return this;
+    }
+
     /**
      * Build a NatsSource. Subject and
      * @return the source
@@ -69,8 +76,8 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
     public NatsJetstreamSource<OutputT> build() {
         beforeBuild();
         if (deserializationSchema == null) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.");
+            throw new IllegalStateException("Valid payload serializer class must be provided.");
         }
-        return new NatsJetstreamSource<>(deserializationSchema, createConnectionFactory(), subjects.get(0), natsConsumerConfig);
+        return new NatsJetstreamSource<>(deserializationSchema, createConnectionFactory(), subjects.get(0), natsConsumerConfig, mode);
     }
 }

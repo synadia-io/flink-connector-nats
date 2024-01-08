@@ -4,14 +4,13 @@
 package io.synadia.flink.source.js;
 
 import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
+import io.nats.client.api.ConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -42,12 +41,14 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
     private NatsConsumerConfig config;
     private JetStream js;
     private String subject;
+    private final Boundedness mode;
     public NatsJetstreamSourceReader(String sourceId,
-                            ConnectionFactory connectionFactory,
-                            NatsConsumerConfig natsConsumerConfig,
-                            DeserializationSchema<OutputT> payloadDeserializer,
-                            SourceReaderContext readerContext,
-                                     String subject) {
+                                     ConnectionFactory connectionFactory,
+                                     NatsConsumerConfig natsConsumerConfig,
+                                     DeserializationSchema<OutputT> payloadDeserializer,
+                                     SourceReaderContext readerContext,
+                                     String subject,
+                                     Boundedness mode) {
         id = sourceId + "-" + Utils.generatePrefixedId(sourceId);
         this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
@@ -56,6 +57,7 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
         messages = new FutureCompletingBlockingQueue<>();
         this.config= natsConsumerConfig;
         this.subject = subject;
+        this.mode = mode;
     }
 
 
@@ -86,7 +88,12 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
             boolean ackMessageFlag = (i == messages.size() - 1);
             processMessage(output, message, ackMessageFlag);
         }
-        InputStatus is = messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+        InputStatus is;
+        if (this.mode == Boundedness.CONTINUOUS_UNBOUNDED) {
+            is = InputStatus.MORE_AVAILABLE;
+        } else {
+            is =  messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+        }
         LOG.debug("{} | pollNext had message, then {}", id, is);
         return is;
     }
