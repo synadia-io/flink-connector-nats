@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.sink.core;
+package io.synadia.flink.sink;
 
 import io.nats.client.Connection;
 import io.synadia.flink.common.ConnectionFactory;

@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.source.js;
+package io.synadia.flink.source;
 
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.NatsSinkOrSourceBuilder;
@@ -13,14 +13,14 @@ import java.util.Properties;
 
 import static io.synadia.flink.Constants.*;
 
-public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetstreamSourceBuilder<OutputT>> {
+public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSourceBuilder<OutputT>> {
 
     private DeserializationSchema<OutputT> deserializationSchema;
-    private NatsConsumerConfig natsConsumerConfig;
+    private NatsConsumeOptions natsConsumeOptions;
     private Boundedness mode = Boundedness.BOUNDED; //default
 
     @Override
-    protected NatsJetstreamSourceBuilder<OutputT> getThis() {
+    protected NatsJetStreamSourceBuilder<OutputT> getThis() {
         return this;
     }
 
@@ -29,7 +29,7 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
      * @param deserializationSchema the deserializer.
      * @return the builder
      */
-    public NatsJetstreamSourceBuilder<OutputT> payloadDeserializer(DeserializationSchema<OutputT> deserializationSchema) {
+    public NatsJetStreamSourceBuilder<OutputT> payloadDeserializer(DeserializationSchema<OutputT> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
         return this;
     }
@@ -40,7 +40,7 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
      * @param properties the properties object
      * @return the builder
      */
-    public NatsJetstreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
+    public NatsJetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
         List<String> subjects = Utils.getPropertyAsList(properties, SOURCE_SUBJECTS);
         if (!subjects.isEmpty()) {
             subjects(subjects);
@@ -59,12 +59,12 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return this;
     }
 
-    public NatsJetstreamSourceBuilder<OutputT> consumerConfig(NatsConsumerConfig config) {
-        this.natsConsumerConfig = config;
+    public NatsJetStreamSourceBuilder<OutputT> consumerConfig(NatsConsumeOptions config) {
+        this.natsConsumeOptions = config;
         return this;
     }
 
-    public NatsJetstreamSourceBuilder<OutputT> boundedness(Boundedness mode) {
+    public NatsJetStreamSourceBuilder<OutputT> boundedness(Boundedness mode) {
         this.mode = mode;
         return this;
     }
@@ -73,11 +73,11 @@ public class NatsJetstreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
      * Build a NatsSource. Subject and
      * @return the source
      */
-    public NatsJetstreamSource<OutputT> build() {
+    public NatsJetStreamSource<OutputT> build() {
         beforeBuild();
         if (deserializationSchema == null) {
             throw new IllegalStateException("Valid payload serializer class must be provided.");
         }
-        return new NatsJetstreamSource<>(deserializationSchema, createConnectionFactory(), subjects.get(0), natsConsumerConfig, mode);
+        return new NatsJetStreamSource<>(deserializationSchema, createConnectionFactory(), subjects.get(0), natsConsumeOptions, mode);
     }
 }

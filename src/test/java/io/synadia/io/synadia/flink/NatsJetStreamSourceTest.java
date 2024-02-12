@@ -6,9 +6,9 @@ package io.synadia.io.synadia.flink;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.api.*;
-import io.synadia.flink.source.js.NatsConsumerConfig;
-import io.synadia.flink.source.js.NatsJetstreamSource;
-import io.synadia.flink.source.js.NatsJetstreamSourceBuilder;
+import io.synadia.flink.source.NatsConsumeOptions;
+import io.synadia.flink.source.NatsJetStreamSource;
+import io.synadia.flink.source.NatsJetStreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -24,7 +24,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class NatsJetstreamSourceTest extends TestBase{
+public class NatsJetStreamSourceTest extends TestBase{
 
     @Test
     public void testSourceBounded() throws Exception {
@@ -49,17 +49,17 @@ public class NatsJetstreamSourceTest extends TestBase{
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
             DeserializationSchema<String> deserializer = new SimpleStringSchema();
-            NatsConsumerConfig consumerConfig = new NatsConsumerConfig.Builder().withConsumerName(consumerName)
-                    .withStreamName(streamName)
-                    .withBatchSize(5).build();
-            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
+            NatsConsumeOptions consumerConfig = new NatsConsumeOptions.Builder().consumer(consumerName)
+                    .stream(streamName)
+                    .batchSize(5).build();
+            NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                     .subjects(sourceSubject1)
                     .payloadDeserializer(deserializer)
                     .boundedness(Boundedness.BOUNDED)
                     .consumerConfig(consumerConfig);
             builder.connectionProperties(connectionProperties);
 
-            NatsJetstreamSource<String> natsSource = builder.build();
+            NatsJetStreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(),"nats-flink-bounded");
             ds.map(String::toUpperCase);//To Avoid Sink Dependency
@@ -92,9 +92,9 @@ public class NatsJetstreamSourceTest extends TestBase{
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             DeserializationSchema<String> deserializer = new SimpleStringSchema();
             Properties connectionProperties = defaultConnectionProperties(url);
-            NatsConsumerConfig consumerConfig = new NatsConsumerConfig.Builder()
-                    .withConsumerName(consumerName).withStreamName(streamName).withBatchSize(5).build();
-            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
+            NatsConsumeOptions consumerConfig = new NatsConsumeOptions.Builder()
+                    .consumer(consumerName).stream(streamName).batchSize(5).build();
+            NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                     .subjects(sourceSubject).payloadDeserializer(deserializer)
                     .boundedness(Boundedness.CONTINUOUS_UNBOUNDED).consumerConfig(consumerConfig);
             builder.connectionProperties(connectionProperties);
