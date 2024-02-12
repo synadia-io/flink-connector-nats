@@ -6,7 +6,7 @@ package io.synadia.io.synadia.flink;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.synadia.flink.sink.core.NatsSink;
+import io.synadia.flink.sink.NatsSink;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;

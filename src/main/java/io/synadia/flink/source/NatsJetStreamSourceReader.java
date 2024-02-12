@@ -1,11 +1,9 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.source.js;
+package io.synadia.flink.source;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.split.NatsSubjectSplit;
@@ -26,9 +24,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
+public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NatsJetstreamSourceReader.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
 
     private final String id;
     private final ConnectionFactory connectionFactory;
@@ -38,13 +36,13 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
     private final FutureCompletingBlockingQueue<Message> messages;
     private Connection connection;
     private Subscription subscription;
-    private NatsConsumerConfig config;
+    private NatsConsumeOptions config;
     private JetStream js;
     private String subject;
     private final Boundedness mode;
-    public NatsJetstreamSourceReader(String sourceId,
+    public NatsJetStreamSourceReader(String sourceId,
                                      ConnectionFactory connectionFactory,
-                                     NatsConsumerConfig natsConsumerConfig,
+                                     NatsConsumeOptions natsConsumeOptions,
                                      DeserializationSchema<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext,
                                      String subject,
@@ -55,7 +53,7 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
         this.readerContext = checkNotNull(readerContext);
         subbedSplits = new ArrayList<>();
         messages = new FutureCompletingBlockingQueue<>();
-        this.config= natsConsumerConfig;
+        this.config= natsConsumeOptions;
         this.subject = subject;
         this.mode = mode;
     }
@@ -151,7 +149,7 @@ public class NatsJetstreamSourceReader<OutputT> implements SourceReader<OutputT,
 
     @Override
     public String toString() {
-        return "NatsJetstreamSourceReader{" +
+        return "NatsJetStreamSourceReader{" +
                 "id='" + id + '\'' +
                 ", subbedSplits=" + subbedSplits +
                 '}';
