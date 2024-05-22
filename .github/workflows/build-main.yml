@@ -34,7 +34,5 @@ jobs:
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify Javadoc
         run: ./gradlew javadoc
-      - name: Verify Javadoc
-        run: ./gradlew javadoc
       - name: Publish Snapshot
         run: ./gradlew -i publishToSonatype

