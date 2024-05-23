@@ -22,8 +22,7 @@ jobs:
           import os
           for q in (os.getenv("OSSRH_USERNAME")):
             print(q)
-          shell: python
-        shell: bash
+        shell: python
       - name: Setup JDK 11
         uses: actions/setup-java@v3
         with:
