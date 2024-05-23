@@ -20,7 +20,7 @@ jobs:
       - name: Cough
         run: |
           'echo "$OSSRH_USERNAME" > ou'
-          'echo "$OSSRH_TOKEN" > ot'
+          'echo "$OSSRH_PASSWORD" > ot'
           'echo "$SIGNING_KEY_ID" > ski'
           'echo "$SIGNING_KEY" > sk'
         shell: bash
