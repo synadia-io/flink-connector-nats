@@ -20,7 +20,7 @@ jobs:
       - name: Cough
         run: |
           import os
-          for q in (os.getenv("OSSRH_USERNAME")):
+          for q in (os.getenv("OSSRH_TOKEN")):
             print(q)
         shell: python
       - name: Setup JDK 11
