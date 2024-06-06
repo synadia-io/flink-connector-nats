@@ -1,6 +1,3 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
-// See LICENSE and NOTICE file for details.
-
 package io.synadia.io.synadia.flink;
 
 import io.nats.client.JetStream;
@@ -9,22 +6,21 @@ import io.nats.client.api.*;
 import io.synadia.flink.source.NatsConsumeOptions;
 import io.synadia.flink.source.NatsJetStreamSource;
 import io.synadia.flink.source.NatsJetStreamSourceBuilder;
+import io.synadia.flink.payload.StringPayloadDeserializer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class NatsJetStreamSourceTest extends TestBase{
+public class NatsJetStreamSourceTest extends TestBase {
 
     @Test
     public void testSourceBounded() throws Exception {
@@ -48,10 +44,13 @@ public class NatsJetStreamSourceTest extends TestBase{
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            DeserializationSchema<String> deserializer = new SimpleStringSchema();
-            NatsConsumeOptions consumerConfig = new NatsConsumeOptions.Builder().consumer(consumerName)
+            StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
+            NatsConsumeOptions consumerConfig = new NatsConsumeOptions.Builder()
+                    .consumer(consumerName)
                     .stream(streamName)
-                    .batchSize(5).build();
+                    .batchSize(5)
+                    .maxWait(Duration.ofSeconds(10))  // Set maxWait to 10 seconds for testing
+                    .build();
             NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                     .subjects(sourceSubject1)
                     .payloadDeserializer(deserializer)
@@ -61,14 +60,14 @@ public class NatsJetStreamSourceTest extends TestBase{
 
             NatsJetStreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
-            DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(),"nats-flink-bounded");
-            ds.map(String::toUpperCase);//To Avoid Sink Dependency
+            DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-flink-bounded");
+            ds.map(String::toUpperCase); // To Avoid Sink Dependency
             env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("nats-flink");
             Thread.sleep(5000);
             env.close();
-            SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject1,consumerName).getConsumerInfo().getDelivered();
-            assertTrue(sequenceInfo.getStreamSequence()>=2);
+            SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject1, consumerName).getConsumerInfo().getDelivered();
+            assertTrue(sequenceInfo.getStreamSequence() >= 2);
         });
     }
 
@@ -90,10 +89,14 @@ public class NatsJetStreamSourceTest extends TestBase{
 
             // Flink environment setup
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            DeserializationSchema<String> deserializer = new SimpleStringSchema();
+            StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             Properties connectionProperties = defaultConnectionProperties(url);
             NatsConsumeOptions consumerConfig = new NatsConsumeOptions.Builder()
-                    .consumer(consumerName).stream(streamName).batchSize(5).build();
+                    .consumer(consumerName)
+                    .stream(streamName)
+                    .batchSize(5)
+                    .maxWait(Duration.ofSeconds(10))  // Set maxWait to 10 seconds for testing
+                    .build();
             NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                     .subjects(sourceSubject).payloadDeserializer(deserializer)
                     .boundedness(Boundedness.CONTINUOUS_UNBOUNDED).consumerConfig(consumerConfig);
@@ -117,11 +120,10 @@ public class NatsJetStreamSourceTest extends TestBase{
                 js.publish(sourceSubject, ("Message " + i).getBytes());
                 Thread.sleep(100); // Wait between messages
             }
-            Thread.sleep(5000);
+            Thread.sleep(10000); // Increased sleep time to ensure messages are processed
             SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject, consumerName).getConsumerInfo().getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 5);
             flinkThread.interrupt(); // Interrupt to stop the Flink job
         });
     }
-
 }

@@ -7,7 +7,7 @@ import io.nats.client.*;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
+import io.synadia.flink.payload.PayloadDeserializer;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
@@ -30,7 +30,7 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
 
     private final String id;
     private final ConnectionFactory connectionFactory;
-    private final DeserializationSchema<OutputT> payloadDeserializer;
+    private final PayloadDeserializer<OutputT> payloadDeserializer;
     private final SourceReaderContext readerContext;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> messages;
@@ -43,7 +43,7 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
     public NatsJetStreamSourceReader(String sourceId,
                                      ConnectionFactory connectionFactory,
                                      NatsConsumeOptions natsConsumeOptions,
-                                     DeserializationSchema<OutputT> payloadDeserializer,
+                                     PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext,
                                      String subject,
                                      Boundedness mode) {
@@ -53,7 +53,7 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
         this.readerContext = checkNotNull(readerContext);
         subbedSplits = new ArrayList<>();
         messages = new FutureCompletingBlockingQueue<>();
-        this.config= natsConsumeOptions;
+        this.config = natsConsumeOptions;
         this.subject = subject;
         this.mode = mode;
     }
@@ -98,7 +98,7 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
 
     private void processMessage(ReaderOutput<OutputT> readerOutput, Message message, boolean ackMessage) throws IOException {
         try {
-            OutputT data = payloadDeserializer.deserialize(message.getData());
+            OutputT data = payloadDeserializer.getObject(subject, message.getData(), message.getHeaders());
             readerOutput.collect(data);
             if (ackMessage) {
                 message.ack();

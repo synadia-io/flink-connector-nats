@@ -1,6 +1,3 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
-// See LICENSE and NOTICE file for details.
-
 package io.synadia.flink.source;
 
 import io.synadia.flink.Utils;
@@ -9,7 +6,7 @@ import io.synadia.flink.source.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
+import io.synadia.flink.payload.PayloadDeserializer;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -25,16 +22,16 @@ public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubject
 
     private final ConnectionFactory connectionFactory;
     private final String natsSubject;
-    private final DeserializationSchema<OutputT> deserializationSchema;
+    private final PayloadDeserializer<OutputT> payloadDeserializer;
     private final NatsConsumeOptions config;
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSource.class);
     private final String id;
     private final Boundedness mode;
 
     // Package-private constructor to ensure usage of the Builder for object creation
-    NatsJetStreamSource(DeserializationSchema<OutputT> deserializationSchema, ConnectionFactory connectionFactory, String natsSubject, NatsConsumeOptions config, Boundedness mode) {
+    NatsJetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer, ConnectionFactory connectionFactory, String natsSubject, NatsConsumeOptions config, Boundedness mode) {
         id = Utils.generateId();
-        this.deserializationSchema = deserializationSchema;
+        this.payloadDeserializer = payloadDeserializer;
         this.connectionFactory = connectionFactory;
         this.natsSubject = natsSubject;
         this.config = config;
@@ -43,7 +40,7 @@ public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubject
 
     @Override
     public TypeInformation<OutputT> getProducedType() {
-        return this.deserializationSchema.getProducedType();
+        return payloadDeserializer.getProducedType();
     }
 
     @Override
@@ -83,15 +80,15 @@ public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubject
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
         LOG.debug("{} | createReader", id);
-        return new NatsJetStreamSourceReader<>(id, connectionFactory, config, deserializationSchema, readerContext, natsSubject, mode);
+        return new NatsJetStreamSourceReader<>(id, connectionFactory, config, payloadDeserializer, readerContext, natsSubject, mode);
     }
 
     @Override
     public String toString() {
-        return "NatsSource{" +
+        return "NatsJetStreamSource{" +
                 "id='" + id + '\'' +
                 ", subjects=" + natsSubject +
-                ", payloadDeserializer=" + deserializationSchema.getClass().getCanonicalName() +
+                ", payloadDeserializer=" + payloadDeserializer.getClass().getCanonicalName() +
                 ", connectionFactory=" + connectionFactory +
                 '}';
     }
