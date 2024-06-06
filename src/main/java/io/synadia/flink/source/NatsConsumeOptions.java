@@ -3,18 +3,20 @@
 
 package io.synadia.flink.source;
 import java.io.Serializable;
+import java.time.Duration;
 
 public class NatsConsumeOptions implements Serializable {
 
     private final String consumerName;
-    private final int batchSize;
     private final String streamName;
-
+    private final int batchSize;
+    private final Duration maxWait;
 
     private NatsConsumeOptions(Builder builder) {
         this.consumerName = builder.consumerName;
-        this.batchSize = builder.batchSize;
         this.streamName = builder.streamName;
+        this.batchSize = builder.batchSize;
+        this.maxWait = builder.maxWait;
     }
 
     public String getConsumerName() {
@@ -25,18 +27,19 @@ public class NatsConsumeOptions implements Serializable {
         return streamName;
     }
 
-
     public int getBatchSize() {
         return batchSize;
     }
 
+    public Duration getMaxWait() {
+        return maxWait;
+    }
+
     public static class Builder {
         private String consumerName;
-        private int batchSize;
         private String streamName;
-
-        public Builder() {
-        }
+        private int batchSize;
+        private Duration maxWait;
 
         public Builder consumer(String consumerName) {
             this.consumerName = consumerName;
@@ -53,7 +56,10 @@ public class NatsConsumeOptions implements Serializable {
             return this;
         }
 
-
+        public Builder maxWait(Duration maxWait) {
+            this.maxWait = maxWait;
+            return this;
+        }
 
         public NatsConsumeOptions build() {
             return new NatsConsumeOptions(this);

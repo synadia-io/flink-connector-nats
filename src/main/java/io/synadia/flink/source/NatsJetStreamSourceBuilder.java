@@ -5,17 +5,17 @@ package io.synadia.flink.source;
 
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.NatsSinkOrSourceBuilder;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.connector.source.Boundedness;
-
+import io.synadia.flink.payload.PayloadDeserializer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
+import org.apache.flink.api.connector.source.Boundedness;
 
 import static io.synadia.flink.Constants.*;
 
 public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSourceBuilder<OutputT>> {
 
-    private DeserializationSchema<OutputT> deserializationSchema;
+    private PayloadDeserializer<OutputT> payloadDeserializer;
     private NatsConsumeOptions natsConsumeOptions;
     private Boundedness mode = Boundedness.BOUNDED; //default
 
@@ -26,11 +26,11 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
 
     /**
      * Set the deserializer for the source.
-     * @param deserializationSchema the deserializer.
+     * @param payloadDeserializer the deserializer.
      * @return the builder
      */
-    public NatsJetStreamSourceBuilder<OutputT> payloadDeserializer(DeserializationSchema<OutputT> deserializationSchema) {
-        this.deserializationSchema = deserializationSchema;
+    public NatsJetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
+        this.payloadDeserializer = payloadDeserializer;
         return this;
     }
 
@@ -70,14 +70,14 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
     }
 
     /**
-     * Build a NatsSource. Subject and
+     * Build a NatsSource.
      * @return the source
      */
     public NatsJetStreamSource<OutputT> build() {
         beforeBuild();
-        if (deserializationSchema == null) {
+        if (payloadDeserializer == null) {
             throw new IllegalStateException("Valid payload serializer class must be provided.");
         }
-        return new NatsJetStreamSource<>(deserializationSchema, createConnectionFactory(), subjects.get(0), natsConsumeOptions, mode);
+        return new NatsJetStreamSource<>(payloadDeserializer, createConnectionFactory(), subjects.get(0), natsConsumeOptions, mode);
     }
 }
