@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.SerializableConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.enumerator.NatsSourceEnumerator;
@@ -26,13 +27,13 @@ public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubject
     private final ConnectionFactory connectionFactory;
     private final String natsSubject;
     private final PayloadDeserializer<OutputT> payloadDeserializer;
-    private final NatsConsumeOptions config;
+    private final SerializableConsumerConfiguration config;
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSource.class);
     private final String id;
     private final Boundedness mode;
 
     // Package-private constructor to ensure usage of the Builder for object creation
-    NatsJetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer, ConnectionFactory connectionFactory, String natsSubject, NatsConsumeOptions config, Boundedness mode) {
+    NatsJetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer, ConnectionFactory connectionFactory, String natsSubject, SerializableConsumerConfiguration config, Boundedness mode) {
         id = Utils.generateId();
         this.payloadDeserializer = payloadDeserializer;
         this.connectionFactory = connectionFactory;

@@ -5,7 +5,7 @@ import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
 public class ExampleErrorListener implements ErrorListener {
-    private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
+    public String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label);
         if (conn != null) {
             ServerInfo si = conn.getServerInfo();

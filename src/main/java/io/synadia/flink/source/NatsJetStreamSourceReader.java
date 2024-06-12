@@ -4,6 +4,7 @@
 package io.synadia.flink.source;
 
 import io.nats.client.*;
+import io.nats.client.support.SerializableConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.source.split.NatsSubjectSplit;
@@ -36,13 +37,13 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
     private final FutureCompletingBlockingQueue<Message> messages;
     private Connection connection;
     private Subscription subscription;
-    private NatsConsumeOptions config;
+    private SerializableConsumerConfiguration config;
     private JetStream js;
     private String subject;
     private final Boundedness mode;
     public NatsJetStreamSourceReader(String sourceId,
                                      ConnectionFactory connectionFactory,
-                                     NatsConsumeOptions natsConsumeOptions,
+                                     SerializableConsumerConfiguration natsConsumeOptions,
                                      PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext,
                                      String subject,
@@ -66,7 +67,7 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
             connection = connectionFactory.connect();
             js = connection.jetStream();
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .stream(config.getStreamName()).bind(true).durable(config.getConsumerName())
+                    .durable(config.getConsumerConfiguration().getDurable())
                     .build();
             subscription = js.subscribe(subject, pullOptions);
         }
@@ -80,7 +81,8 @@ public class NatsJetStreamSourceReader<OutputT> implements SourceReader<OutputT,
     @Override
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
         List<Message> messages =
-                ((JetStreamSubscription) subscription).fetch(config.getBatchSize(), Duration.ofSeconds(5));
+                ((JetStreamSubscription) subscription)
+                        .fetch((int) config.getConsumerConfiguration().getMaxBatch(), Duration.ofSeconds(5));
         for (int i = 0; i < messages.size(); i++) {
             Message message = messages.get(i);
             boolean ackMessageFlag = (i == messages.size() - 1);
