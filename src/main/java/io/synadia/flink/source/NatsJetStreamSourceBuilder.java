@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.SerializableConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import io.synadia.flink.payload.PayloadDeserializer;
@@ -16,7 +17,7 @@ import static io.synadia.flink.Constants.*;
 public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSourceBuilder<OutputT>> {
 
     private PayloadDeserializer<OutputT> payloadDeserializer;
-    private NatsConsumeOptions natsConsumeOptions;
+    private SerializableConsumerConfiguration natsConsumeOptions;
     private Boundedness mode = Boundedness.BOUNDED; //default
 
     @Override
@@ -59,7 +60,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return this;
     }
 
-    public NatsJetStreamSourceBuilder<OutputT> consumerConfig(NatsConsumeOptions config) {
+    public NatsJetStreamSourceBuilder<OutputT> consumerConfig(SerializableConsumerConfiguration config) {
         this.natsConsumeOptions = config;
         return this;
     }
