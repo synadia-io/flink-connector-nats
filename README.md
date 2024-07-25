@@ -368,3 +368,6 @@ If you need a snapshot version, you must enable snapshots and change your depend
     <version>{major.minor.patch}-SNAPSHOT</version>
 </dependency>
 ```
+
+Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+See [LICENSE](LICENSE) and [NOTICE](NOTICE) file for details.
