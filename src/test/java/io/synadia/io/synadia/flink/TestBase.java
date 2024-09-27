@@ -47,7 +47,7 @@ public class TestBase {
 
     public static StreamExecutionEnvironment getStreamExecutionEnvironment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
+        //env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         return env;
     }
 
