@@ -4,6 +4,7 @@
 package io.synadia.flink.sink;
 
 import io.nats.client.Connection;
+import io.synadia.flink.Debug;
 import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.payload.PayloadSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -49,6 +50,7 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
     public void write(InputT element, SinkWriter.Context context) throws IOException, InterruptedException {
         byte[] payload = payloadSerializer.getBytes(element);
         for (String subject : subjects) {
+            Debug.info("NSW", subject, payload);
             connection.publish(subject, null, null, payload);
         }
     }

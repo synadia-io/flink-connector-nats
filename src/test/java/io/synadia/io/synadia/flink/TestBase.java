@@ -9,7 +9,6 @@ import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
@@ -47,7 +46,7 @@ public class TestBase {
 
     public static StreamExecutionEnvironment getStreamExecutionEnvironment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
+        //env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         return env;
     }
 
@@ -257,7 +256,7 @@ public class TestBase {
             }
             sb.append(o);
         }
-        System.out.println(sb.toString());
+        System.out.println(sb);
     }
 
     public static Object javaSerializeDeserializeObject(Serializable inObject) throws IOException, ClassNotFoundException {

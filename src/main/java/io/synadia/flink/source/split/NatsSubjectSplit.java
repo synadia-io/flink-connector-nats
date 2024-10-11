@@ -1,16 +1,30 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
-// See LICENSE and NOTICE file for details. 
+// See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source.split;
 
+import io.nats.client.Message;
 import org.apache.flink.api.connector.source.SourceSplit;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class NatsSubjectSplit implements SourceSplit {
 
     private final String subject;
 
+    private final List<Message> currentMessages;
+
     public NatsSubjectSplit(String subject) {
+        this(subject, null);
+    }
+
+    public NatsSubjectSplit(String subject, List<Message> currentMessages){
         this.subject = subject;
+        this.currentMessages = new ArrayList<>();
+        if (currentMessages != null && !currentMessages.isEmpty()) {
+            this.currentMessages.addAll(currentMessages);
+        }
     }
 
     /**
@@ -24,6 +38,8 @@ public class NatsSubjectSplit implements SourceSplit {
     public String getSubject() {
         return subject;
     }
+
+    public List<Message> getCurrentMessages(){ return currentMessages; }
 
     @Override
     public boolean equals(Object o) {
