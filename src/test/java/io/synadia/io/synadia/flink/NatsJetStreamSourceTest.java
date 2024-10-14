@@ -7,7 +7,6 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.SerializableConsumerConfiguration;
-import io.synadia.flink.Debug;
 import io.synadia.flink.Utils;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.sink.NatsSink;
@@ -95,10 +94,8 @@ public class NatsJetStreamSourceTest extends TestBase {
             SequenceInfo sequenceInfo = ci.getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 2);
 
-            Debug.info("SL", syncList.size());
             for (Message m : syncList) {
                 String payload = new String(m.getData());
-                Debug.info("PAY", payload);
             }
         });
     }
