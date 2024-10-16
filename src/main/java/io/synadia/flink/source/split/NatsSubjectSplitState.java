@@ -1,7 +1,5 @@
 package io.synadia.flink.source.split;
 
-import io.synadia.flink.source.split.NatsSubjectSplit;
-
 public class NatsSubjectSplitState {
 
     private NatsSubjectSplit split;

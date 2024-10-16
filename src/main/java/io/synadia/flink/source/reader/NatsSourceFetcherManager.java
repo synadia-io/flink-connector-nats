@@ -1,12 +1,7 @@
 package io.synadia.flink.source.reader;
 
-import static java.util.Collections.singletonList;
 import io.nats.client.Message;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
@@ -16,6 +11,13 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+
+import static java.util.Collections.singletonList;
 
 public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsSubjectSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(NatsSourceFetcherManager.class);

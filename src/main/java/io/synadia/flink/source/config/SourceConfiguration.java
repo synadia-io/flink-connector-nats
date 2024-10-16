@@ -1,9 +1,10 @@
 package io.synadia.flink.source.config;
 
 import io.nats.client.support.SerializableConsumerConfiguration;
-import java.time.Duration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
+
+import java.time.Duration;
 
 public class SourceConfiguration extends Configuration {
 

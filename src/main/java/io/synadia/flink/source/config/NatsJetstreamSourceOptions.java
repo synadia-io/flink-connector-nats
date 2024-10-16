@@ -1,11 +1,12 @@
 package io.synadia.flink.source.config;
 
-import java.time.Duration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+
+import java.time.Duration;
 
 @PublicEvolving
 @ConfigGroups(

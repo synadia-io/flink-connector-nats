@@ -3,113 +3,129 @@
 
 package io.synadia.io.synadia.flink;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamManagement;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.SequenceInfo;
-import io.nats.client.api.StreamConfiguration;
+import io.nats.client.*;
+import io.nats.client.api.*;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.SerializableConsumerConfiguration;
 import io.synadia.flink.Utils;
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadDeserializer;
+import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.source.NatsJetStreamSource;
 import io.synadia.flink.source.NatsJetstreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
+import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NatsJetStreamSourceTest extends TestBase {
 
+    static void publish(JetStream js, String subject, int count) throws Exception {
+        publish(js, subject, count, 0);
+    }
+
+    static void publish(JetStream js, String subject, int count, long delay) throws Exception {
+        for (int x = 0; x < count; x++) {
+            js.publish(subject, ("data-" + subject + "-" + x + "-" + random()).getBytes());
+            if (delay > 0) {
+                sleep(delay);
+            }
+        }
+    }
+
     @Test
-    public void testSourceBounded() throws Exception {
-        String sourceSubject1 = "test";
-        String streamName = "test";
-        String consumerName = "Test";
+    public void testJsSourceBounded() throws Exception {
+        final List<Message> syncList = Collections.synchronizedList(new ArrayList<>());
+        String sourceSubject = random("sub");
+        String sinkSubject = random("sink");
+        String streamName = random("strm");
+        String consumerName = random("con");
 
-        runInExternalServer(true, (nc, url) -> {
+        runInServer(true, (nc, url) -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = jsm.jetStream();
 
-            // publish to the source's subjects
-            StreamConfiguration stream = new StreamConfiguration.Builder()
-                    .name(streamName)
-                    .subjects(sourceSubject1)
-                    .build();
-            nc.jetStreamManagement().addStream(stream);
-            ConsumerConfiguration consumerConfiguration = ConsumerConfiguration.builder()
-                    .durable(consumerName).ackPolicy(AckPolicy.All)
-                    .filterSubject(sourceSubject1).build();
-            nc.jetStreamManagement().addOrUpdateConsumer(streamName, consumerConfiguration);
-            nc.jetStream().publish(sourceSubject1, "Hi".getBytes());
-            nc.jetStream().publish(sourceSubject1, "Hello".getBytes());
+            createStream(jsm, streamName, sourceSubject);
+            publish(js, sourceSubject, 10);
+
+            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, INTEGER_UNSET);
 
             // --------------------------------------------------------------------------------
-            Properties connectionProperties = defaultConnectionProperties(url);
             PayloadDeserializer<String> deserializer = new WriteData();
-            SerializableConsumerConfiguration serializableConsumerConfiguration = new SerializableConsumerConfiguration();
-            serializableConsumerConfiguration.setConsumerConfiguration(consumerConfiguration);
+            SerializableConsumerConfiguration scc = new SerializableConsumerConfiguration();
+            scc.setConsumerConfiguration(cc);
             NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
-                    .setDeserializationSchema(deserializer)
-                    .setCc(serializableConsumerConfiguration)
-                    .setNatsUrl("localhost:4222")
-                    .setSubject(sourceSubject1);
+                .deserializationSchema(deserializer)
+                .consumerConfig(scc)
+                .natsUrl(url)
+                .subject(sourceSubject);
 
             NatsJetStreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
-            env.getCheckpointConfig().setCheckpointInterval(10000L);
-            DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(),"nats-source-input");
-            ds.map(String::toUpperCase);//To Avoid Sink Dependency
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
+            env.getCheckpointConfig().setCheckpointInterval(10_000L);
+            DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-input");
 
-            env.executeAsync("nats-flink");
-            Thread.sleep(500000);
+            // listen to the sink output
+            Dispatcher d = nc.createDispatcher();
+            d.subscribe(sinkSubject, syncList::add);
+
+            Properties connectionProperties = defaultConnectionProperties(url);
+            NatsSink<String> sink = newNatsSink(sinkSubject, connectionProperties, null);
+            ds.sinkTo(sink);
+
+//            ds.map(String::toUpperCase); //To Avoid Sink Dependency
+            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
+            env.executeAsync("TestJsSourceBounded");
+
+            Thread.sleep(12_000);
             env.close();
-            SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject1, consumerName).getConsumerInfo().getDelivered();
+            ConsumerInfo ci = jsm.getConsumerInfo(streamName, consumerName);
+            SequenceInfo sequenceInfo = ci.getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 2);
+
+            for (Message m : syncList) {
+                String payload = new String(m.getData());
+            }
         });
     }
 
     @Test
-    public void testSourceUnbounded() throws Exception {
-        String sourceSubject = "test";
-        String streamName = "test";
-        String consumerName = "testconsumer";
+    public void testJsSourceUnbounded() throws Exception {
+        String sourceSubject = random("sub");
+        String streamName = random("strm");
+        String consumerName = random("con");
 
-        runInExternalServer(true, (nc, url) -> {
-            // NATS setup
+        runInServer(true, (nc, url) -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamConfiguration streamConfig = StreamConfiguration.builder()
-                    .name(streamName)
-                    .subjects(sourceSubject)
-                    .build();
-            jsm.addStream(streamConfig);
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(consumerName)
-                    .ackPolicy(AckPolicy.All)
-                    .filterSubject(sourceSubject)
-                    .maxBatch(5)
-                    .build();
-            jsm.addOrUpdateConsumer(streamName, cc);
+            JetStream js = jsm.jetStream();
+            createStream(jsm, streamName, sourceSubject);
+
+            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, 5);
+            // --------------------------------------------------------------------------------
+            PayloadDeserializer<String> deserializer = new WriteData();
+            SerializableConsumerConfiguration scc = new SerializableConsumerConfiguration();
+            scc.setConsumerConfiguration(cc);
+            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
+                .deserializationSchema(deserializer)
+                .consumerConfig(scc)
+                .natsUrl(url)
+                .subject(sourceSubject);
 
             // Flink environment setup
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             Properties connectionProperties = defaultConnectionProperties(url);
             SerializableConsumerConfiguration consumerConfig = new SerializableConsumerConfiguration(cc);
-
-            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
-                    .setSubject(sourceSubject).setDeserializationSchema(deserializer);
 
             DataStream<String> ds = env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "nats-source-input");
             ds.map(String::toUpperCase);
@@ -117,34 +133,51 @@ public class NatsJetStreamSourceTest extends TestBase {
             // Running Flink job in a separate thread
             Thread flinkThread = new Thread(() -> {
                 try {
-                    env.execute("nats-flink-unbounded");
-                } catch (Exception e) {
+                    env.execute("TestJsSourceUnbounded");
+                }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+                catch (Exception e) {
                     e.printStackTrace();
                 }
             });
             flinkThread.start();
 
-            // Publish messages
-            JetStream js = nc.jetStream();
-            for (int i = 0; i < 5; i++) {
-                js.publish(sourceSubject, ("Message " + i).getBytes());
-                Thread.sleep(100); // Wait between messages
-            }
+            publish(js, sourceSubject, 5, 100);
+
             Thread.sleep(10000); // Increased sleep time to ensure messages are processed
             SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject, consumerName).getConsumerInfo().getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 5);
             flinkThread.interrupt(); // Interrupt to stop the Flink job
         });
     }
+
+    private static ConsumerConfiguration createConsumer(JetStreamManagement jsm, String streamName, String sourceSubject, String consumerName, int maxBatch) throws IOException, JetStreamApiException {
+        ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(consumerName)
+                .ackPolicy(AckPolicy.All)
+                .filterSubject(sourceSubject)
+                .maxBatch(5)
+                .build();
+        jsm.addOrUpdateConsumer(streamName, cc);
+        return cc;
+    }
+
+    private static void createStream(JetStreamManagement jsm, String streamName, String sourceSubject) throws IOException, JetStreamApiException {
+        StreamConfiguration streamConfig = StreamConfiguration.builder()
+            .name(streamName)
+            .subjects(sourceSubject)
+            .storageType(StorageType.Memory)
+            .build();
+        jsm.addStream(streamConfig);
+    }
 }
+
 class WriteData implements PayloadDeserializer<String> {
-
-
     @Override
     public String getObject(String subject, byte[] input, Headers headers) {
-        String data = new String(input);
-        System.out.println(data);
-        return data;
+        return new String(input);
     }
 
     @Override

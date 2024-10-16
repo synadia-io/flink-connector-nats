@@ -59,8 +59,7 @@ public class NatsRecordEmitter<OutputT>
         }
 
         /**
-         * Get the event timestamp from Pulsar. Zero means there is no event time. See {@link
-         * Message#getEventTime()} to get the reason why it returns zero.
+         * Set the event timestamp.
          */
         private void setTimestamp(Message message) {
             this.timestamp = message.metaData().timestamp().toInstant().toEpochMilli();

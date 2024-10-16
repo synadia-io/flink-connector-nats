@@ -23,11 +23,10 @@ import java.util.Collection;
 import java.util.List;
 
 public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>>, ResultTypeQueryable<OutputT> {
-
-    private PayloadDeserializer<OutputT> deserializationSchema;
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSource.class);
-    private SourceConfiguration sourceConfiguration;
 
+    private final PayloadDeserializer<OutputT> deserializationSchema;
+    private final SourceConfiguration sourceConfiguration;
 
     // Package-private constructor to ensure usage of the Builder for object creation
     NatsJetStreamSource(PayloadDeserializer<OutputT> deserializationSchema, SourceConfiguration sourceConfiguration) {

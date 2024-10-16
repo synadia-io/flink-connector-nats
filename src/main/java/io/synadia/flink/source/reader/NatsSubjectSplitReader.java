@@ -1,17 +1,9 @@
 package io.synadia.flink.source.reader;
 
-import io.nats.client.Connection;
-import io.nats.client.Consumer;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.synadia.flink.source.config.SourceConfiguration;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import java.io.IOException;
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.TimeoutException;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -22,6 +14,11 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 public class NatsSubjectSplitReader
         implements SplitReader<Message, NatsSubjectSplit> {
@@ -152,7 +149,7 @@ public class NatsSubjectSplitReader
             List<Message> reversed = Lists.reverse(messages);
             reversed.get(0).ack();
         }else {
-            messages.forEach(message -> message.ack());
+            messages.forEach(Message::ack);
         }
     }
 
@@ -163,10 +160,8 @@ public class NatsSubjectSplitReader
             throws Exception {
         PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                 .durable(sourceConfiguration.getConsumerName())
-
                 .build();
-        JetStreamSubscription subscription = connection.jetStream().subscribe(subject, pullOptions);
-        return subscription;
+        return connection.jetStream().subscribe(subject, pullOptions);
     }
 
 }

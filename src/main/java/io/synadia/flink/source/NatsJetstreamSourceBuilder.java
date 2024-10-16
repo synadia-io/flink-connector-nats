@@ -17,22 +17,22 @@ public class NatsJetstreamSourceBuilder<OutputT> {
 
     private String subject;
 
-    public NatsJetstreamSourceBuilder setDeserializationSchema(PayloadDeserializer<OutputT> deserializationSchema) {
+    public NatsJetstreamSourceBuilder<OutputT> deserializationSchema(PayloadDeserializer<OutputT> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
         return  this;
     }
 
-    public NatsJetstreamSourceBuilder setNatsUrl(String natsUrl) {
+    public NatsJetstreamSourceBuilder<OutputT> natsUrl(String natsUrl) {
         this.natsUrl = natsUrl;
         return this;
     }
 
-    public NatsJetstreamSourceBuilder setCc(SerializableConsumerConfiguration serializableConsumerConfiguration) {
+    public NatsJetstreamSourceBuilder<OutputT> consumerConfig(SerializableConsumerConfiguration serializableConsumerConfiguration) {
         this.serializableConsumerConfiguration = serializableConsumerConfiguration;
         return this;
     }
 
-    public NatsJetstreamSourceBuilder setSubject(String subject) {
+    public NatsJetstreamSourceBuilder<OutputT> subject(String subject) {
         this.subject = subject;
         return this;
     }

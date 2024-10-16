@@ -7,22 +7,9 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.source.split.NatsSubjectSplitState;
 import io.synadia.flink.source.config.SourceConfiguration;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
+import io.synadia.flink.source.split.NatsSubjectSplitState;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -35,19 +22,22 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
 public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
         Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState> {
 
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetstreamSourceReader.class);
 
-    private Connection connection;
+    private final Connection connection;
     private final AtomicReference<Throwable> cursorCommitThrowable;
     @VisibleForTesting
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
     private final ConcurrentMap<String, List<Message>> cursorsOfFinishedSplits;
-    private SourceConfiguration sourceConfiguration;
-
-    private ScheduledExecutorService scheduler;
+    private final SourceConfiguration sourceConfiguration;
 
     public NatsJetstreamSourceReader(FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
                                      NatsSourceFetcherManager fetcherManager,
@@ -69,7 +59,7 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
     public void start() {
         super.start();
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
-            scheduler = Executors.newSingleThreadScheduledExecutor();
+            ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
             scheduler.scheduleAtFixedRate(this::cumulativeAcknowledgmentMessage,
                     sourceConfiguration.getMaxFetchTime().toMillis(),
@@ -185,7 +175,7 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
     /** Factory method for creating NatsJetstreamSourceReader. */
     public static <OutputT> NatsJetstreamSourceReader<OutputT> create(
             SourceConfiguration sourceConfiguration,
-            PayloadDeserializer deserializationSchema,
+            PayloadDeserializer<OutputT> deserializationSchema,
             SourceReaderContext readerContext)
             throws Exception {
 
@@ -209,7 +199,7 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
                 new NatsSourceFetcherManager(
                         elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
 
-        return new NatsJetstreamSourceReader(
+        return new NatsJetstreamSourceReader<>(
                 elementsQueue,
                 fetcherManager,
                 deserializationSchema,

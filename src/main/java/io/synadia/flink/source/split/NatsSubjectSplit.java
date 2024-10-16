@@ -4,23 +4,27 @@
 package io.synadia.flink.source.split;
 
 import io.nats.client.Message;
-import java.util.ArrayList;
 import org.apache.flink.api.connector.source.SourceSplit;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class NatsSubjectSplit implements SourceSplit {
 
     private final String subject;
 
-    private List<Message> currentMessages = new ArrayList<>();
+    private final List<Message> currentMessages;
 
     public NatsSubjectSplit(String subject) {
-        this.subject = subject;
+        this(subject, null);
     }
 
     public NatsSubjectSplit(String subject, List<Message> currentMessages){
         this.subject = subject;
-        this.currentMessages = currentMessages;
+        this.currentMessages = new ArrayList<>();
+        if (currentMessages != null && !currentMessages.isEmpty()) {
+            this.currentMessages.addAll(currentMessages);
+        }
     }
 
     /**
