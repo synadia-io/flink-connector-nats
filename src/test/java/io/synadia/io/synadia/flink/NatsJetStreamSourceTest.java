@@ -147,7 +147,7 @@ public class NatsJetStreamSourceTest extends TestBase {
             publish(js, sourceSubject, 5, 100);
 
             Thread.sleep(10000); // Increased sleep time to ensure messages are processed
-            SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(sourceSubject, consumerName).getConsumerInfo().getDelivered();
+            SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(streamName, consumerName).getConsumerInfo().getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 5);
             flinkThread.interrupt(); // Interrupt to stop the Flink job
         });
