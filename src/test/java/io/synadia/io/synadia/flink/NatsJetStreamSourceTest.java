@@ -155,11 +155,11 @@ public class NatsJetStreamSourceTest extends TestBase {
 
     private static ConsumerConfiguration createConsumer(JetStreamManagement jsm, String streamName, String sourceSubject, String consumerName, int maxBatch) throws IOException, JetStreamApiException {
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(consumerName)
-                .ackPolicy(AckPolicy.All)
-                .filterSubject(sourceSubject)
-                .maxBatch(5)
-                .build();
+            .durable(consumerName)
+            .ackPolicy(AckPolicy.All)
+            .filterSubject(sourceSubject)
+            .maxBatch(5)
+            .build();
         jsm.addOrUpdateConsumer(streamName, cc);
         return cc;
     }
