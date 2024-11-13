@@ -2,8 +2,9 @@ package io.synadia.flink.source.reader;
 
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
-import io.synadia.flink.source.config.SourceConfiguration;
+import io.synadia.flink.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.source.split.NatsSubjectSplit;
+import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -25,17 +26,29 @@ public class NatsSubjectSplitReader
 
     private static final Logger LOG = LoggerFactory.getLogger(NatsSubjectSplitReader.class);
 
-    private final Connection connection;
-    private final SourceConfiguration sourceConfiguration;
+    private final ConnectionFactory connectionFactory;
+    private final NatsJetStreamSourceConfiguration sourceConfiguration;
     private JetStreamSubscription jetStreamSubscription;
     private NatsSubjectSplit registeredSplit;
-
+    private Connection _connection; // lazy init from the factory
 
     public NatsSubjectSplitReader(
-            Connection connection,
-            SourceConfiguration sourceConfiguration) {
-        this.connection = connection;
+            ConnectionFactory connectionFactory,
+            NatsJetStreamSourceConfiguration sourceConfiguration) {
+        this.connectionFactory = connectionFactory;
         this.sourceConfiguration = sourceConfiguration;
+    }
+
+    private Connection getConnection() {
+        if (_connection == null) {
+            try {
+                _connection = connectionFactory.connect();
+            }
+            catch (IOException e) {
+                throw new FlinkRuntimeException(e);
+            }
+        }
+        return _connection;
     }
 
     @Override
@@ -44,18 +57,18 @@ public class NatsSubjectSplitReader
         RecordsBySplits.Builder<Message> builder = new RecordsBySplits.Builder<>();
 
         // Return when no split registered to this reader.
-        if (connection == null || registeredSplit == null) {
+        if (getConnection() == null || registeredSplit == null) {
             return builder.build();
         }
 
         String splitId = registeredSplit.splitId();
-        Deadline deadline = Deadline.fromNow(sourceConfiguration.getMaxFetchTime());
+        Deadline deadline = Deadline.fromNow(sourceConfiguration.getFetchTimeout());
 
         for (int messageNum = 0;
              messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
              messageNum++) {
             try {
-                Duration fetchTime = sourceConfiguration.getFetchOneMessageTime();
+                Duration fetchTime = sourceConfiguration.getFetchOneMessageTimeout();
                 if (fetchTime == null) {
                     fetchTime = Duration.ofMillis(deadline.timeLeftIfAny().toMillis());
                 }
@@ -161,7 +174,7 @@ public class NatsSubjectSplitReader
         PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                 .durable(sourceConfiguration.getConsumerName())
                 .build();
-        return connection.jetStream().subscribe(subject, pullOptions);
+        return getConnection().jetStream().subscribe(subject, pullOptions);
     }
 
 }

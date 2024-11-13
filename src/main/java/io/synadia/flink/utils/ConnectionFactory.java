@@ -1,4 +1,4 @@
-package io.synadia.flink.common;
+package io.synadia.flink.utils;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Properties;
 
-import static io.synadia.flink.Utils.jitter;
-import static io.synadia.flink.Utils.loadPropertiesFromFile;
+import static io.synadia.flink.utils.PropertiesUtils.jitter;
+import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
 
 public class ConnectionFactory implements Serializable {
     private final Properties connectionProperties;

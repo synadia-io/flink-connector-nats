@@ -1,21 +1,20 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source.reader;
 
-import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.Nats;
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.source.config.SourceConfiguration;
+import io.synadia.flink.source.NatsJetStreamSourceConfiguration;
+import io.synadia.flink.source.emitter.NatsRecordEmitter;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitState;
-import org.apache.flink.annotation.VisibleForTesting;
+import io.synadia.flink.utils.ConnectionFactory;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -25,45 +24,54 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
-public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
-        Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState> {
+import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-    private static final Logger LOG = LoggerFactory.getLogger(NatsJetstreamSourceReader.class);
+@Internal
+public class NatsJetStreamSourceReader<OutputT>
+    extends SourceReaderBase<Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState>
+{
+    private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
 
-    private final Connection connection;
+    private final String id;
+    private final ConnectionFactory connectionFactory;
+    private final PayloadDeserializer<OutputT> payloadDeserializer;
+    private final SourceReaderContext readerContext;
     private final AtomicReference<Throwable> cursorCommitThrowable;
-    @VisibleForTesting
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
     private final ConcurrentMap<String, List<Message>> cursorsOfFinishedSplits;
-    private final SourceConfiguration sourceConfiguration;
+    private final NatsJetStreamSourceConfiguration sourceConfiguration;
 
-    public NatsJetstreamSourceReader(FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
+    public NatsJetStreamSourceReader(String sourceId,
+                                     FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
                                      NatsSourceFetcherManager fetcherManager,
-                                     PayloadDeserializer<OutputT> deserializationSchema,
-                                     SourceConfiguration configuration,
-                                     Connection connection,
+                                     NatsJetStreamSourceConfiguration sourceConfiguration,
+                                     ConnectionFactory connectionFactory,
+                                     PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext
     ) {
-        super(elementsQueue, fetcherManager, new NatsRecordEmitter<>(deserializationSchema), configuration, readerContext);
-        this.sourceConfiguration = configuration;
-        this.connection = connection;
+        super(elementsQueue, fetcherManager, new NatsRecordEmitter<>(payloadDeserializer),
+            sourceConfiguration.getConfiguration(), readerContext);
+        id = sourceId + "-" + generatePrefixedId(sourceId);
+        this.sourceConfiguration = sourceConfiguration;
+        this.connectionFactory = connectionFactory;
+        this.payloadDeserializer = payloadDeserializer;
+        this.readerContext = checkNotNull(readerContext);
         this.cursorsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.cursorsOfFinishedSplits = new ConcurrentHashMap<>();
         this.cursorCommitThrowable = new AtomicReference<>();
     }
 
-
     @Override
     public void start() {
+        LOG.debug("{} | start", id);
         super.start();
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
             scheduler.scheduleAtFixedRate(this::cumulativeAcknowledgmentMessage,
-                    sourceConfiguration.getMaxFetchTime().toMillis(),
-                    sourceConfiguration.getNatsAutoAckInterval().toMillis(),
+                    sourceConfiguration.getFetchTimeout().toMillis(),
+                    sourceConfiguration.getAutoAckInterval().toMillis(),
                     TimeUnit.MILLISECONDS);
         }
 
@@ -82,7 +90,8 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         LOG.debug("Committing cursors for checkpoint {}", checkpointId);
-        Map<String, List<Message>> cursors = cursorsToCommit.get(checkpointId); //TODO convert string to Subject Class
+        //TODO convert string to Subject Class
+        Map<String, List<Message>> cursors = cursorsToCommit.get(checkpointId);
         try {
             ((NatsSourceFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
             LOG.debug("Successfully acknowledge cursors for checkpoint {}", checkpointId);
@@ -116,7 +125,6 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
     public void close() throws Exception {
         //TODO Review this again and remove TODO
         super.close();
-        connection.close();
     }
 
     @Override
@@ -126,7 +134,7 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
 
     @Override
     protected void onSplitFinished(Map<String, NatsSubjectSplitState> finishedSplitIds) {
-// Close all the finished splits.
+        // Close all the finished splits.
         for (String splitId : finishedSplitIds.keySet()) {
             ((NatsSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);
         }
@@ -170,41 +178,5 @@ public class NatsJetstreamSourceReader<OutputT> extends SourceReaderBase<
             LOG.error("Fail in auto cursor commit.", e);
             cursorCommitThrowable.compareAndSet(null, e);
         }
-    }
-
-    /** Factory method for creating NatsJetstreamSourceReader. */
-    public static <OutputT> NatsJetstreamSourceReader<OutputT> create(
-            SourceConfiguration sourceConfiguration,
-            PayloadDeserializer<OutputT> deserializationSchema,
-            SourceReaderContext readerContext)
-            throws Exception {
-
-        // Create a message queue with the predefined source option.
-        int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue =
-                new FutureCompletingBlockingQueue<>(queueCapacity);
-
-        Connection connection = Nats.connect(sourceConfiguration.getUrl());
-
-        // Initialize the deserialization schema before creating the nats reader.
-
-        // Create an ordered split reader supplier.
-        Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
-                () ->
-                        new NatsSubjectSplitReader(
-                                connection,
-                                sourceConfiguration);
-
-        NatsSourceFetcherManager fetcherManager =
-                new NatsSourceFetcherManager(
-                        elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
-
-        return new NatsJetstreamSourceReader<>(
-                elementsQueue,
-                fetcherManager,
-                deserializationSchema,
-                sourceConfiguration,
-                connection,
-                readerContext);
     }
 }

@@ -1,9 +1,7 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.common;
-
-import io.synadia.flink.Utils;
+package io.synadia.flink.utils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,7 +9,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-public abstract class NatsSinkOrSourceBuilder<BuilderT> {
+import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.utils.PropertiesUtils.NO_PREFIX;
+
+public abstract class NatsSinkOrSourceBuilder<SerializeT, BuilderT> {
+    protected final String[] prefixes;
+
     protected List<String> subjects;
     protected Properties connectionProperties;
     protected String connectionPropertiesFile;
@@ -19,6 +22,32 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
     protected long maxConnectionJitter = 0;
 
     protected abstract BuilderT getThis();
+
+    public NatsSinkOrSourceBuilder(String prefix) {
+        prefixes = new String[]{NO_PREFIX, prefix, NATS_PREFIX + prefix};
+    }
+
+    /**
+     * Set properties from a properties object
+     * See the readme and {@link Constants} for property keys
+     * @param properties the properties object
+     */
+    protected void baseProperties(Properties properties) {
+        List<String> subjects = PropertiesUtils.getPropertyAsList(properties, SUBJECTS, prefixes);
+        if (!subjects.isEmpty()) {
+            subjects(subjects);
+        }
+
+        long l = PropertiesUtils.getLongProperty(properties, STARTUP_JITTER_MIN, -1, prefixes);
+        if (l != -1) {
+            minConnectionJitter(l);
+        }
+
+        l = PropertiesUtils.getLongProperty(properties, STARTUP_JITTER_MAX, -1, prefixes);
+        if (l != -1) {
+            maxConnectionJitter(l);
+        }
+    }
 
     /**
      * Set the properties used to instantiate the {@link io.nats.client.Connection Connection}
@@ -91,7 +120,7 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
         return getThis();
     }
 
-    protected void beforeBuild() {
+    protected void baseBuild() {
         if (subjects == null || subjects.isEmpty()) {
             throw new IllegalStateException("One or more subjects must be provided.");
         }
@@ -104,7 +133,7 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
         // if there is a file, we must be able to load it
         if (connectionPropertiesFile != null) {
             try {
-                Utils.loadPropertiesFromFile(connectionPropertiesFile);
+                PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
             }
             catch (IOException e) {
                 throw new IllegalStateException ("Cannot load properties file.", e.getCause());

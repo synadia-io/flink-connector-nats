@@ -19,7 +19,10 @@ import java.util.function.Supplier;
 
 import static java.util.Collections.singletonList;
 
-public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsSubjectSplit> {
+public class NatsSourceFetcherManager
+    extends SplitFetcherManager<Message, NatsSubjectSplit>
+    implements Supplier<SplitReader<Message, NatsSubjectSplit>>
+{
     private static final Logger LOG = LoggerFactory.getLogger(NatsSourceFetcherManager.class);
 
     private final Map<String, Integer> splitFetcherMapping = new HashMap<>();
@@ -38,6 +41,11 @@ public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsS
             Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier,
             Configuration configuration) {
         super(elementsQueue, splitReaderSupplier, configuration);
+    }
+
+    @Override
+    public SplitReader<Message, NatsSubjectSplit> get() {
+        return null;
     }
 
     /**

@@ -1,4 +1,4 @@
-package io.synadia.flink.source.reader;
+package io.synadia.flink.source.emitter;
 
 import io.nats.client.Message;
 import io.synadia.flink.payload.PayloadDeserializer;
@@ -10,11 +10,11 @@ import org.apache.flink.util.Collector;
 public class NatsRecordEmitter<OutputT>
         implements RecordEmitter<Message, OutputT, NatsSubjectSplitState> {
 
-    private final PayloadDeserializer<OutputT> deserializationSchema;
+    private final PayloadDeserializer<OutputT> payloadDeserializer;
     private final SourceOutputWrapper<OutputT> sourceOutputWrapper;
 
-    public NatsRecordEmitter(PayloadDeserializer<OutputT> deserializationSchema) {
-        this.deserializationSchema = deserializationSchema;
+    public NatsRecordEmitter(PayloadDeserializer<OutputT> payloadDeserializer) {
+        this.payloadDeserializer = payloadDeserializer;
         this.sourceOutputWrapper = new SourceOutputWrapper<>();
     }
 
@@ -27,7 +27,7 @@ public class NatsRecordEmitter<OutputT>
         sourceOutputWrapper.setTimestamp(element);
 
         // Deserialize the message and since it to output.
-        deserializationSchema.getObject(splitState.getSplit().getSubject(),element.getData(), null);
+        payloadDeserializer.getObject(splitState.getSplit().getSubject(),element.getData(), null);
         splitState.getSplit().getCurrentMessages().add(element);
 
         // Release the messages if we use message pool in Pulsar.

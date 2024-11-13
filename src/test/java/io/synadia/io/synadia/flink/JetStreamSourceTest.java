@@ -1,21 +1,18 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.io.synadia.flink;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.impl.Headers;
-import io.nats.client.support.SerializableConsumerConfiguration;
-import io.synadia.flink.Utils;
 import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.source.NatsJetStreamSource;
-import io.synadia.flink.source.NatsJetstreamSourceBuilder;
+import io.synadia.flink.source.NatsJetStreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
@@ -28,8 +25,9 @@ import java.util.Properties;
 
 import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class NatsJetStreamSourceTest extends TestBase {
+public class JetStreamSourceTest extends TestBase {
 
     static void publish(JetStream js, String subject, int count) throws Exception {
         publish(js, subject, count, 0);
@@ -62,14 +60,14 @@ public class NatsJetStreamSourceTest extends TestBase {
             ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, INTEGER_UNSET);
 
             // --------------------------------------------------------------------------------
-            PayloadDeserializer<String> deserializer = new WriteData();
-            SerializableConsumerConfiguration scc = new SerializableConsumerConfiguration();
-            scc.setConsumerConfiguration(cc);
-            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
-                .deserializationSchema(deserializer)
-                .consumerConfig(scc)
-                .natsUrl(url)
-                .subject(sourceSubject);
+            Properties connectionProperties = defaultConnectionProperties(url);
+            PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
+            NatsJetStreamSourceBuilder<String> builder =
+                new NatsJetStreamSourceBuilder<String>()
+                    .subjects(sourceSubject)
+                    .payloadDeserializer(deserializer)
+                    .connectionProperties(connectionProperties)
+                    .consumerName(consumerName);
 
             NatsJetStreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -80,7 +78,7 @@ public class NatsJetStreamSourceTest extends TestBase {
             Dispatcher d = nc.createDispatcher();
             d.subscribe(sinkSubject, syncList::add);
 
-            Properties connectionProperties = defaultConnectionProperties(url);
+            connectionProperties = defaultConnectionProperties(url);
             NatsSink<String> sink = newNatsSink(sinkSubject, connectionProperties, null);
             ds.sinkTo(sink);
 
@@ -113,19 +111,16 @@ public class NatsJetStreamSourceTest extends TestBase {
 
             ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, 5);
             // --------------------------------------------------------------------------------
-            PayloadDeserializer<String> deserializer = new WriteData();
-            SerializableConsumerConfiguration scc = new SerializableConsumerConfiguration();
-            scc.setConsumerConfiguration(cc);
-            NatsJetstreamSourceBuilder<String> builder = new NatsJetstreamSourceBuilder<String>()
-                .deserializationSchema(deserializer)
-                .consumerConfig(scc)
-                .natsUrl(url)
-                .subject(sourceSubject);
+            Properties connectionProperties = defaultConnectionProperties(url);
+            PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
+            NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
+                .subjects(sourceSubject)
+                .payloadDeserializer(deserializer)
+                .connectionProperties(connectionProperties)
+                .consumerName(consumerName);
 
             // Flink environment setup
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            Properties connectionProperties = defaultConnectionProperties(url);
-            SerializableConsumerConfiguration consumerConfig = new SerializableConsumerConfiguration(cc);
 
             DataStream<String> ds = env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "nats-source-input");
             ds.map(String::toUpperCase);
@@ -139,7 +134,7 @@ public class NatsJetStreamSourceTest extends TestBase {
                     Thread.currentThread().interrupt();
                 }
                 catch (Exception e) {
-                    e.printStackTrace();
+                    fail(e);
                 }
             });
             flinkThread.start();
@@ -174,14 +169,3 @@ public class NatsJetStreamSourceTest extends TestBase {
     }
 }
 
-class WriteData implements PayloadDeserializer<String> {
-    @Override
-    public String getObject(String subject, byte[] input, Headers headers) {
-        return new String(input);
-    }
-
-    @Override
-    public TypeInformation<String> getProducedType() {
-        return Utils.getTypeInformation(String.class);
-    }
-}

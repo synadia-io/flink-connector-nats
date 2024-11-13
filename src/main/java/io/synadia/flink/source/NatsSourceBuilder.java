@@ -1,16 +1,17 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.source;
 
-import io.synadia.flink.Utils;
-import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.utils.Constants;
+import io.synadia.flink.utils.NatsSinkOrSourceBuilder;
+import io.synadia.flink.utils.PropertiesUtils;
 
-import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.flink.Constants.*;
+import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
 
 /**
  * Builder to construct {@link NatsSource}.
@@ -27,14 +28,35 @@ import static io.synadia.flink.Constants.*;
  * }</pre>
  *
  * @see NatsSource
- * @param <OutputT> type of the records written to Kafka
+ * @param <OutputT> type of the records written
  */
-public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSourceBuilder<OutputT>> {
+public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<OutputT, NatsSourceBuilder<OutputT>> {
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
 
+    public NatsSourceBuilder() {
+        super(SOURCE_PREFIX);
+    }
+
     @Override
     protected NatsSourceBuilder<OutputT> getThis() {
+        return this;
+    }
+
+    /**
+     * Set source properties from a properties object
+     * See the readme and {@link Constants} for property keys
+     * @param properties the properties object
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
+        baseProperties(properties);
+
+        String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_DESERIALIZER, prefixes);
+        if (s != null) {
+            payloadDeserializerClass(s);
+        }
+
         return this;
     }
 
@@ -50,36 +72,6 @@ public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSour
     }
 
     /**
-     * Set source properties from a properties object
-     * See the readme and {@link io.synadia.flink.Constants} for property keys
-     * @param properties the properties object
-     * @return the builder
-     */
-    public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        List<String> subjects = Utils.getPropertyAsList(properties, SOURCE_SUBJECTS);
-        if (!subjects.isEmpty()) {
-            subjects(subjects);
-        }
-
-        String s = properties.getProperty(SOURCE_PAYLOAD_DESERIALIZER);
-        if (s != null) {
-            payloadDeserializerClass(s);
-        }
-
-        long l = Utils.getLongProperty(properties, SOURCE_STARTUP_JITTER_MIN, -1);
-        if (l != -1) {
-            minConnectionJitter(l);
-        }
-
-        l = Utils.getLongProperty(properties, SOURCE_STARTUP_JITTER_MAX, -1);
-        if (l != -1) {
-            maxConnectionJitter(l);
-        }
-
-        return this;
-    }
-
-    /**
      * Set the fully qualified name of the desired class payload deserializer for the source.
      * @param payloadDeserializerClass the serializer class name.
      * @return the builder
@@ -91,12 +83,10 @@ public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSour
     }
 
     /**
-     * Build a NatsSource. Subject and
+     * Build a NatsSource
      * @return the source
      */
     public NatsSource<OutputT> build() {
-        beforeBuild();
-
         if (payloadDeserializer == null) {
             if (payloadDeserializerClass == null) {
                 throw new IllegalStateException("Valid payload deserializer class must be provided.");
@@ -111,7 +101,7 @@ public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSour
                 throw new IllegalStateException("Valid payload serializer class must be provided.", e);
             }
         }
-
-        return new NatsSource<>(subjects, payloadDeserializer, createConnectionFactory());
+        baseBuild();
+        return new NatsSource<>(payloadDeserializer, createConnectionFactory(), subjects);
     }
 }

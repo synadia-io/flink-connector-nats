@@ -1,15 +1,14 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.source;
+package io.synadia.flink.source.reader;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
-import io.synadia.flink.Utils;
-import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
+import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -26,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
@@ -44,7 +44,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
                             ConnectionFactory connectionFactory,
                             PayloadDeserializer<OutputT> payloadDeserializer,
                             SourceReaderContext readerContext) {
-        id = sourceId + "-" + Utils.generatePrefixedId(sourceId);
+        id = sourceId + "-" + generatePrefixedId(sourceId);
         this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
         this.readerContext = checkNotNull(readerContext);
@@ -57,9 +57,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         LOG.debug("{} | start", id);
         try {
             connection = connectionFactory.connect();
-            dispatcher = connection.createDispatcher(m -> {
-                messages.put(1, m);
-            });
+            dispatcher = connection.createDispatcher(m -> messages.put(1, m));
         }
         catch (IOException e) {
             throw new FlinkRuntimeException(e);

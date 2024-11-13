@@ -4,8 +4,9 @@
 package io.synadia.flink.sink;
 
 import io.nats.client.NUID;
-import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.sink.writer.NatsSinkWriter;
+import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 

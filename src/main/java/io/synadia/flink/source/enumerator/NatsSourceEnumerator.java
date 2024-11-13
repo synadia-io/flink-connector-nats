@@ -3,7 +3,6 @@
 
 package io.synadia.flink.source.enumerator;
 
-import io.synadia.flink.Utils;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -14,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
 
+import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> {
@@ -25,7 +25,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
                                 SplitEnumeratorContext<NatsSubjectSplit> context,
                                 Collection<NatsSubjectSplit> splits)
     {
-        id = Utils.generatePrefixedId(sourceId);
+        id = generatePrefixedId(sourceId);
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
     }

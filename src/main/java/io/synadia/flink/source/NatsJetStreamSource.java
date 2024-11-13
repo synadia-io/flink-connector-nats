@@ -1,77 +1,63 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source;
 
-import io.nats.client.NUID;
+import io.nats.client.Message;
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.source.config.SourceConfiguration;
-import io.synadia.flink.source.enumerator.NatsSourceEnumerator;
-import io.synadia.flink.source.reader.NatsJetstreamSourceReader;
-import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
+import io.synadia.flink.source.reader.NatsJetStreamSourceReader;
+import io.synadia.flink.source.reader.NatsSourceFetcherManager;
+import io.synadia.flink.source.reader.NatsSubjectSplitReader;
 import io.synadia.flink.source.split.NatsSubjectSplit;
-import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.*;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.synadia.flink.utils.ConnectionFactory;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+import java.util.function.Supplier;
 
-public class NatsJetStreamSource<OutputT> implements Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>>, ResultTypeQueryable<OutputT> {
-    private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSource.class);
+import static io.synadia.flink.utils.MiscUtils.generateId;
 
-    private final PayloadDeserializer<OutputT> deserializationSchema;
-    private final SourceConfiguration sourceConfiguration;
+public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
+    protected final String id;
+    private final NatsJetStreamSourceConfiguration sourceConfiguration;
 
-    // Package-private constructor to ensure usage of the Builder for object creation
-    NatsJetStreamSource(PayloadDeserializer<OutputT> deserializationSchema, SourceConfiguration sourceConfiguration) {
-        this.deserializationSchema = deserializationSchema;
+    NatsJetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer, ConnectionFactory connectionFactory, List<String> subjects,
+                        NatsJetStreamSourceConfiguration sourceConfiguration) {
+        super(payloadDeserializer, connectionFactory, subjects, NatsJetStreamSource.class);
+        id = generateId();
         this.sourceConfiguration = sourceConfiguration;
     }
 
     @Override
-    public TypeInformation<OutputT> getProducedType() {
-        return deserializationSchema.getProducedType();
-    }
-
-    @Override
     public Boundedness getBoundedness() {
-        return null;
-    }
-
-    @Override
-    public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
-            SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception {
-        List<NatsSubjectSplit> list = new ArrayList<>();
-        list.add(new NatsSubjectSplit(sourceConfiguration.getSubjectName()));
-        return restoreEnumerator(enumContext, list);
-    }
-
-    @Override
-    public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> restoreEnumerator(
-            SplitEnumeratorContext<NatsSubjectSplit> enumContext, Collection<NatsSubjectSplit> checkpoint)
-            throws Exception {
-        return new NatsSourceEnumerator(NUID.nextGlobal(), enumContext, checkpoint);
-    }
-
-    @Override
-    public SimpleVersionedSerializer<NatsSubjectSplit> getSplitSerializer() {
-        return new NatsSubjectSplitSerializer();
-    }
-
-    @Override
-    public SimpleVersionedSerializer<Collection<NatsSubjectSplit>> getEnumeratorCheckpointSerializer() {
-        return new NatsSubjectCheckpointSerializer();
+        logger.debug("{} | Boundedness", id);
+        return null; // TODO this varies from NatsSource, understand why
     }
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return NatsJetstreamSourceReader.create(sourceConfiguration, deserializationSchema, readerContext);
-    }
+        int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue =
+            new FutureCompletingBlockingQueue<>(queueCapacity);
 
+        Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
+            () -> new NatsSubjectSplitReader(connectionFactory, sourceConfiguration);
+
+        NatsSourceFetcherManager fetcherManager =
+            new NatsSourceFetcherManager(
+                elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
+
+        return new NatsJetStreamSourceReader<>(
+            id,
+            elementsQueue,
+            fetcherManager,
+            sourceConfiguration, connectionFactory, payloadDeserializer,
+            readerContext);
+    }
 }
+

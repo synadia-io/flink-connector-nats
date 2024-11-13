@@ -45,9 +45,8 @@ public class SourceTests extends TestBase {
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer);
-
-            builder.connectionProperties(connectionProperties);
+                .payloadDeserializer(deserializer)
+                .connectionProperties(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();

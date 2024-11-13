@@ -1,11 +1,11 @@
 // Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.sink;
+package io.synadia.flink.sink.writer;
 
 import io.nats.client.Connection;
-import io.synadia.flink.common.ConnectionFactory;
 import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 
@@ -14,7 +14,7 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
 
-import static io.synadia.flink.Utils.generatePrefixedId;
+import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 
 /**
  * This class is responsible to publish to one or more NATS subjects

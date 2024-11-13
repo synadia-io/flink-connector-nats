@@ -1,16 +1,17 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.Utils;
-import io.synadia.flink.common.NatsSinkOrSourceBuilder;
 import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.utils.Constants;
+import io.synadia.flink.utils.NatsSinkOrSourceBuilder;
+import io.synadia.flink.utils.PropertiesUtils;
 
-import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.flink.Constants.*;
+import static io.synadia.flink.utils.Constants.PAYLOAD_SERIALIZER;
+import static io.synadia.flink.utils.Constants.SINK_PREFIX;
 
 /**
  * Builder to construct {@link NatsSink}.
@@ -29,13 +30,17 @@ import static io.synadia.flink.Constants.*;
  * @see NatsSink
  * @param <InputT> type of the records written to Kafka
  */
-public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBuilder<InputT>> {
+public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<InputT, NatsSinkBuilder<InputT>> {
     private PayloadSerializer<InputT> payloadSerializer;
     private String payloadSerializerClass;
 
     @Override
     protected NatsSinkBuilder<InputT> getThis() {
         return this;
+    }
+
+    public NatsSinkBuilder() {
+        super(SINK_PREFIX);
     }
 
     /**
@@ -60,32 +65,18 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
         return this;
     }
 
-
     /**
      * Set sink properties from a properties object
-     * See the readme and {@link io.synadia.flink.Constants} for property keys
+     * See the readme and {@link Constants} for property keys
      * @param properties the properties object
      * @return the builder
      */
     public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
-        List<String> subjects = Utils.getPropertyAsList(properties, SINK_SUBJECTS);
-        if (!subjects.isEmpty()) {
-            subjects(subjects);
-        }
+        baseProperties(properties);
 
-        String s = properties.getProperty(SINK_PAYLOAD_SERIALIZER);
+        String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_SERIALIZER, prefixes);
         if (s != null) {
             payloadSerializerClass(s);
-        }
-
-        long l = Utils.getLongProperty(properties, SINK_STARTUP_JITTER_MIN, -1);
-        if (l != -1) {
-            minConnectionJitter(l);
-        }
-
-        l = Utils.getLongProperty(properties, SINK_STARTUP_JITTER_MAX, -1);
-        if (l != -1) {
-            maxConnectionJitter(l);
         }
 
         return this;
@@ -96,8 +87,6 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
      * @return the sink
      */
     public NatsSink<InputT> build() {
-        beforeBuild();
-
         if (payloadSerializer == null) {
             if (payloadSerializerClass == null) {
                 throw new IllegalStateException("Valid payload serializer class must be provided.");
@@ -113,6 +102,7 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
             }
         }
 
+        baseBuild();
         return new NatsSink<>(subjects, payloadSerializer, createConnectionFactory());
     }
 }
