@@ -1,8 +1,8 @@
 package io.synadia.io.synadia.flink;
 
 import io.nats.client.impl.Headers;
-import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.v0.payload.PayloadDeserializer;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public class WordCountDeserializer implements PayloadDeserializer<WordCount> {

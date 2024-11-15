@@ -26,6 +26,7 @@ public abstract class PropertiesUtils {
     /**
      * Create and load a properties object from a file.
      * @param propertiesFilePath a resolvable path to a file from the location the application is running, either relative or absolute
+     * @throws IOException if there is an exception opening the properties file
      * @return the properties object loaded from the file
      */
     public static Properties loadPropertiesFromFile(String propertiesFilePath) throws IOException {

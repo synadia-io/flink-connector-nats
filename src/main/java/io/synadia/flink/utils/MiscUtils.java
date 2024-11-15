@@ -37,11 +37,10 @@ public abstract class MiscUtils {
     }
 
     public static String generateId() {
-        return NUID.nextGlobal().substring(0, 4);
+        return new NUID().next().substring(0, 4);
     }
 
     public static String generatePrefixedId(String prefix) {
-        String temp = NUID.nextGlobal();
-        return prefix + "-" + temp.substring(temp.length() - 5);
+        return prefix + "-" + NUID.nextGlobalSequence();
     }
 }
