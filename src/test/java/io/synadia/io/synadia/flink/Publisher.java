@@ -31,8 +31,8 @@ public class Publisher implements Runnable {
     @Override
     public void run() {
         while (keepGoing.get()) {
+            int num = counter.incrementAndGet();
             for (String subject : subjects) {
-                int num = counter.incrementAndGet();
                 nc.publish(subject, ("data-" + subject + "-" + num).getBytes());
             }
             try {

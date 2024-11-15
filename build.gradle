@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "1.0.1"
+def jarVersion = "2.0.0-beta1"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
@@ -29,13 +29,14 @@ java {
 
 repositories {
     mavenCentral()
+
     maven {
         url "https://oss.sonatype.org/content/repositories/releases/"
     }
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.18.1'
+    implementation 'io.nats:jnats:2.20.2'
 
     ext.flinkVersion='1.17.1'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
@@ -47,7 +48,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
     testImplementation 'org.slf4j:slf4j-simple:2.0.9'
-    testImplementation 'io.nats:jnats-server-runner:1.2.5'
+    testImplementation 'io.nats:jnats-server-runner:1.2.8'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'

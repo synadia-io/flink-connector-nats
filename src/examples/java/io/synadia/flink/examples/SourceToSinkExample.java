@@ -4,15 +4,14 @@ import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.synadia.flink.Constants;
-import io.synadia.flink.Utils;
 import io.synadia.flink.examples.support.ExampleConnectionListener;
 import io.synadia.flink.examples.support.ExampleErrorListener;
 import io.synadia.flink.examples.support.Publisher;
-import io.synadia.flink.sink.NatsSink;
-import io.synadia.flink.sink.NatsSinkBuilder;
-import io.synadia.flink.source.NatsSource;
-import io.synadia.flink.source.NatsSourceBuilder;
+import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.v0.sink.NatsSink;
+import io.synadia.flink.v0.sink.NatsSinkBuilder;
+import io.synadia.flink.v0.source.NatsSource;
+import io.synadia.flink.v0.source.NatsSourceBuilder;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -26,7 +25,7 @@ import java.util.Properties;
 public class SourceToSinkExample {
     public static void main(String[] args) throws Exception {
         // load properties from a file for example application.properties
-        Properties props = Utils.loadPropertiesFromFile("src/examples/resources/application.properties");
+        Properties props = PropertiesUtils.loadPropertiesFromFile("src/examples/resources/application.properties");
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
@@ -36,7 +35,7 @@ public class SourceToSinkExample {
         // the source will have missed some messages by the time it gets running
         // but that's typical for a non-stream subject and something for
         // the developer to plan for
-        List<String> sourceSubjects = Utils.getPropertyAsList(props, Constants.SOURCE_SUBJECTS);
+        List<String> sourceSubjects = PropertiesUtils.getPropertyAsList(props, "source.subjects");
         Publisher publisher = new Publisher(nc, sourceSubjects);
         new Thread(publisher).start();
 
@@ -44,7 +43,7 @@ public class SourceToSinkExample {
         Dispatcher dispatcher = nc.createDispatcher(m -> {
             System.out.printf("Listening. Subject: %s Payload: %s\n", m.getSubject(), new String(m.getData()));
         });
-        List<String> sinkSubjects = Utils.getPropertyAsList(props, Constants.SINK_SUBJECTS);
+        List<String> sinkSubjects = PropertiesUtils.getPropertyAsList(props, "sink.subjects");
         for (String subject : sinkSubjects) {
             dispatcher.subscribe(subject);
         }
