@@ -1,4 +1,4 @@
-package io.synadia.flink.examples;
+package io.synadia.flink.examples.v0;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
