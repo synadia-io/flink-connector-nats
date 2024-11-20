@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.0.0-beta1"
+def jarVersion = "2.0.0-beta2"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
@@ -38,7 +38,7 @@ repositories {
 dependencies {
     implementation 'io.nats:jnats:2.20.2'
 
-    ext.flinkVersion='1.17.1'
+    ext.flinkVersion='1.17.2'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
     implementation "org.apache.flink:flink-java:${flinkVersion}"
     implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"

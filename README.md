@@ -6,7 +6,7 @@
 
 Connect NATS to Flink with Java
 
-**Current Release**: N/A &nbsp; **Current Snapshot**: 0.0.1-SNAPSHOT
+**Current Release**: 2.0.0-beta1 &nbsp; **Current Snapshot**: 2.0.0-beta2-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
@@ -19,6 +19,17 @@ Connect NATS to Flink with Java
 
 The connector requires Java version 11 or later to be compatible with Flink libraries. 
 The JNATS library is built with Java 8 and is compatible being run by a later version of Java.  
+
+## Beta Release and Implementation Versioning
+
+This library adheres to [semver](https://semver.org/). 
+In order to allow for completely different implementations for JetStream support,
+the implementations have been put into distinct Java packages, for instance
+`io.synadia.flink.v0` This has allowed us to release this while provide the future ability 
+to _change_ the api without requiring a semver major bump. To accomplish this, the
+new implementation will be put in the `io.synadia.flink.v1` package hierarchy.
+
+The reason the current release is also _beta_ is that we are hoping for use and feedback. 
 
 ## Source
 In order to construct a source, you must use the builder.

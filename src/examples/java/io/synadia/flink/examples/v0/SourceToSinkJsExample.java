@@ -1,7 +1,9 @@
-package io.synadia.flink.examples;
+package io.synadia.flink.examples.v0;
 
 import io.nats.client.*;
-import io.nats.client.api.*;
+import io.nats.client.api.AckPolicy;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.utils.PropertiesUtils;
 import io.synadia.flink.v0.NatsJetStreamSource;
 import io.synadia.flink.v0.NatsJetStreamSourceBuilder;
