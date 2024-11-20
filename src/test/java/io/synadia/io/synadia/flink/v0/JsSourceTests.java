@@ -28,7 +28,7 @@ import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class JetStreamSourceTest extends TestBase {
+public class JsSourceTests extends TestBase {
 
     static void publish(JetStream js, String subject, int count) throws Exception {
         publish(js, subject, count, 0);
