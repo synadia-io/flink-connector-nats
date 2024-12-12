@@ -37,7 +37,7 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
     @Override
     public Boundedness getBoundedness() {
         logger.debug("{} | Boundedness", id);
-        return null; // TODO this varies from NatsSource, understand why
+        return Boundedness.CONTINUOUS_UNBOUNDED; // TODO this varies from NatsSource, understand why
     }
 
     @Override

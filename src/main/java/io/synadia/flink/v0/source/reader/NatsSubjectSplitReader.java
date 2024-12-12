@@ -55,35 +55,20 @@ public class NatsSubjectSplitReader
         }
 
         String splitId = registeredSplit.splitId();
-        Deadline deadline = Deadline.fromNow(sourceConfiguration.getFetchTimeout());
 
-        for (int messageNum = 0;
-             messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
-             messageNum++) {
-            try {
-                Duration fetchTime = sourceConfiguration.getFetchOneMessageTimeout();
-                if (fetchTime == null) {
-                    fetchTime = Duration.ofMillis(deadline.timeLeftIfAny().toMillis());
-                }
+        Duration fetchTime = sourceConfiguration.getFetchOneMessageTimeout();
 
-                List<Message> messages = jetStreamSubscription.fetch(1, fetchTime);
-                if (messages.isEmpty()) {
-                    builder.addFinishedSplit(splitId);
-                    break;
-                }
-
-                builder.add(splitId, messages.get(0));
-
-                LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
-                break; //TODO remove this
-
-            } catch (TimeoutException e) {
-                break;
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
+        List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), fetchTime);
+        if (messages.isEmpty()) {
+            builder.addFinishedSplit(splitId);
+            return builder.build();
         }
 
+        messages.forEach((msg) -> {
+            builder.add(splitId, msg);
+        });
+
+        LOG.debug("{} | {} | Finished polling message {}", id, splitId, sourceConfiguration.getMaxFetchRecords());
         return builder.build();
     }
 
@@ -150,14 +135,12 @@ public class NatsSubjectSplitReader
         if (jetStreamSubscription == null) {
             this.jetStreamSubscription = createSubscription(subject);
         }
-        //Handle specially for cumulative ack
-        if (jetStreamSubscription.getConsumerInfo().getConsumerConfiguration().getAckPolicy() == AckPolicy.All)
-        {
-            List<Message> reversed = Lists.reverse(messages);
-            reversed.get(0).ack();
-        }else {
-            messages.forEach(Message::ack);
-        }
+        //Change it to message.ack()
+        messages.forEach((msg)->{
+                    getConnection().publish(msg.getReplyTo(),"+ACK".getBytes());
+                }
+        );
+
     }
 
     // --------------------------- Helper Methods -----------------------------

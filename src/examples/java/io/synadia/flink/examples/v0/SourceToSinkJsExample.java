@@ -17,6 +17,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +58,9 @@ public class SourceToSinkJsExample {
                 .subjects(sourceSubject)
                 .payloadDeserializer(deserializer) // Deserialize messages from source
                 .connectionProperties(connectionProperties)
-                .consumerName(consumerName);
+                .consumerName(consumerName)
+                .maxFetchRecords(100)
+                .maxFetchTime(Duration.ofSeconds(5));
 
         NatsJetStreamSource<String> natsSource = builder.build();
 
