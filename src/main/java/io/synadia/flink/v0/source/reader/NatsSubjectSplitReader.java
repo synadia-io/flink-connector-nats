@@ -6,6 +6,7 @@ import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -55,20 +56,16 @@ public class NatsSubjectSplitReader
         }
 
         String splitId = registeredSplit.splitId();
-
-        Duration fetchTime = sourceConfiguration.getFetchOneMessageTimeout();
-
-        List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), fetchTime);
-        if (messages.isEmpty()) {
+        List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+        //Stop consuming if running in batch mode and configured size of messages are fetched
+        if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()){
             builder.addFinishedSplit(splitId);
-            return builder.build();
         }
-
-        messages.forEach((msg) -> {
-            builder.add(splitId, msg);
+        messages.forEach((msg)-> {
+            builder.add(splitId,msg);
         });
+        LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
-        LOG.debug("{} | {} | Finished polling message {}", id, splitId, sourceConfiguration.getMaxFetchRecords());
         return builder.build();
     }
 
@@ -132,10 +129,7 @@ public class NatsSubjectSplitReader
 
     public void notifyCheckpointComplete(String subject, List<Message> messages)
             throws Exception { //TODO Throw nats exception
-        if (jetStreamSubscription == null) {
-            this.jetStreamSubscription = createSubscription(subject);
-        }
-        //Change it to message.ack()
+        //Handle specially for cumulative ack
         messages.forEach((msg)->{
                     getConnection().publish(msg.getReplyTo(),"+ACK".getBytes());
                 }

@@ -14,6 +14,7 @@ import io.synadia.flink.v0.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -60,7 +61,8 @@ public class SourceToSinkJsExample {
                 .connectionProperties(connectionProperties)
                 .consumerName(consumerName)
                 .maxFetchRecords(100)
-                .maxFetchTime(Duration.ofSeconds(5));
+                .maxFetchTime(Duration.ofSeconds(5))
+                .boundness(Boundedness.BOUNDED);
 
         NatsJetStreamSource<String> natsSource = builder.build();
 
