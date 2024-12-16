@@ -62,8 +62,7 @@ public class NatsSubjectSplitReader
             }
         }
         catch(Exception e) {
-            LOG.error(e.getMessage(), e);
-            builder.addFinishedSplit(splitId); //Finish reading message from split if consumer is deleted for any reason.
+            throw new IOException(e); //Finish reading message from split if consumer is deleted for any reason.
         }
         LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
