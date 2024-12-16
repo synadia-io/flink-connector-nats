@@ -57,13 +57,14 @@ public class NatsSubjectSplitReader
 
         String splitId = registeredSplit.splitId();
         List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+        messages.forEach((msg)-> {
+            builder.add(splitId,msg);
+        });
         //Stop consuming if running in batch mode and configured size of messages are fetched
         if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()){
             builder.addFinishedSplit(splitId);
         }
-        messages.forEach((msg)-> {
-            builder.add(splitId,msg);
-        });
+
         LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
         return builder.build();

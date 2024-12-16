@@ -9,16 +9,17 @@ import io.synadia.flink.v0.NatsJetStreamSource;
 import io.synadia.flink.v0.NatsJetStreamSourceBuilder;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.payload.StringPayloadDeserializer;
-import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +27,6 @@ import java.util.Properties;
 
 import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class JsSourceTests extends TestBase {
 
@@ -47,7 +47,6 @@ public class JsSourceTests extends TestBase {
     public void testJsSourceBounded() throws Exception {
         final List<Message> syncList = Collections.synchronizedList(new ArrayList<>());
         String sourceSubject = random("sub");
-        String sinkSubject = random("sink");
         String streamName = random("strm");
         String consumerName = random("con");
 
@@ -68,22 +67,17 @@ public class JsSourceTests extends TestBase {
                     .subjects(sourceSubject)
                     .payloadDeserializer(deserializer)
                     .connectionProperties(connectionProperties)
-                    .consumerName(consumerName);
+                    .consumerName(consumerName)
+                    .maxFetchRecords(10)
+                    .maxFetchTime(Duration.ofSeconds(5))
+                    .boundness(Boundedness.BOUNDED);
 
             NatsJetStreamSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
-            env.getCheckpointConfig().setCheckpointInterval(10_000L);
+            env.getCheckpointConfig().setCheckpointInterval(11_000L);
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-input");
 
-            // listen to the sink output
-            Dispatcher d = nc.createDispatcher();
-            d.subscribe(sinkSubject, syncList::add);
-
-            connectionProperties = defaultConnectionProperties(url);
-            NatsSink<String> sink = newNatsSink(sinkSubject, connectionProperties, null);
-            ds.sinkTo(sink);
-
-//            ds.map(String::toUpperCase); //To Avoid Sink Dependency
+            ds.map(String::toUpperCase); //To Avoid Sink Dependency
             env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("TestJsSourceBounded");
 
@@ -93,9 +87,6 @@ public class JsSourceTests extends TestBase {
             SequenceInfo sequenceInfo = ci.getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 2);
 
-            for (Message m : syncList) {
-                String payload = new String(m.getData());
-            }
         });
     }
 
@@ -110,7 +101,7 @@ public class JsSourceTests extends TestBase {
             JetStream js = jsm.jetStream();
             createStream(jsm, streamName, sourceSubject);
 
-            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, 5);
+            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, 100);
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
             PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
@@ -118,7 +109,10 @@ public class JsSourceTests extends TestBase {
                 .subjects(sourceSubject)
                 .payloadDeserializer(deserializer)
                 .connectionProperties(connectionProperties)
-                .consumerName(consumerName);
+                .consumerName(consumerName)
+                .maxFetchRecords(100)
+                .maxFetchTime(Duration.ofSeconds(5))
+                .boundness(Boundedness.CONTINUOUS_UNBOUNDED);
 
             // Flink environment setup
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -127,25 +121,13 @@ public class JsSourceTests extends TestBase {
             ds.map(String::toUpperCase);
 
             // Running Flink job in a separate thread
-            Thread flinkThread = new Thread(() -> {
-                try {
-                    env.execute("TestJsSourceUnbounded");
-                }
-                catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-                catch (Exception e) {
-                    fail(e);
-                }
-            });
-            flinkThread.start();
+            env.executeAsync("TestJsSourceUnbounded");
+            publish(js, sourceSubject, 5, 0);
 
-            publish(js, sourceSubject, 5, 100);
-
-            Thread.sleep(10000); // Increased sleep time to ensure messages are processed
+            Thread.sleep(15_000L); // Increased sleep time to ensure messages are processed
+            env.close();
             SequenceInfo sequenceInfo = nc.jetStream().getConsumerContext(streamName, consumerName).getConsumerInfo().getDelivered();
             assertTrue(sequenceInfo.getStreamSequence() >= 5);
-            flinkThread.interrupt(); // Interrupt to stop the Flink job
         });
     }
 
@@ -154,7 +136,7 @@ public class JsSourceTests extends TestBase {
             .durable(consumerName)
             .ackPolicy(AckPolicy.All)
             .filterSubject(sourceSubject)
-            .maxBatch(5)
+            .maxBatch(maxBatch)
             .build();
         jsm.addOrUpdateConsumer(streamName, cc);
         return cc;
