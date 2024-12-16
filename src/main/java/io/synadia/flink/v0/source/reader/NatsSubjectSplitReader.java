@@ -1,27 +1,22 @@
 package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
 import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 
@@ -56,15 +51,20 @@ public class NatsSubjectSplitReader
         }
 
         String splitId = registeredSplit.splitId();
-        List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
-        messages.forEach((msg)-> {
-            builder.add(splitId,msg);
-        });
-        //Stop consuming if running in batch mode and configured size of messages are fetched
-        if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()){
-            builder.addFinishedSplit(splitId);
+        try {
+            List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+            messages.forEach((msg) -> {
+                builder.add(splitId, msg);
+            });
+            //Stop consuming if running in batch mode and configured size of messages are fetched
+            if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()) {
+                builder.addFinishedSplit(splitId);
+            }
         }
-
+        catch(Exception e) {
+            LOG.error(e.getMessage(), e);
+            builder.addFinishedSplit(splitId); //Finish reading message from split if consumer is deleted for any reason.
+        }
         LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
         return builder.build();
