@@ -14,9 +14,11 @@ import io.synadia.flink.v0.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +59,10 @@ public class SourceToSinkJsExample {
                 .subjects(sourceSubject)
                 .payloadDeserializer(deserializer) // Deserialize messages from source
                 .connectionProperties(connectionProperties)
-                .consumerName(consumerName);
+                .consumerName(consumerName)
+                .maxFetchRecords(100)
+                .maxFetchTime(Duration.ofSeconds(5))
+                .boundness(Boundedness.BOUNDED);
 
         NatsJetStreamSource<String> natsSource = builder.build();
 

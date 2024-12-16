@@ -6,6 +6,7 @@ package io.synadia.flink.v0;
 import io.synadia.flink.utils.Constants;
 import io.synadia.flink.utils.PropertiesUtils;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
+import org.apache.flink.api.connector.source.Boundedness;
 
 import java.time.Duration;
 import java.util.Properties;
@@ -23,6 +24,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
     private Duration fetchTimeout;
     private int maxFetchRecords;
     private Duration autoAckInterval;
+    private Boundedness boundedness;
 
     public NatsJetStreamSourceBuilder() {
         super(SOURCE_PREFIX);
@@ -32,6 +34,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         fetchTimeout = Duration.ofMillis(DEFAULT_FETCH_TIMEOUT_MS);
         maxFetchRecords = DEFAULT_MAX_FETCH_RECORDS;
         autoAckInterval = Duration.ofMillis(DEFAULT_AUTO_ACK_INTERVAL_MS);
+        boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
     /**
@@ -113,6 +116,12 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return this;
     }
 
+    public NatsJetStreamSourceBuilder<OutputT> boundness(Boundedness boundedness){
+        this.boundedness = boundedness;
+        return this;
+    }
+
+
     /**
      * Build a NatsJetStreamSource.
      * @return the source
@@ -149,6 +158,6 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
                 fetchOneMessageTimeout,
                 fetchTimeout,
                 maxFetchRecords,
-                autoAckInterval));
+                autoAckInterval, boundedness));
     }
 }
