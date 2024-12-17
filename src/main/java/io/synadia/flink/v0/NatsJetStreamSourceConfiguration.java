@@ -3,6 +3,7 @@
 
 package io.synadia.flink.v0;
 
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
@@ -20,6 +21,7 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
     private final int maxFetchRecords;
     private final Duration autoAckInterval;
     private final Configuration configuration;
+    private final Boundedness boundedness;
 
     NatsJetStreamSourceConfiguration(String consumerName,
                                             int messageQueueCapacity,
@@ -27,7 +29,8 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
                                             Duration fetchOneMessageTimeout,
                                             Duration fetchTimeout,
                                             int maxFetchRecords,
-                                            Duration autoAckInterval) {
+                                            Duration autoAckInterval,
+                                            Boundedness boundedness) {
         this.consumerName = consumerName;
         this.messageQueueCapacity = messageQueueCapacity;
         this.enableAutoAcknowledgeMessage = enableAutoAcknowledgeMessage;
@@ -37,6 +40,7 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
         this.autoAckInterval = autoAckInterval;
         configuration = new Configuration();
         configuration.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.key(), messageQueueCapacity);
+        this.boundedness = boundedness;
     }
 
     public String getConsumerName() {
@@ -69,5 +73,9 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
 
     public Configuration getConfiguration() {
         return configuration;
+    }
+
+    public Boundedness getBoundedness() {
+        return boundedness;
     }
 }

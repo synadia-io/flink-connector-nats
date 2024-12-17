@@ -1,26 +1,22 @@
 package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
 import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
-import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 
@@ -55,34 +51,20 @@ public class NatsSubjectSplitReader
         }
 
         String splitId = registeredSplit.splitId();
-        Deadline deadline = Deadline.fromNow(sourceConfiguration.getFetchTimeout());
-
-        for (int messageNum = 0;
-             messageNum < sourceConfiguration.getMaxFetchRecords() && deadline.hasTimeLeft();
-             messageNum++) {
-            try {
-                Duration fetchTime = sourceConfiguration.getFetchOneMessageTimeout();
-                if (fetchTime == null) {
-                    fetchTime = Duration.ofMillis(deadline.timeLeftIfAny().toMillis());
-                }
-
-                List<Message> messages = jetStreamSubscription.fetch(1, fetchTime);
-                if (messages.isEmpty()) {
-                    builder.addFinishedSplit(splitId);
-                    break;
-                }
-
-                builder.add(splitId, messages.get(0));
-
-                LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
-                break; //TODO remove this
-
-            } catch (TimeoutException e) {
-                break;
-            } catch (Exception e) {
-                throw new IOException(e);
+        try {
+            List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+            messages.forEach((msg) -> {
+                builder.add(splitId, msg);
+            });
+            //Stop consuming if running in batch mode and configured size of messages are fetched
+            if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()) {
+                builder.addFinishedSplit(splitId);
             }
         }
+        catch(Exception e) {
+            throw new IOException(e); //Finish reading message from split if consumer is deleted for any reason.
+        }
+        LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
         return builder.build();
     }
@@ -147,17 +129,12 @@ public class NatsSubjectSplitReader
 
     public void notifyCheckpointComplete(String subject, List<Message> messages)
             throws Exception { //TODO Throw nats exception
-        if (jetStreamSubscription == null) {
-            this.jetStreamSubscription = createSubscription(subject);
-        }
         //Handle specially for cumulative ack
-        if (jetStreamSubscription.getConsumerInfo().getConsumerConfiguration().getAckPolicy() == AckPolicy.All)
-        {
-            List<Message> reversed = Lists.reverse(messages);
-            reversed.get(0).ack();
-        }else {
-            messages.forEach(Message::ack);
-        }
+        messages.forEach((msg)->{
+                    getConnection().publish(msg.getReplyTo(),"+ACK".getBytes());
+                }
+        );
+
     }
 
     // --------------------------- Helper Methods -----------------------------
