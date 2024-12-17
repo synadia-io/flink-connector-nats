@@ -1,12 +1,11 @@
 // Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.v0;
+package io.synadia.flink.v0.source;
 
 import io.nats.client.Message;
 import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
-import io.synadia.flink.v0.source.NatsSource;
 import io.synadia.flink.v0.source.reader.NatsJetStreamSourceReader;
 import io.synadia.flink.v0.source.reader.NatsSourceFetcherManager;
 import io.synadia.flink.v0.source.reader.NatsSubjectSplitReader;

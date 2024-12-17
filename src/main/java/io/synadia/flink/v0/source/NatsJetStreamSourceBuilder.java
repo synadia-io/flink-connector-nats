@@ -1,7 +1,7 @@
 // Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.v0;
+package io.synadia.flink.v0.source;
 
 import io.synadia.flink.utils.Constants;
 import io.synadia.flink.utils.PropertiesUtils;

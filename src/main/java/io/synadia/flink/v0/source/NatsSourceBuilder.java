@@ -5,7 +5,6 @@ package io.synadia.flink.v0.source;
 
 import io.synadia.flink.utils.Constants;
 import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.v0.NatsSinkOrSourceBuilder;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 
 import java.util.Properties;

@@ -5,9 +5,9 @@ package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.Message;
 import io.synadia.flink.utils.ConnectionFactory;
-import io.synadia.flink.v0.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.emitter.NatsRecordEmitter;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
+import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.source.split.NatsSubjectSplitState;
 import org.apache.flink.annotation.Internal;

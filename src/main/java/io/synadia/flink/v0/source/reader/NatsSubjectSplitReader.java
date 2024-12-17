@@ -2,7 +2,7 @@ package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.*;
 import io.synadia.flink.utils.ConnectionFactory;
-import io.synadia.flink.v0.NatsJetStreamSourceConfiguration;
+import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
