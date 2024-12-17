@@ -6,7 +6,6 @@ package io.synadia.io.synadia.flink.v0;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
-import io.nats.client.Message;
 import io.nats.client.api.*;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.payload.StringPayloadDeserializer;
@@ -23,12 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
-import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JsSourceTests extends TestBase {
@@ -48,7 +43,6 @@ public class JsSourceTests extends TestBase {
 
     @Test
     public void testJsSourceBounded() throws Exception {
-        final List<Message> syncList = Collections.synchronizedList(new ArrayList<>());
         String sourceSubject = random("sub");
         String streamName = random("strm");
         String consumerName = random("con");
@@ -59,8 +53,6 @@ public class JsSourceTests extends TestBase {
 
             createStream(jsm, streamName, sourceSubject);
             publish(js, sourceSubject, 10);
-
-            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, INTEGER_UNSET);
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
@@ -104,7 +96,6 @@ public class JsSourceTests extends TestBase {
             JetStream js = jsm.jetStream();
             createStream(jsm, streamName, sourceSubject);
 
-            ConsumerConfiguration cc = createConsumer(jsm, streamName, sourceSubject, consumerName, 100);
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
             PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
