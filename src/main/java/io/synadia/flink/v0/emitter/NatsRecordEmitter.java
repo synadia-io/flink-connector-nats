@@ -20,7 +20,8 @@ public class NatsRecordEmitter<OutputT>
                            SourceOutput<OutputT> output,
                            NatsSubjectSplitState splitState)
             throws Exception {
-        // Deserialize the message and since it to output.
+
+        // Deserialize the message and send it to output.
         output.collect(payloadDeserializer.getObject(splitState.getSplit().getSubject(), element.getData(), element.getHeaders()));
         splitState.getSplit().getCurrentMessages().add(element);
     }

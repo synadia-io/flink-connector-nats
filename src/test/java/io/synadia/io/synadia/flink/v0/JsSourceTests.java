@@ -3,12 +3,15 @@
 
 package io.synadia.io.synadia.flink.v0;
 
-import io.nats.client.*;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.JetStreamManagement;
+import io.nats.client.Message;
 import io.nats.client.api.*;
-import io.synadia.flink.v0.NatsJetStreamSource;
-import io.synadia.flink.v0.NatsJetStreamSourceBuilder;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.payload.StringPayloadDeserializer;
+import io.synadia.flink.v0.source.NatsJetStreamSource;
+import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
