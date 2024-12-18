@@ -38,6 +38,10 @@ repositories {
 dependencies {
     implementation 'io.nats:jnats:2.20.2'
 
+    // these are here to override flink since the flink dependency version has vulnerabilities
+    implementation 'org.apache.commons:commons-compress:1.27.1'
+    implementation 'commons-io:commons-io:2.18.0'
+
     ext.flinkVersion='1.17.2'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
     implementation "org.apache.flink:flink-java:${flinkVersion}"
