@@ -6,7 +6,7 @@
 
 Connect NATS to Flink with Java
 
-**Current Release**: 2.0.0-beta1 &nbsp; **Current Snapshot**: 2.0.0-beta2-SNAPSHOT
+**Current Release**: 2.0.0-beta2 &nbsp; **Current Snapshot**: 2.0.0-beta3-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
