@@ -1,7 +1,7 @@
 // Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.utils;
+package io.synadia.flink.v0.utils;
 
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
@@ -33,4 +33,8 @@ public interface Constants {
 
     String ENABLE_AUTO_ACK = "enable.auto.ack";
     boolean DEFAULT_ENABLE_AUTO_ACK = false;
+
+    String JSO_REQUEST_TIMEOUT = "jso.request.timeout";
+    String JSO_PREFIX = "jso.prefix";
+    String JSO_DOMAIN = "jso.domain";
 }

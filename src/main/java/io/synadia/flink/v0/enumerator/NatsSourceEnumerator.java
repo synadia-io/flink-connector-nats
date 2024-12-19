@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> {

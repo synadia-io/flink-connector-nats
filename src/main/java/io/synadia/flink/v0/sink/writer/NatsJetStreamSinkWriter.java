@@ -4,10 +4,13 @@
 package io.synadia.flink.v0.sink.writer;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStreamApiException;
 import io.synadia.flink.v0.payload.PayloadSerializer;
+import io.synadia.flink.v0.utils.ConnectionContext;
 import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -20,7 +23,7 @@ import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
  * This class is responsible to publish to one or more NATS subjects
  * @param <InputT> The type of the input elements.
  */
-public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable {
+public class NatsJetStreamSinkWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
     private final String sinkId;
     private final List<String> subjects;
@@ -29,46 +32,51 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
     private final Sink.InitContext sinkInitContext;
 
     private transient String id;
-    private transient Connection connection;
+    private transient ConnectionContext connCtx;
 
-    public NatsSinkWriter(String sinkId,
-                          List<String> subjects,
-                          PayloadSerializer<InputT> payloadSerializer,
-                          ConnectionFactory connectionFactory,
-                          Sink.InitContext sinkInitContext) throws IOException {
+    public NatsJetStreamSinkWriter(String sinkId,
+                                   List<String> subjects,
+                                   PayloadSerializer<InputT> payloadSerializer,
+                                   ConnectionFactory connectionFactory,
+                                   Sink.InitContext sinkInitContext) throws IOException {
         this.sinkId = sinkId;
         this.id = generatePrefixedId(sinkId);
         this.subjects = subjects;
         this.payloadSerializer = payloadSerializer;
         this.connectionFactory = connectionFactory;
         this.sinkInitContext = sinkInitContext;
-        connection = connectionFactory.connect();
+        connCtx = connectionFactory.connectContext();
     }
 
     @Override
-    public void write(InputT element, SinkWriter.Context context) throws IOException, InterruptedException {
+    public void write(InputT element, Context context) throws IOException, InterruptedException {
         byte[] payload = payloadSerializer.getBytes(element);
         for (String subject : subjects) {
-            connection.publish(subject, null, null, payload);
+            try {
+                connCtx.js.publish(subject, null, payload);
+            }
+            catch (JetStreamApiException e) {
+                throw new FlinkRuntimeException(e);
+            }
         }
     }
 
     @Override
     public void flush(boolean endOfInput) throws IOException, InterruptedException {
-        if (connection.getStatus() == Connection.Status.CONNECTED) {
-            connection.flushBuffer();
+        if (connCtx.connection.getStatus() == Connection.Status.CONNECTED) {
+            connCtx.connection.flushBuffer();
         }
     }
 
     @Override
     public void close() throws Exception {
-        connection.close();
+        connCtx.connection.close();
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         id = generatePrefixedId(sinkId);
-        connection = connectionFactory.connect();
+        connCtx = connectionFactory.connectContext();
     }
 
     @Override

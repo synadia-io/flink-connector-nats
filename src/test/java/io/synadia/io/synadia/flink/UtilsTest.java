@@ -1,6 +1,6 @@
 package io.synadia.io.synadia.flink;
 
-import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.v0.utils.PropertiesUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.junit.jupiter.api.Test;
 

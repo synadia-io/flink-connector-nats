@@ -6,9 +6,9 @@ package io.synadia.flink.v0.source.reader;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
-import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {

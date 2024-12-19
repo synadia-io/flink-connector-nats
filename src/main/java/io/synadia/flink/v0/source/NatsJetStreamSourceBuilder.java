@@ -3,15 +3,15 @@
 
 package io.synadia.flink.v0.source;
 
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
+import io.synadia.flink.v0.utils.Constants;
+import io.synadia.flink.v0.utils.PropertiesUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.v0.utils.Constants.*;
 
 public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<OutputT, NatsJetStreamSourceBuilder<OutputT>> {
 

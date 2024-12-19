@@ -3,14 +3,14 @@
 
 package io.synadia.flink.v0.source;
 
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
+import io.synadia.flink.v0.utils.Constants;
+import io.synadia.flink.v0.utils.PropertiesUtils;
 
 import java.util.Properties;
 
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
+import static io.synadia.flink.v0.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.v0.utils.Constants.SOURCE_PREFIX;
 
 /**
  * Builder to construct {@link NatsSource}.
