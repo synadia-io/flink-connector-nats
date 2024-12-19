@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.sink;
@@ -14,13 +14,13 @@ import static io.synadia.flink.v0.utils.Constants.PAYLOAD_SERIALIZER;
 import static io.synadia.flink.v0.utils.Constants.SINK_PREFIX;
 
 /**
- * Builder to construct {@link NatsSink}.
+ * Builder to construct {@link NatsJetStreamSink}.
  *
  * <p>The following example shows the minimum setup to create a NatsSink that writes String values
  * to one or more NATS subjects.
  *
  * <pre>{@code
- * NatsSink<String> sink = NatsSink
+ * NatsJetStreamSink<String> sink = NatsJetStreamSink
  *     .<String>builder
  *     .subjects("subject1", "subject2")
  *     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
@@ -30,16 +30,16 @@ import static io.synadia.flink.v0.utils.Constants.SINK_PREFIX;
  * @see NatsSink
  * @param <InputT> type of the records written
  */
-public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBuilder<InputT>> {
+public class NatsJetStreamSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSinkBuilder<InputT>> {
     private PayloadSerializer<InputT> payloadSerializer;
     private String payloadSerializerClass;
 
     @Override
-    protected NatsSinkBuilder<InputT> getThis() {
+    protected NatsJetStreamSinkBuilder<InputT> getThis() {
         return this;
     }
 
-    public NatsSinkBuilder() {
+    public NatsJetStreamSinkBuilder() {
         super(SINK_PREFIX);
     }
 
@@ -48,7 +48,7 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
      * @param payloadSerializer the serializer.
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
+    public NatsJetStreamSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
         this.payloadSerializer = payloadSerializer;
         this.payloadSerializerClass = null;
         return this;
@@ -59,7 +59,7 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
      * @param payloadSerializerClass the serializer class name.
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
+    public NatsJetStreamSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
         this.payloadSerializer = null;
         this.payloadSerializerClass = payloadSerializerClass;
         return this;
@@ -71,7 +71,7 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
      * @param properties the properties object
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
+    public NatsJetStreamSinkBuilder<InputT> sinkProperties(Properties properties) {
         baseProperties(properties);
 
         String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_SERIALIZER, prefixes);
@@ -86,7 +86,7 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
      * Build a NatsSink. Subject and
      * @return the sink
      */
-    public NatsSink<InputT> build() {
+    public NatsJetStreamSink<InputT> build() {
         if (payloadSerializer == null) {
             if (payloadSerializerClass == null) {
                 throw new IllegalStateException("Valid payload serializer class must be provided.");
@@ -103,6 +103,6 @@ public class NatsSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsSinkBui
         }
 
         baseBuild();
-        return new NatsSink<>(subjects, payloadSerializer, createConnectionFactory());
+        return new NatsJetStreamSink<>(subjects, payloadSerializer, createConnectionFactory());
     }
 }

@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details.
+
 package io.synadia.io.synadia.flink;
 
 import io.nats.client.*;
@@ -5,6 +8,8 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
+import io.synadia.flink.v0.sink.NatsJetStreamSink;
+import io.synadia.flink.v0.sink.NatsJetStreamSinkBuilder;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
 import nats.io.ConsoleOutput;
@@ -95,6 +100,10 @@ public class TestBase {
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, inServerTest);
+    }
+
+    public static void runInJsServer(InServerTest inServerTest) throws Exception {
+        runInServer(true, inServerTest);
     }
 
     public static void runInServer(boolean jetstream, InServerTest inServerTest) throws Exception {
@@ -195,6 +204,21 @@ public class TestBase {
     public static NatsSink<String> newNatsSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
+            .subjects(subject)
+            .payloadSerializer(serializer);
+
+        if (connectionProperties == null) {
+            builder.connectionPropertiesFile(connectionPropertiesFile);
+        }
+        else {
+            builder.connectionProperties(connectionProperties);
+        }
+        return builder.build();
+    }
+
+    public static NatsJetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        NatsJetStreamSinkBuilder<String> builder = new NatsJetStreamSinkBuilder<String>()
             .subjects(subject)
             .payloadSerializer(serializer);
 

@@ -1,15 +1,15 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source;
 
-import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.reader.NatsSourceReader;
 import io.synadia.flink.v0.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.source.split.NatsSubjectSplitSerializer;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.v0.utils.MiscUtils.generateId;
 
 /**
  * Flink Source to consume data from one or more NATS subjects

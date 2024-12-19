@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.io.synadia.flink.v0;
@@ -6,45 +6,47 @@ package io.synadia.io.synadia.flink.v0;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.synadia.flink.v0.sink.NatsSink;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.synadia.io.synadia.flink.TestBase;
 import io.synadia.io.synadia.flink.WordSubscriber;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
+import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
+
 public class SinkTests extends TestBase {
 
     @Test
-    public void testSink() throws Exception {
-        runInServer((nc, url) -> {
-            _testSink(nc, random(), defaultConnectionProperties(url), null);
+    public void testBasic() throws Exception {
+        runInJsServer((nc, url) -> {
+            _testSink("testBasic", nc, defaultConnectionProperties(url), null);
         });
     }
 
     @Test
     public void testTlsPassProperties() throws Exception {
-        try (NatsServerRunner ts = new NatsServerRunner("src/test/resources/tls.conf", false)) {
-            String subject = random();
+        try (NatsServerRunner ts = new NatsServerRunner("src/test/resources/tls.conf", false, true)) {
             String url = ts.getURI();
             Properties connectionProperties = addTestSslProperties(defaultConnectionProperties(url));
             connectionProperties.put(Options.PROP_URL, url);
             Options options = Options.builder().properties(connectionProperties).build();
             try (Connection nc = Nats.connect(options)) {
-                _testSink(nc, subject, connectionProperties, null);
+                _testSink("testTlsPassProperties", nc, connectionProperties, null);
             }
         }
     }
 
     @Test
     public void testTlsPassPropertiesLocation() throws Exception {
-        try (NatsServerRunner ts = new NatsServerRunner("src/test/resources/tls.conf", false)) {
-            String subject = random();
+        try (NatsServerRunner ts = new NatsServerRunner("src/test/resources/tls.conf", false, true)) {
             String url = ts.getURI();
 
             Properties props = addTestSslProperties(defaultConnectionProperties(url));
@@ -52,25 +54,34 @@ public class SinkTests extends TestBase {
 
             Options options = Options.builder().properties(props).build();
             try (Connection nc = Nats.connect(options)) {
-                _testSink(nc, subject, null, connectionPropertiesFile);
+                _testSink("testTlsPassPropertiesLocation", nc, null, connectionPropertiesFile);
             }
         }
     }
 
-    private static void _testSink(Connection nc, String subject,
+    private static void _testSink(String jobName, Connection nc,
                                   Properties connectionProperties,
                                   String connectionPropertiesFile) throws Exception
     {
+        String subject = random();
         WordSubscriber sub = new WordSubscriber(nc, subject);
+        Sink<String> sink = newNatsSink(subject, connectionProperties, connectionPropertiesFile);
+        __testSink(jobName + "-TestCoreSink", sink, sub);
 
-        NatsSink<String> sink = newNatsSink(subject, connectionProperties, connectionPropertiesFile);
+        subject = random();
+        nc.jetStreamManagement().addStream(StreamConfiguration.builder()
+            .name(subject).storageType(StorageType.Memory).build());
+        sub = new WordSubscriber(nc, subject, true);
+        sink = newNatsJetStreamSink(subject, connectionProperties, connectionPropertiesFile);
+        __testSink(jobName + "-TestJsSink", sink, sub);
+    }
 
+    private static void __testSink(String jobName, Sink<String> sink, WordSubscriber sub) throws Exception {
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> dataStream = getPayloadDataStream(env);
         dataStream.sinkTo(sink);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
-        env.execute("TestSink");
-
+        env.execute(generatePrefixedId(jobName));
         sub.assertAllMessagesReceived();
     }
 }

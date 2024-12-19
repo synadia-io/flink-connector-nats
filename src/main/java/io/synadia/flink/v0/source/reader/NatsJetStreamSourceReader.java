@@ -4,12 +4,12 @@
 package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.Message;
-import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.emitter.NatsRecordEmitter;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.source.split.NatsSubjectSplitState;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal

@@ -3,9 +3,9 @@
 
 package io.synadia.flink.v0.source;
 
-import io.synadia.flink.utils.ConnectionFactory;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.v0.utils.ConnectionFactory;
+import io.synadia.flink.v0.utils.Constants;
+import io.synadia.flink.v0.utils.PropertiesUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,10 +13,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.flink.utils.Constants.*;
-import static io.synadia.flink.utils.PropertiesUtils.NO_PREFIX;
+import static io.synadia.flink.v0.utils.Constants.*;
+import static io.synadia.flink.v0.utils.PropertiesUtils.NO_PREFIX;
 
-public abstract class NatsSinkOrSourceBuilder<SerializeT, BuilderT> {
+public abstract class NatsSinkOrSourceBuilder<BuilderT> {
     protected final String[] prefixes;
 
     protected List<String> subjects;
