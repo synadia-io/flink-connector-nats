@@ -59,7 +59,7 @@ public class NatsSubjectSplitReader
         String splitId = registeredSplit.splitId();
         try {
             List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
-            messages.forEach((msg) -> builder.add(splitId, msg));
+            messages.forEach(msg -> builder.add(splitId, msg));
 
             //Stop consuming if running in batch mode and configured size of messages are fetched
             if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()) {
