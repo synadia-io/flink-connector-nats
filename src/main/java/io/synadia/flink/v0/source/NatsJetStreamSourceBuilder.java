@@ -13,7 +13,7 @@ import java.util.Properties;
 
 import static io.synadia.flink.v0.utils.Constants.*;
 
-public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<OutputT, NatsJetStreamSourceBuilder<OutputT>> {
+public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSourceBuilder<OutputT>> {
 
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;

@@ -1,3 +1,6 @@
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// See LICENSE and NOTICE file for details.
+
 package io.synadia.flink.v0.utils;
 
 import io.nats.client.Connection;
@@ -120,9 +123,11 @@ public class ConnectionFactory implements Serializable {
 
     @Override
     public String toString() {
-        return "ConnectionFactory{" +
-            "connectionProperties=" + connectionProperties +
-            ", connectionPropertiesFile='" + connectionPropertiesFile + '\'' +
+        String c = connectionPropertiesFile == null
+            ? ("connectionProperties=" + connectionProperties)
+            : ("connectionPropertiesFile='" + connectionPropertiesFile + '\'');
+
+        return "ConnectionFactory{" + c +
             ", minConnectionJitter=" + minConnectionJitter +
             ", maxConnectionJitter=" + maxConnectionJitter +
             '}';

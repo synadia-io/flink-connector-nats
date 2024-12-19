@@ -16,7 +16,7 @@ import java.util.Properties;
 import static io.synadia.flink.v0.utils.Constants.*;
 import static io.synadia.flink.v0.utils.PropertiesUtils.NO_PREFIX;
 
-public abstract class NatsSinkOrSourceBuilder<SerializeT, BuilderT> {
+public abstract class NatsSinkOrSourceBuilder<BuilderT> {
     protected final String[] prefixes;
 
     protected List<String> subjects;

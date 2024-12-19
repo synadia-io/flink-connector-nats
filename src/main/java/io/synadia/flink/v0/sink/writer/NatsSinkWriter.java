@@ -1,10 +1,11 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.sink.writer;
 
 import io.nats.client.Connection;
 import io.synadia.flink.v0.payload.PayloadSerializer;
+import io.synadia.flink.v0.utils.ConnectionContext;
 import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
@@ -22,14 +23,14 @@ import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
  */
 public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
-    private final String sinkId;
-    private final List<String> subjects;
-    private final ConnectionFactory connectionFactory;
-    private final PayloadSerializer<InputT> payloadSerializer;
-    private final Sink.InitContext sinkInitContext;
+    protected final String sinkId;
+    protected final List<String> subjects;
+    protected final ConnectionFactory connectionFactory;
+    protected final PayloadSerializer<InputT> payloadSerializer;
+    protected final Sink.InitContext sinkInitContext;
 
-    private transient String id;
-    private transient Connection connection;
+    protected transient String id;
+    protected transient ConnectionContext ctx;
 
     public NatsSinkWriter(String sinkId,
                           List<String> subjects,
@@ -42,33 +43,33 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
         this.payloadSerializer = payloadSerializer;
         this.connectionFactory = connectionFactory;
         this.sinkInitContext = sinkInitContext;
-        connection = connectionFactory.connect();
+        this.ctx = connectionFactory.connectContext();
     }
 
     @Override
     public void write(InputT element, SinkWriter.Context context) throws IOException, InterruptedException {
         byte[] payload = payloadSerializer.getBytes(element);
         for (String subject : subjects) {
-            connection.publish(subject, null, null, payload);
+            ctx.connection.publish(subject, null, null, payload);
         }
     }
 
     @Override
     public void flush(boolean endOfInput) throws IOException, InterruptedException {
-        if (connection.getStatus() == Connection.Status.CONNECTED) {
-            connection.flushBuffer();
+        if (ctx.connection.getStatus() == Connection.Status.CONNECTED) {
+            ctx.connection.flushBuffer();
         }
     }
 
     @Override
     public void close() throws Exception {
-        connection.close();
+        ctx.connection.close();
     }
 
-    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+    protected void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         id = generatePrefixedId(sinkId);
-        connection = connectionFactory.connect();
+        ctx = connectionFactory.connectContext();
     }
 
     @Override

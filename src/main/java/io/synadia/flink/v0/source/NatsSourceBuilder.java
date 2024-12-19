@@ -29,7 +29,7 @@ import static io.synadia.flink.v0.utils.Constants.SOURCE_PREFIX;
  * @see NatsSource
  * @param <OutputT> type of the records written
  */
-public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<OutputT, NatsSourceBuilder<OutputT>> {
+public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSourceBuilder<OutputT>> {
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
 
