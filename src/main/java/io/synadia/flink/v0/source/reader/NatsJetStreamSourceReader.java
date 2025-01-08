@@ -9,6 +9,7 @@ import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.source.split.NatsSubjectSplitState;
+import io.synadia.flink.v0.utils.ConnectionContext;
 import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -30,12 +31,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
 public class NatsJetStreamSourceReader<OutputT>
-    extends SourceReaderBase<Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState>
+        extends SourceReaderBase<Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState>
 {
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
 
     private final String id;
-    private final ConnectionFactory connectionFactory;
+    private final Map<String, ConnectionContext> connections;
     private final SourceReaderContext readerContext;
     private final AtomicReference<Throwable> cursorCommitThrowable;
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
@@ -46,17 +47,17 @@ public class NatsJetStreamSourceReader<OutputT>
                                      FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
                                      NatsSourceFetcherManager fetcherManager,
                                      NatsJetStreamSourceConfiguration sourceConfiguration,
-                                     ConnectionFactory connectionFactory,
+                                     Map<String, ConnectionContext> connections,
                                      PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext
     ) {
         super(elementsQueue,
-            fetcherManager,
-            new NatsRecordEmitter<>(payloadDeserializer),
-            sourceConfiguration.getConfiguration(), readerContext);
+                fetcherManager,
+                new NatsRecordEmitter<>(payloadDeserializer),
+                sourceConfiguration.getConfiguration(), readerContext);
         id = generatePrefixedId(sourceId);
         this.sourceConfiguration = sourceConfiguration;
-        this.connectionFactory = connectionFactory;
+        this.connections = connections;
         this.readerContext = checkNotNull(readerContext);
         this.cursorsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.cursorsOfFinishedSplits = new ConcurrentHashMap<>();
@@ -125,6 +126,11 @@ public class NatsJetStreamSourceReader<OutputT>
     public void close() throws Exception {
         //TODO Review this again and remove TODO
         super.close();
+
+        // close all connections
+        for (ConnectionContext ctx : connections.values()) {
+            ctx.connection.close();
+        }
     }
 
     @Override
@@ -134,7 +140,6 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     protected void onSplitFinished(Map<String, NatsSubjectSplitState> finishedSplitIds) {
-        // Close all the finished splits.
         for (String splitId : finishedSplitIds.keySet()) {
             ((NatsSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);
         }
@@ -172,7 +177,7 @@ public class NatsJetStreamSourceReader<OutputT>
 
         try {
             ((NatsSourceFetcherManager) splitFetcherManager)
-                .acknowledgeMessages(cursors);
+                    .acknowledgeMessages(cursors);
             // Clean up the finish splits.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
         } catch (Exception e) {
