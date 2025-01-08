@@ -42,15 +42,11 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
         int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue =
-            new FutureCompletingBlockingQueue<>(queueCapacity);
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue = new FutureCompletingBlockingQueue<>(queueCapacity);
 
-        Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
-            () -> new NatsSubjectSplitReader(id, connectionFactory, sourceConfiguration);
+        Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier = () -> new NatsSubjectSplitReader(id, connectionFactory, sourceConfiguration);
 
-        NatsSourceFetcherManager fetcherManager =
-            new NatsSourceFetcherManager(
-                elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
+        NatsSourceFetcherManager fetcherManager = new NatsSourceFetcherManager(elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
 
         return new NatsJetStreamSourceReader<>(
             id,

@@ -8,6 +8,7 @@ import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.io.synadia.flink.TestBase;
 import io.synadia.io.synadia.flink.WordSubscriber;
 import nats.io.NatsServerRunner;
@@ -27,7 +28,8 @@ public class SinkTests extends TestBase {
     @Test
     public void testBasic() throws Exception {
         runInJsServer((nc, url) -> {
-            _testSink("testBasic", nc, defaultConnectionProperties(url), null);
+            ConnectionProperties<?> connectionProperties = new ConnectionProperties<>(defaultConnectionProperties(url));
+            _testSink("testBasic", nc, connectionProperties);
         });
     }
 
@@ -39,7 +41,7 @@ public class SinkTests extends TestBase {
             connectionProperties.put(Options.PROP_URL, url);
             Options options = Options.builder().properties(connectionProperties).build();
             try (Connection nc = Nats.connect(options)) {
-                _testSink("testTlsPassProperties", nc, connectionProperties, null);
+                _testSink("testTlsPassProperties", nc, new ConnectionProperties<>(connectionProperties));
             }
         }
     }
@@ -54,25 +56,23 @@ public class SinkTests extends TestBase {
 
             Options options = Options.builder().properties(props).build();
             try (Connection nc = Nats.connect(options)) {
-                _testSink("testTlsPassPropertiesLocation", nc, null, connectionPropertiesFile);
+                _testSink("testTlsPassPropertiesLocation", nc, new ConnectionProperties<>(connectionPropertiesFile));
             }
         }
     }
 
-    private static void _testSink(String jobName, Connection nc,
-                                  Properties connectionProperties,
-                                  String connectionPropertiesFile) throws Exception
+    private static void _testSink(String jobName, Connection nc, ConnectionProperties<?> connectionProperties) throws Exception
     {
         String subject = random();
         WordSubscriber sub = new WordSubscriber(nc, subject);
-        Sink<String> sink = newNatsSink(subject, connectionProperties, connectionPropertiesFile);
+        Sink<String> sink = newNatsSink(subject, connectionProperties);
         __testSink(jobName + "-TestCoreSink", sink, sub);
 
         subject = random();
         nc.jetStreamManagement().addStream(StreamConfiguration.builder()
             .name(subject).storageType(StorageType.Memory).build());
         sub = new WordSubscriber(nc, subject, true);
-        sink = newNatsJetStreamSink(subject, connectionProperties, connectionPropertiesFile);
+        sink = newNatsJetStreamSink(subject, connectionProperties);
         __testSink(jobName + "-TestJsSink", sink, sub);
     }
 

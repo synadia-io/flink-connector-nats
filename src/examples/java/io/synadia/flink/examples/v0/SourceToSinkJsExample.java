@@ -10,6 +10,7 @@ import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.flink.v0.utils.PropertiesUtils;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -52,8 +53,9 @@ public class SourceToSinkJsExample {
         // List to capture sink messages received via the NATS dispatcher
         final List<Message> syncList = Collections.synchronizedList(new ArrayList<>());
 
+        ConnectionProperties<?> connectionProperties = new ConnectionProperties<>(props);
+
         // Configure the NATS JetStream Source
-        Properties connectionProperties = props;
         StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
         NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                 .subjects(sourceSubject)

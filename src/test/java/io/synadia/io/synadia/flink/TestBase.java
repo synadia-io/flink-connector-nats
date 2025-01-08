@@ -12,6 +12,7 @@ import io.synadia.flink.v0.sink.NatsJetStreamSink;
 import io.synadia.flink.v0.sink.NatsJetStreamSinkBuilder;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -201,33 +202,23 @@ public class TestBase {
         return props;
     }
 
-    public static NatsSink<String> newNatsSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+    public static NatsSink<String> newNatsSink(String subject, ConnectionProperties<?> connectionProperties) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
             .subjects(subject)
             .payloadSerializer(serializer);
 
-        if (connectionProperties == null) {
-            builder.connectionPropertiesFile(connectionPropertiesFile);
-        }
-        else {
-            builder.connectionProperties(connectionProperties);
-        }
+        builder.connectionProperties(connectionProperties);
         return builder.build();
     }
 
-    public static NatsJetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+    public static NatsJetStreamSink<String> newNatsJetStreamSink(String subject, ConnectionProperties<?> connectionProperties) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsJetStreamSinkBuilder<String> builder = new NatsJetStreamSinkBuilder<String>()
             .subjects(subject)
             .payloadSerializer(serializer);
 
-        if (connectionProperties == null) {
-            builder.connectionPropertiesFile(connectionPropertiesFile);
-        }
-        else {
-            builder.connectionProperties(connectionProperties);
-        }
+        builder.connectionProperties(connectionProperties);
         return builder.build();
     }
 

@@ -9,6 +9,7 @@ import io.synadia.flink.v0.payload.StringPayloadDeserializer;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.source.NatsSource;
 import io.synadia.flink.v0.source.NatsSourceBuilder;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.io.synadia.flink.Publisher;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -48,13 +49,13 @@ public class SourceTests extends TestBase {
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties);
+                .connectionProperties(new ConnectionProperties<>(connectionProperties));
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-input");
 
-            NatsSink<String> sink = newNatsSink(sinkSubject, connectionProperties, null);
+            NatsSink<String> sink = newNatsSink(sinkSubject, new ConnectionProperties<>(connectionProperties));
             ds.sinkTo(sink);
 
             env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));

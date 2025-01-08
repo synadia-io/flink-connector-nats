@@ -11,6 +11,7 @@ import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
 import io.synadia.flink.v0.source.NatsSource;
 import io.synadia.flink.v0.source.NatsSourceBuilder;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.flink.v0.utils.PropertiesUtils;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -26,6 +27,8 @@ public class SourceToSinkExample {
     public static void main(String[] args) throws Exception {
         // load properties from a file for example application.properties
         Properties props = PropertiesUtils.loadPropertiesFromFile("src/examples/resources/application.properties");
+
+        ConnectionProperties<?> connectionProperties = new ConnectionProperties<>(props);
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
@@ -51,14 +54,14 @@ public class SourceToSinkExample {
         // create source
         NatsSource<String> source = new NatsSourceBuilder<String>()
             .sourceProperties(props)
-            .connectionProperties(props)
+            .connectionProperties(connectionProperties)
             .build();
         System.out.println(source);
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
             .sinkProperties(props)
-            .connectionProperties(props)
+            .connectionProperties(connectionProperties)
             .build();
         System.out.println(sink);
 

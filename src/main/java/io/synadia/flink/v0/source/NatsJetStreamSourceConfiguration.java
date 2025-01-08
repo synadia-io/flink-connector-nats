@@ -24,13 +24,13 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
     private final Boundedness boundedness;
 
     NatsJetStreamSourceConfiguration(String consumerName,
-                                            int messageQueueCapacity,
-                                            boolean enableAutoAcknowledgeMessage,
-                                            Duration fetchOneMessageTimeout,
-                                            Duration fetchTimeout,
-                                            int maxFetchRecords,
-                                            Duration autoAckInterval,
-                                            Boundedness boundedness) {
+                                     int messageQueueCapacity,
+                                     boolean enableAutoAcknowledgeMessage,
+                                     Duration fetchOneMessageTimeout,
+                                     Duration fetchTimeout,
+                                     int maxFetchRecords,
+                                     Duration autoAckInterval,
+                                     Boundedness boundedness) {
         this.consumerName = consumerName;
         this.messageQueueCapacity = messageQueueCapacity;
         this.enableAutoAcknowledgeMessage = enableAutoAcknowledgeMessage;

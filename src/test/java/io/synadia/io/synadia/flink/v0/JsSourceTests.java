@@ -12,6 +12,7 @@ import io.synadia.flink.v0.payload.StringPayloadDeserializer;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -67,7 +68,7 @@ public class JsSourceTests extends TestBase {
             createConsumer(jsm, streamName, sourceSubject, consumerName);
 
             // Step 3: Configure the NATS JetStream Source
-            Properties connectionProperties = defaultConnectionProperties(url);
+            ConnectionProperties<?> connectionProperties = new ConnectionProperties<>(defaultConnectionProperties(url));
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder =
                     new NatsJetStreamSourceBuilder<String>()
@@ -130,7 +131,7 @@ public class JsSourceTests extends TestBase {
             createConsumer(jsm, streamName, sourceSubject, consumerName);
 
             // Step 2: NATS JetStream Source configuration
-            Properties connectionProperties = defaultConnectionProperties(url);
+            ConnectionProperties<?> connectionProperties = new ConnectionProperties<>(defaultConnectionProperties(url));
             PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                     .subjects(sourceSubject)

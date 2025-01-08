@@ -19,30 +19,28 @@ import static io.synadia.flink.v0.utils.PropertiesUtils.*;
 public class ConnectionFactory implements Serializable {
     static String[] JSO_PROPERTY_PREFIXES = new String[]{NO_PREFIX, NATS_PREFIX};
 
-    private final Properties connectionProperties;
-    private final String connectionPropertiesFile;
+    private final ConnectionProperties<?> connectionProperties;
     private final long minConnectionJitter;
     private final long maxConnectionJitter;
 
     public ConnectionFactory(Properties connectionProperties) {
-        this(connectionProperties, null, 0, 0);
+        this(new ConnectionProperties<>(connectionProperties), 0, 0);
     }
 
     public ConnectionFactory(Properties connectionProperties, long minConnectionJitter, long maxConnectionJitter) {
-        this(connectionProperties, null, minConnectionJitter, maxConnectionJitter);
+        this(new ConnectionProperties<>(connectionProperties), minConnectionJitter, maxConnectionJitter);
     }
 
     public ConnectionFactory(String connectionPropertiesFile) {
-        this(null, connectionPropertiesFile, 0, 0);
+        this(new ConnectionProperties<>(connectionPropertiesFile), 0, 0);
     }
 
     public ConnectionFactory(String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
-        this(null, connectionPropertiesFile, minConnectionJitter, maxConnectionJitter);
+        this(new ConnectionProperties<>(connectionPropertiesFile), minConnectionJitter, maxConnectionJitter);
     }
 
-    public ConnectionFactory(Properties connectionProperties, String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
+    public ConnectionFactory(ConnectionProperties<?> connectionProperties, long minConnectionJitter, long maxConnectionJitter) {
         this.connectionProperties = connectionProperties;
-        this.connectionPropertiesFile = connectionPropertiesFile;
         this.minConnectionJitter = minConnectionJitter;
         this.maxConnectionJitter = maxConnectionJitter;
     }
@@ -53,10 +51,17 @@ public class ConnectionFactory implements Serializable {
 
     public ConnectionContext connectContext() throws IOException {
         Options.Builder builder = new Options.Builder();
-        Properties props = connectionProperties;
-        if (connectionPropertiesFile != null) {
-            props = loadPropertiesFromFile(connectionPropertiesFile);
+
+        Properties props = connectionProperties.getProperties();
+        String file = connectionProperties.getFile();
+        if (file != null) {
+            props = loadPropertiesFromFile(file);
         }
+
+        if (props == null) {
+            throw new IOException("No connection properties found.");
+        }
+
         builder = builder.properties(props);
 
         try {
@@ -91,18 +96,10 @@ public class ConnectionFactory implements Serializable {
 
     /**
      * Get the connection properties
-     * @return a copy of the properties object
+     * @return a copy of the property object
      */
-    public Properties getConnectionProperties() {
-        return new Properties(connectionProperties);
-    }
-
-    /**
-     * Get the connection properties file
-     * @return the properties file string
-     */
-    public String getConnectionPropertiesFile() {
-        return connectionPropertiesFile;
+    public ConnectionProperties<?> getConnectionProperties() {
+        return connectionProperties;
     }
 
     /**
@@ -123,10 +120,7 @@ public class ConnectionFactory implements Serializable {
 
     @Override
     public String toString() {
-        String c = connectionPropertiesFile == null
-            ? ("connectionProperties=" + connectionProperties)
-            : ("connectionPropertiesFile='" + connectionPropertiesFile + '\'');
-
+        String c = ("connectionProperties='" + connectionProperties + '\'');
         return "ConnectionFactory{" + c +
             ", minConnectionJitter=" + minConnectionJitter +
             ", maxConnectionJitter=" + maxConnectionJitter +

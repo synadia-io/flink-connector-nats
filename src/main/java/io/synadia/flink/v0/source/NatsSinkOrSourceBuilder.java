@@ -4,6 +4,7 @@
 package io.synadia.flink.v0.source;
 
 import io.synadia.flink.v0.utils.ConnectionFactory;
+import io.synadia.flink.v0.utils.ConnectionProperties;
 import io.synadia.flink.v0.utils.Constants;
 import io.synadia.flink.v0.utils.PropertiesUtils;
 
@@ -16,12 +17,17 @@ import java.util.Properties;
 import static io.synadia.flink.v0.utils.Constants.*;
 import static io.synadia.flink.v0.utils.PropertiesUtils.NO_PREFIX;
 
+/**
+ * Base builder for NATS sources and sinks.
+ * <p>Contains common properties and methods for NATS sources and sinks.</p>
+ * @param <BuilderT> the builder type
+ */
+
 public abstract class NatsSinkOrSourceBuilder<BuilderT> {
     protected final String[] prefixes;
 
     protected List<String> subjects;
-    protected Properties connectionProperties;
-    protected String connectionPropertiesFile;
+    protected ConnectionProperties<?> connectionProperties;
     protected long minConnectionJitter = 0;
     protected long maxConnectionJitter = 0;
 
@@ -60,20 +66,8 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
      * @param connectionProperties the properties
      * @return the builder
      */
-    public BuilderT connectionProperties(Properties connectionProperties) {
+    public BuilderT connectionProperties(ConnectionProperties<?> connectionProperties) {
         this.connectionProperties = connectionProperties;
-        this.connectionPropertiesFile = null;
-        return getThis();
-    }
-
-    /**
-     * Set the properties file path to a properties file to be used to instantiate the {@link io.nats.client.Connection Connection}
-     * @param connectionPropertiesFile the properties file path that would be available on all servers executing the job.
-     * @return the builder
-     */
-    public BuilderT connectionPropertiesFile(String connectionPropertiesFile) {
-        this.connectionProperties = null;
-        this.connectionPropertiesFile = connectionPropertiesFile;
         return getThis();
     }
 
@@ -130,14 +124,15 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
         }
 
         // must have one or the other
-        if (connectionProperties == null && connectionPropertiesFile == null) {
-            throw new IllegalStateException ("Sink properties or propertiesFile must be provided.");
+        if (connectionProperties == null) {
+            throw new IllegalStateException ("Connection properties must be provided.");
         }
 
-        // if there is a file, we must be able to load it
-        if (connectionPropertiesFile != null) {
+        String file = connectionProperties.getFile();
+        // if there's a file, we must be able to load it
+        if (file != null) {
             try {
-                PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
+                PropertiesUtils.loadPropertiesFromFile(file);
             }
             catch (IOException e) {
                 throw new IllegalStateException ("Cannot load properties file.", e.getCause());
@@ -152,7 +147,6 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
     protected ConnectionFactory createConnectionFactory() {
         return new ConnectionFactory(
             connectionProperties,
-            connectionPropertiesFile,
             minConnectionJitter,
             maxConnectionJitter);
     }
