@@ -1,14 +1,12 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.io.synadia.flink;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
+import io.nats.client.*;
 import org.junit.jupiter.api.Assertions;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,11 +14,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class WordSubscriber implements MessageHandler {
     public final Dispatcher d;
+    public final JetStream js;
     final Map<String, Integer> resultMap = new HashMap<>();
 
-    public WordSubscriber(Connection nc, String subject) {
+    public WordSubscriber(Connection nc, String subject) throws IOException, JetStreamApiException {
+        this(nc, subject, false);
+    }
+
+    public WordSubscriber(Connection nc, String subject, boolean jetStream) throws IOException, JetStreamApiException {
         d = nc.createDispatcher();
-        d.subscribe(subject, this);
+        if (jetStream) {
+            js = nc.jetStream();
+            js.subscribe(subject, d, this, true);
+        }
+        else {
+            js = null;
+            d.subscribe(subject, this);
+        }
     }
 
     @Override

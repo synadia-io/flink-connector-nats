@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.enumerator;
@@ -13,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> {

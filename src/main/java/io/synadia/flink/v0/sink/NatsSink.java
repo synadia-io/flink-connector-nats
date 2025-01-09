@@ -1,12 +1,12 @@
-// Copyright (c) 2023 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.sink;
 
 import io.nats.client.NUID;
-import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.payload.PayloadSerializer;
 import io.synadia.flink.v0.sink.writer.NatsSinkWriter;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 
@@ -18,12 +18,12 @@ import java.util.List;
  * @param <InputT> the type of object from the source to convert for publishing
  */
 public class NatsSink<InputT> implements Sink<InputT> {
-    private final String id;
-    private final List<String> subjects;
-    private final PayloadSerializer<InputT> payloadSerializer;
-    private final ConnectionFactory connectionFactory;
+    protected final String id;
+    protected final List<String> subjects;
+    protected final PayloadSerializer<InputT> payloadSerializer;
+    protected final ConnectionFactory connectionFactory;
 
-    NatsSink(List<String> subjects,
+    protected NatsSink(List<String> subjects,
              PayloadSerializer<InputT> payloadSerializer,
              ConnectionFactory connectionFactory)
     {
