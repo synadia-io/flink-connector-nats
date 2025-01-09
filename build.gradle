@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.0.0-beta3"
+def jarVersion = "2.0.0-beta4"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.20.2'
+    implementation 'io.nats:jnats:2.20.5'
 
     // these are here to override flink since the flink dependency version has vulnerabilities
     implementation 'org.apache.commons:commons-compress:1.27.1'
