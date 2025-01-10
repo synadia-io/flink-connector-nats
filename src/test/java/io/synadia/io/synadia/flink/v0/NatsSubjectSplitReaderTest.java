@@ -9,14 +9,11 @@ import io.synadia.flink.v0.source.reader.Callback;
 import io.synadia.flink.v0.source.reader.NatsSubjectSplitReader;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.utils.ConnectionContext;
-import io.synadia.io.synadia.flink.v0.testutils.NatsSourceTestEnv;
+import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.lang.reflect.Constructor;
 import java.time.Duration;
@@ -27,151 +24,69 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-class NatsSubjectSplitReaderTest extends NatsSourceTestEnv {
+class NatsSubjectSplitReaderTest extends TestBase {
     private static final String STREAM_NAME = "test-stream";
     private static final String SOURCE_ID = "test-source";
     private static final String SUBJECT_PREFIX = "test-subject";
     private static final int MAX_FETCH_RECORDS = 100;
+    private static final int NUM_MESSAGES_PER_SUBJECT = 10;
 
-    private Callback<String, ConnectionContext> callback;
-
-    private Map<String, ConnectionContext> connections;
-    private NatsJetStreamSourceConfiguration sourceConfig;
-    private NatsSubjectSplitReader reader;
-
-    @BeforeAll
-    static void createStream() throws Exception {
-        StreamConfiguration streamConfig = StreamConfiguration.builder()
-            .name(STREAM_NAME)
-            .subjects(SUBJECT_PREFIX + "-0")
-            .storageType(StorageType.Memory)
-            .build();
-
-        try {
-            // Check if stream exists
-            StreamInfo streamInfo = jsm.getStreamInfo(STREAM_NAME);
-            
-            // If exists but config differs, update it
-            if (!streamInfo.getConfiguration().equals(streamConfig)) {
-                jsm.updateStream(streamConfig);
-            }
-        } catch (JetStreamApiException e) {
-            if (e.getErrorCode() == 404) { // Stream not found
-                jsm.addStream(streamConfig);
-            } else {
-                throw e;
-            }
-        }
-    }
-
-    @BeforeEach
-    void setUp() throws Exception {
-        // Create mock callback
-        callback = mock(Callback.class);
-
-        try {
-            // Purge the stream but keep the stream configuration
-            jsm.purgeStream(STREAM_NAME);
-        } catch (JetStreamApiException e) {
-            if (e.getErrorCode() != 404) { // Ignore if stream doesn't exist
-                throw e;
-            }
-        }
-    }
-
-    @AfterAll
-    static void cleanUp() throws Exception {
-        try {
-            jsm.deleteStream(STREAM_NAME);
-        } catch (JetStreamApiException e) {
-            if (e.getErrorCode() != 404) { // Ignore if stream doesn't exist
-                throw e;
-            }
-        }
-    }
-
-    /**
-     * Sets up a test reader with specified parameters.
-     * 
-     * Setup process:
-     * 1. Configures mock behavior for connection callbacks
-     * 2. Creates source configuration with provided parameters
-     * 3. Initializes reader with test configuration
-     * 
-     * @param maxFetchRecords Maximum records to fetch per call
-     * @param boundedness Stream boundedness setting
-     * @param consumerName Name for the JetStream consumer
-     * @throws Exception if reader setup fails
-     */
-    private void setupReader(int maxFetchRecords, Boundedness boundedness, String consumerName) throws Exception {
-        // Setup mock
-        JetStreamOptions options = JetStreamOptions.builder().build();
-        ConnectionContext context = new ConnectionContext(natsConnection, options);
-        lenient().when(callback.newConnection(any())).thenReturn(context);
-
-        connections = new HashMap<>();
-        sourceConfig = createSourceConfig(
-            consumerName,
-            maxFetchRecords,
-            false,
-            Duration.ofSeconds(1),
-            Duration.ofSeconds(1),
-            1000,
-            Duration.ofSeconds(10),
-            boundedness
-        );
-
-        reader = new NatsSubjectSplitReader(
-            SOURCE_ID,
-            connections,
-            sourceConfig,
-            callback
-        );
-    }
-
-    /**
-     * Tests basic split assignment and message fetching functionality.
-     * 
-     * Test scenario:
-     * 1. Sets up a reader with specified fetch limit and boundedness
-     * 2. Creates a stream with a single subject
-     * 3. Publishes test messages to the subject
-     * 4. Assigns split to the reader
-     * 5. Fetches and verifies messages
-     * 
-     * Expected behavior:
-     * - Reader should successfully connect to the stream
-     * - All published messages should be fetched
-     * - Message contents should match what was published
-     * 
-     * @throws Exception if any NATS operations fail
-     */
     @Test
     void testBasicSplitAssignmentAndFetch() throws Exception {
-        // Setup reader and test environment
-        setupReader(MAX_FETCH_RECORDS, Boundedness.CONTINUOUS_UNBOUNDED, "test-consumer");
+        runInServer(true, (nc, url) -> {
+            // Setup connection and stream
+            Connection natsConnection = nc;
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            
+            // Create stream
+            StreamConfiguration streamConfig = StreamConfiguration.builder()
+                .name(STREAM_NAME)
+                .subjects(SUBJECT_PREFIX + "-0")
+                .storageType(StorageType.Memory)
+                .build();
 
-        // Create stream with subject
-        String subject = SUBJECT_PREFIX + "-0";
-        StreamConfiguration streamConfig = StreamConfiguration.builder()
-            .name(STREAM_NAME)
-            .subjects(subject)
-            .storageType(StorageType.Memory)
-            .build();
+            try {
+                jsm.addStream(streamConfig);
+            } catch (JetStreamApiException e) {
+                if (e.getErrorCode() != 404) {
+                    throw e;
+                }
+            }
 
-        jsm.addStream(streamConfig);
+            // Setup reader
+            Callback<String, ConnectionContext> callback = mock(Callback.class);
+            JetStreamOptions options = JetStreamOptions.builder().build();
+            ConnectionContext context = new ConnectionContext(natsConnection, options);
+            lenient().when(callback.newConnection(any())).thenReturn(context);
 
-        // Publish test messages
-        publishTestMessages(subject, NUM_MESSAGES_PER_SUBJECT);
+            Map<String, ConnectionContext> connections = new HashMap<>();
+            NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
+                "test-consumer",
+                MAX_FETCH_RECORDS,
+                false,
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(1),
+                1000,
+                Duration.ofSeconds(10),
+                Boundedness.CONTINUOUS_UNBOUNDED
+            );
 
-        try {
+            NatsSubjectSplitReader reader = new NatsSubjectSplitReader(
+                SOURCE_ID,
+                connections,
+                sourceConfig,
+                callback
+            );
+
+            // Publish test messages
+            String subject = SUBJECT_PREFIX + "-0";
+            publishTestMessages(natsConnection, subject, NUM_MESSAGES_PER_SUBJECT);
+
             // Create split for the subject
             NatsSubjectSplit split = new NatsSubjectSplit(subject);
 
             // Assign split directly
-            reader.handleSplitsChanges(
-                new SplitsAddition<>(Collections.singletonList(split))
-            );
+            reader.handleSplitsChanges(new SplitsAddition<>(Collections.singletonList(split)));
 
             // Wait a bit for messages to be available
             Thread.sleep(1000);
@@ -181,7 +96,6 @@ class NatsSubjectSplitReaderTest extends NatsSourceTestEnv {
             assertNotNull(records);
 
             List<Message> messages = new ArrayList<>();
-
             while ((records.nextSplit()) != null) {
                 Message message;
                 while ((message = records.nextRecordFromSplit()) != null) {
@@ -198,77 +112,52 @@ class NatsSubjectSplitReaderTest extends NatsSourceTestEnv {
                 assertNotNull(msg);
                 assertEquals(String.valueOf(i), new String(msg.getData()));
             }
-
-        } catch (Exception e) {
-            throw e;
-        }
+        });
     }
 
-
-    /**
-     * Tests the reader's auto-reconnection behavior when connection failure occurs.
-     *
-     * Test scenario:
-     * 1. Sets up a reader with mocked NATS components
-     * 2. Adds a split and verifies initial connection creation
-     * 3. Performs first fetch with working connection
-     * 4. Simulates connection failure by setting connection status to CLOSED
-     * 5. Performs second fetch which should trigger reconnection
-     *
-     * Expected behavior:
-     * - Initial connection and fetch should succeed
-     * - When connection is closed, fetch() should:
-     *   a. Detect the closed connection
-     *   b. Create a new connection via callback
-     *   c. Create new subscription with new connection
-     *   d. Successfully continue fetching messages
-     * - Verifies that auto-reconnection is properly implemented
-     *
-     * @throws Exception if any operations fail
-     */
     @Test
     void testConnectionReconnectionFailure() throws Exception {
+        runInServer(true, (nc, url) -> {
+            // Mock all the components
+            Connection mockConnection = mock(Connection.class);
+            JetStream mockJs = mock(JetStream.class);
+            JetStreamManagement mockJsm = mock(JetStreamManagement.class);
+            JetStreamSubscription mockSubscription = mock(JetStreamSubscription.class);
 
-        // Mock all the components
-        Connection mockConnection = mock(Connection.class);
-        JetStream mockJs = mock(JetStream.class);
-        JetStreamManagement mockJsm = mock(JetStreamManagement.class);
-        JetStreamSubscription mockSubscription = mock(JetStreamSubscription.class);
+            // Setup initial connection state
+            when(mockConnection.getStatus()).thenReturn(Connection.Status.CONNECTED);
+            when(mockConnection.jetStream()).thenReturn(mockJs);
+            when(mockConnection.jetStreamManagement(any(JetStreamOptions.class))).thenReturn(mockJsm);
+            when(mockJsm.jetStream()).thenReturn(mockJs);
+            when(mockJs.subscribe(anyString(), any(PullSubscribeOptions.class))).thenReturn(mockSubscription);
 
-        // Setup initial connection state
-        when(mockConnection.getStatus()).thenReturn(Connection.Status.CONNECTED);
-        when(mockConnection.jetStream()).thenReturn(mockJs);
-        when(mockConnection.jetStreamManagement(any(JetStreamOptions.class))).thenReturn(mockJsm);
-        when(mockJsm.jetStream()).thenReturn(mockJs);
-        when(mockJs.subscribe(anyString(), any(PullSubscribeOptions.class))).thenReturn(mockSubscription);
+            // Create real context with mocked components
+            ConnectionContext context = new ConnectionContext(mockConnection, JetStreamOptions.builder().build());
 
-        // Create real context with mocked components
-        ConnectionContext context = new ConnectionContext(mockConnection, JetStreamOptions.builder().build());
+            // Setup reader
+            Map<String, ConnectionContext> connections = new HashMap<>();
+            NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
+                    "test-consumer-reconnecting",
+                    1,
+                    false,
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(1),
+                    1000,
+                    Duration.ofSeconds(10),
+                    Boundedness.CONTINUOUS_UNBOUNDED
+            );
 
-        // Setup reader
-        connections = new HashMap<>();
-        sourceConfig = createSourceConfig(
-                "test-consumer-reconnecting",
-                1,
-                false,
-                Duration.ofSeconds(1),
-                Duration.ofSeconds(1),
-                1000,
-                Duration.ofSeconds(10),
-                Boundedness.CONTINUOUS_UNBOUNDED
-        );
+            // Setup callback to return our context
+            Callback<String, ConnectionContext> callback = mock(Callback.class);
+            when(callback.newConnection(any())).thenReturn(context);
 
-        // Setup callback to return our context
-        when(callback.newConnection(any())).thenReturn(context);
+            NatsSubjectSplitReader reader = new NatsSubjectSplitReader(
+                    SOURCE_ID,
+                    connections,
+                    sourceConfig,
+                    callback
+            );
 
-        reader = new NatsSubjectSplitReader(
-                SOURCE_ID,
-                connections,
-                sourceConfig,
-                callback
-        );
-
-        try{
             // Add a split
             String subject = "test-subject";
             NatsSubjectSplit split = new NatsSubjectSplit(subject);
@@ -314,13 +203,15 @@ class NatsSubjectSplitReaderTest extends NatsSourceTestEnv {
             // - Once with second connection (in second fetch)
             verify(mockJs, times(2)).subscribe(eq(subject), any(PullSubscribeOptions.class));
             verify(mockJs2, times(1)).subscribe(eq(subject), any(PullSubscribeOptions.class));
-        }
-        catch(Exception e){
-            throw e;
-        }
+        });
     }
 
-
+    private static void publishTestMessages(Connection nc, String subject, int numMessages) throws Exception {
+        JetStream js = nc.jetStream();
+        for (int i = 0; i < numMessages; i++) {
+            js.publish(subject, String.valueOf(i).getBytes());
+        }
+    }
 
     /**
      * Helper method to create NatsJetStreamSourceConfiguration using reflection
