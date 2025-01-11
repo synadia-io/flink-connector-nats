@@ -59,17 +59,7 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
 
     private NatsSourceFetcherManager getNatsSourceFetcherManager(SourceReaderContext readerContext, FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue) throws FlinkRuntimeException {
         Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier = () ->
-                new NatsSubjectSplitReader(id, connections, sourceConfiguration, (splitId) -> {
-                    try {
-
-                        this.connections.put(splitId, connectionFactory.connectContext());
-                        return this.connections.get(splitId);
-                    }
-                    catch (IOException e) {
-                        throw new IOException(e);
-                    }
-                });
-
+                new NatsSubjectSplitReader(id, connections, sourceConfiguration, connectionFactory);
         return new NatsSourceFetcherManager(elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
     }
 }
