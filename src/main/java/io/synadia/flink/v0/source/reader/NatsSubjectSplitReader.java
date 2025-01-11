@@ -2,6 +2,8 @@
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source.reader;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import io.nats.client.*;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
@@ -30,18 +32,18 @@ public class NatsSubjectSplitReader
     private static final Logger LOG = LoggerFactory.getLogger(NatsSubjectSplitReader.class);
 
     private final String id;
-    private final ConnectionFactory connectionFactory;
     private final NatsJetStreamSourceConfiguration sourceConfiguration;
-    private JetStreamSubscription jetStreamSubscription;
     private NatsSubjectSplit registeredSplit;
-    private ConnectionContext _context; // lazy init from the factory
 
-    public NatsSubjectSplitReader(String sourceId,
-            ConnectionFactory connectionFactory,
-            NatsJetStreamSourceConfiguration sourceConfiguration) {
+    private final Map<String, ConnectionContext> connections;
+    private JetStreamSubscription subscription;
+    private final ConnectionFactory connectionFactory;
+
+    public NatsSubjectSplitReader(String sourceId, Map<String, ConnectionContext> connections, NatsJetStreamSourceConfiguration sourceConfiguration, ConnectionFactory connectionFactory) {
         id = generatePrefixedId(sourceId);
-        this.connectionFactory = connectionFactory;
         this.sourceConfiguration = sourceConfiguration;
+        this.connections = connections;
+        this.connectionFactory = connectionFactory;
     }
 
     @Override
@@ -49,28 +51,30 @@ public class NatsSubjectSplitReader
         RecordsBySplits.Builder<Message> builder = new RecordsBySplits.Builder<>();
 
         // Return when no split registered to this reader.
-
-        getContext(); // throws when connection fails
-
         if (registeredSplit == null) {
             return builder.build();
         }
 
         String splitId = registeredSplit.splitId();
+        ConnectionContext ctx = getContext(splitId);
+
         try {
-            List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+            // update the subscription for the split
+            this.subscription = createSubscription(ctx, registeredSplit.getSubject());
+
+            List<Message> messages = subscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
             messages.forEach(msg -> builder.add(splitId, msg));
 
-            //Stop consuming if running in batch mode and configured size of messages are fetched
+            //Stop consuming if running in batch mode, and the configured size of messages is fetched
             if (sourceConfiguration.getBoundedness() == Boundedness.BOUNDED && messages.size() <= sourceConfiguration.getMaxFetchRecords()) {
                 builder.addFinishedSplit(splitId);
             }
         }
         catch(Exception e) {
-            throw new IOException(e); //Finish reading message from split if consumer is deleted for any reason.
+            throw new IOException(e); //Finish reading message from split if the consumer is deleted for any reason.
         }
-        LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
+        LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
         return builder.build();
     }
 
@@ -93,9 +97,12 @@ public class NatsSubjectSplitReader
         List<NatsSubjectSplit> newSplits = splitsChanges.splits();
         this.registeredSplit = newSplits.get(0);
 
+        ConnectionContext ctx = getContext(registeredSplit.splitId());
+
         try {
-            this.jetStreamSubscription = createSubscription(registeredSplit.getSubject());
-        } catch (Exception e) {
+            // update the subscription for the split
+            this.subscription = createSubscription(ctx, registeredSplit.getSubject());
+        } catch (JetStreamApiException | IOException e) {
             throw new FlinkRuntimeException(e);
         }
 
@@ -104,100 +111,54 @@ public class NatsSubjectSplitReader
 
     //TODO Check and implement expected behavior for NATS
     @Override
-    public void pauseOrResumeSplits(
-            Collection<NatsSubjectSplit> splitsToPause,
-            Collection<NatsSubjectSplit> splitsToResume)
-    {
-        LOG.debug("{} | pauseOrResumeSplits {} | {}", splitsToPause, splitsToResume);
-//        // This shouldn't happen but just in case...
-//        Preconditions.checkState(
-//                splitsToPause.size() + splitsToResume.size() <= 1,
-//                "This pulsar split reader only supports one split.");
-//
-//        if (!splitsToPause.isEmpty()) {
-//            pulsarConsumer.pause();
-//        } else if (!splitsToResume.isEmpty()) {
-//            pulsarConsumer.resume();
-//        }
+    public void pauseOrResumeSplits(Collection<NatsSubjectSplit> splitsToPause, Collection<NatsSubjectSplit> splitsToResume) {
+        LOG.debug("{} | pauseOrResumeSplits {} | {}", id, splitsToPause, splitsToResume);
     }
 
     @Override
     public void wakeUp() {
-
     }
 
     @Override
     public void close() throws Exception {
         unsubscribe();
-        closeConnection();
     }
 
-    public void notifyCheckpointComplete(String subject, List<Message> messages)
-            throws Exception {
-
-        // TODO Handle specially for ack all
-        // For instance if we know it's ack all, we could look for the message
-        // with the highest consumer sequence and just ack that one
-        messages.forEach(Message::ack);
-    }
-
-    // --------------------------- Helper Methods -----------------------------
-
-    private ConnectionContext getContext() {
-        if (_context == null) {
-            try {
-                _context = connectionFactory.connectContext();
-            }
-            catch (IOException e) {
-                throw new FlinkRuntimeException(e);
-            }
+    private void unsubscribe() throws FlinkRuntimeException {
+        if (subscription == null) {
+            return;
         }
-        return _context;
-    }
 
-    private Connection connection() {
-        return getContext().connection;
-    }
-
-    private JetStream jetStream() {
-        return getContext().js;
-    }
-
-    private void closeConnection() {
-        if (_context != null) {
-            try {
-                _context.connection.close();
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new FlinkRuntimeException(e);
-            }
-            finally {
-                _context = null;
-            }
-        }
-    }
-
-    private void unsubscribe() {
-        if (jetStreamSubscription != null) {
-            try {
-                jetStreamSubscription.unsubscribe();
-            }
-            catch (RuntimeException e) {
-                throw new FlinkRuntimeException(e);
-            }
-            finally {
-                jetStreamSubscription = null;
-            }
+        try {
+            subscription.unsubscribe();
+        } catch (RuntimeException e) {
+            throw new FlinkRuntimeException(e);
+        } finally {
+            subscription = null;
         }
     }
 
     /** Create a specified {@link Consumer} by the given topic partition. */
-    private JetStreamSubscription createSubscription(String subject) throws IOException, JetStreamApiException {
+    private JetStreamSubscription createSubscription(ConnectionContext context, String subject) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                 .durable(sourceConfiguration.getConsumerName())
                 .build();
-        return jetStream().subscribe(subject, pullOptions);
+        return context.js.subscribe(subject, pullOptions);
     }
 
+    private ConnectionContext getContext (String splitId) throws FlinkRuntimeException {
+        ConnectionContext ctx = connections.getOrDefault(splitId, null);
+
+        if (ctx == null || ctx.connection.getStatus().equals(Connection.Status.CLOSED) || ctx.connection.getStatus().equals(Connection.Status.DISCONNECTED)) {
+            try {
+                ctx = connectionFactory.connectContext();
+                this.connections.put(splitId, ctx);
+
+            } catch (IOException e) {
+                throw new FlinkRuntimeException(e);
+            }
+        }
+
+        return ctx;
+    }
 }

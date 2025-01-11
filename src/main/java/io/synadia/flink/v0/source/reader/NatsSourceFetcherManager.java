@@ -22,10 +22,8 @@ import java.util.function.Supplier;
 
 import static java.util.Collections.singletonList;
 
-public class NatsSourceFetcherManager
-    extends SplitFetcherManager<Message, NatsSubjectSplit>
-    implements Supplier<SplitReader<Message, NatsSubjectSplit>>
-{
+public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsSubjectSplit>
+        implements Supplier<SplitReader<Message, NatsSubjectSplit>> {
     private static final Logger LOG = LoggerFactory.getLogger(NatsSourceFetcherManager.class);
 
     private final Map<String, Integer> splitFetcherMapping = new HashMap<>();
@@ -67,11 +65,6 @@ public class NatsSourceFetcherManager
         }
     }
 
-    // @Override // to keep compatible with Flink 1.17
-    public void removeSplits(List<NatsSubjectSplit> splitsToRemove) {
-        // TODO empty - wait for FLINK-31748 to implement it.
-    }
-
     @Override
     protected void startFetcher(SplitFetcher<Message, NatsSubjectSplit> fetcher) {
         if (fetcherStatus.get(fetcher.fetcherId()) != Boolean.TRUE) {
@@ -80,7 +73,7 @@ public class NatsSourceFetcherManager
         }
     }
 
-    /** Close the finished split related fetcher. */
+    /** Close the finished split-related fetcher. */
     void closeFetcher(String splitId) {
         Integer fetchId = splitFetcherMapping.remove(splitId);
         if (fetchId != null) {
@@ -92,26 +85,21 @@ public class NatsSourceFetcherManager
         }
     }
 
-    public void acknowledgeMessages(Map<String, List<Message>> cursorsToCommit)
-            throws Exception { //TODO Change to nats exception
+    public void acknowledgeMessages(Map<String, List<Message>> cursorsToCommit) { //TODO Change to nats exception
         LOG.debug("Acknowledge messages {}", cursorsToCommit);
 
         for (Map.Entry<String, List<Message>> entry : cursorsToCommit.entrySet()) {
-            String partition = entry.getKey();
-            SplitFetcher<Message, NatsSubjectSplit> fetcher =
-                    getOrCreateFetcher(partition);
-            triggerAcknowledge(fetcher, partition, entry.getValue());
+            String splitId = entry.getKey();
+            SplitFetcher<Message, NatsSubjectSplit> fetcher = getOrCreateFetcher(splitId);
+            triggerAcknowledge(fetcher, splitId, entry.getValue());
         }
     }
 
-    private void triggerAcknowledge(
-            SplitFetcher<Message, NatsSubjectSplit> splitFetcher,
-            String partition,
-            List<Message> messages)
-            throws Exception { //TODO Change to nats specific exception
-        NatsSubjectSplitReader splitReader =
-                (NatsSubjectSplitReader) splitFetcher.getSplitReader();
-        splitReader.notifyCheckpointComplete(partition, messages);
+    private void triggerAcknowledge(SplitFetcher<Message, NatsSubjectSplit> splitFetcher, String splitId, List<Message> messages) { //TODO Change to nats specific exception
+        // TODO Handle specially for ack all
+        // For instance if we know it's ack all, we could look for the message
+        // with the highest consumer sequence and just ack that one
+        messages.forEach(Message::ack);
         startFetcher(splitFetcher);
     }
 
@@ -130,7 +118,6 @@ public class NatsSourceFetcherManager
             }
         }
         splitFetcherMapping.put(splitId, fetcher.fetcherId());
-
         return fetcher;
     }
 }
