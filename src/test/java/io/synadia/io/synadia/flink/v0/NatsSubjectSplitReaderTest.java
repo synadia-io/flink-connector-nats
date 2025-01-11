@@ -3,12 +3,11 @@ package io.synadia.io.synadia.flink.v0;
 import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
-import io.synadia.flink.v0.source.reader.Callback;
 import io.synadia.flink.v0.source.reader.NatsSubjectSplitReader;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.utils.ConnectionContext;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -54,10 +53,10 @@ class NatsSubjectSplitReaderTest extends TestBase {
             }
 
             // Setup reader
-            Callback<String, ConnectionContext> callback = mock(Callback.class);
+            ConnectionFactory connectionFactory = mock(ConnectionFactory.class);
             JetStreamOptions options = JetStreamOptions.builder().build();
             ConnectionContext context = new ConnectionContext(natsConnection, options);
-            lenient().when(callback.newConnection(any())).thenReturn(context);
+            lenient().when(connectionFactory.connectContext()).thenReturn(context);
 
             Map<String, ConnectionContext> connections = new HashMap<>();
             NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
@@ -75,7 +74,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
                 SOURCE_ID,
                 connections,
                 sourceConfig,
-                callback
+                    connectionFactory
             );
 
             // Publish test messages
@@ -148,14 +147,14 @@ class NatsSubjectSplitReaderTest extends TestBase {
             );
 
             // Setup callback to return our context
-            Callback<String, ConnectionContext> callback = mock(Callback.class);
-            when(callback.newConnection(any())).thenReturn(context);
+            ConnectionFactory connectionFactory = mock(ConnectionFactory.class);
+            when(connectionFactory.connectContext()).thenReturn(context);
 
             NatsSubjectSplitReader reader = new NatsSubjectSplitReader(
                     SOURCE_ID,
                     connections,
                     sourceConfig,
-                    callback
+                    connectionFactory
             );
 
             // Add a split
@@ -185,7 +184,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
 
             // Create second context with mocked components
             ConnectionContext context2 = new ConnectionContext(mockConnection2, JetStreamOptions.builder().build());
-            when(callback.newConnection(any())).thenReturn(context2);
+            when(connectionFactory.connectContext()).thenReturn(context2);
 
             // Second fetch - should get new connection and succeed
             when(mockSubscription2.fetch(anyInt(), any())).thenReturn(Collections.singletonList(mock(Message.class)));
@@ -194,9 +193,8 @@ class NatsSubjectSplitReaderTest extends TestBase {
 
             // Verify that we got a new connection three times:
             // 1. During handleSplitsChanges
-            // 2. During first fetch
-            // 3. During second fetch after connection failure
-            verify(callback, times(3)).newConnection(any());
+            // 2. During second fetch after connection failure
+            verify(connectionFactory, times(2)).connectContext();
 
             // Verify the subscription was created:
             // - Twice with first connection (in handleSplitsChanges and first fetch)
