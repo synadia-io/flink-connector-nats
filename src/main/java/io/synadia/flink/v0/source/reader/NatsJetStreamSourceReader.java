@@ -79,7 +79,6 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
-        LOG.debug("{} | pollNext", id);
         Throwable cause = cursorCommitThrowable.get();
         if (cause != null) {
             throw new FlinkRuntimeException("An error occurred in acknowledge message.", cause);
@@ -108,7 +107,6 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public List<NatsSubjectSplit> snapshotState(long checkpointId) {
-        LOG.debug("{} | snapshotState {}", id, checkpointId);
         List<NatsSubjectSplit> splits = super.snapshotState(checkpointId);
 
         // Perform a snapshot for these splits.
@@ -126,20 +124,16 @@ public class NatsJetStreamSourceReader<OutputT>
     @Override
     public void close() throws Exception {
         //TODO Review this again and remove TODO
-        LOG.debug("{} | close", id);
         super.close();
     }
 
     @Override
     public void addSplits(List<NatsSubjectSplit> splits) {
-        LOG.debug("{} | addSplits {}", id, splits);
         super.addSplits(splits);
     }
 
     @Override
     protected void onSplitFinished(Map<String, NatsSubjectSplitState> finishedSplitIds) {
-        LOG.debug("{} | onSplitFinished {}", id, finishedSplitIds);
-
         // Close all the finished splits.
         for (String splitId : finishedSplitIds.keySet()) {
             ((NatsSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);

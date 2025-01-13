@@ -50,7 +50,7 @@ dependencies {
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
 
     implementation 'org.slf4j:slf4j-api:2.0.16'
-    // implementation 'org.slf4j:slf4j-simple:2.0.16' // comment in only when needed
+    // implementation 'org.slf4j:slf4j-simple:2.0.16' // comment in for local testing
 
     testImplementation 'org.slf4j:slf4j-simple:2.0.9'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
