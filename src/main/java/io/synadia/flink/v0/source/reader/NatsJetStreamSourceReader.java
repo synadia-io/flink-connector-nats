@@ -79,6 +79,7 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
+        LOG.debug("{} | pollNext", id);
         Throwable cause = cursorCommitThrowable.get();
         if (cause != null) {
             throw new FlinkRuntimeException("An error occurred in acknowledge message.", cause);
@@ -89,24 +90,25 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        LOG.debug("Committing cursors for checkpoint {}", checkpointId);
+        LOG.debug("{} | Committing cursors for checkpoint {}", id, checkpointId);
         //TODO convert string to Subject Class
         Map<String, List<Message>> cursors = cursorsToCommit.get(checkpointId);
         try {
             ((NatsSourceFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
-            LOG.debug("Successfully acknowledge cursors for checkpoint {}", checkpointId);
+            LOG.debug("{} | Successfully acknowledge cursors for checkpoint {}", id, checkpointId);
 
             // Clean up the cursors.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
             cursorsToCommit.headMap(checkpointId + 1).clear();
         } catch (Exception e) {
-            LOG.error("Failed to acknowledge cursors for checkpoint {}", checkpointId, e);
+            LOG.error("{} | Failed to acknowledge cursors for checkpoint {}", id, checkpointId, e);
             cursorCommitThrowable.compareAndSet(null, e);
         }
     }
 
     @Override
     public List<NatsSubjectSplit> snapshotState(long checkpointId) {
+        LOG.debug("{} | snapshotState {}", id, checkpointId);
         List<NatsSubjectSplit> splits = super.snapshotState(checkpointId);
 
         // Perform a snapshot for these splits.
@@ -124,24 +126,23 @@ public class NatsJetStreamSourceReader<OutputT>
     @Override
     public void close() throws Exception {
         //TODO Review this again and remove TODO
+        LOG.debug("{} | close", id);
         super.close();
     }
 
     @Override
     public void addSplits(List<NatsSubjectSplit> splits) {
+        LOG.debug("{} | addSplits {}", id, splits);
         super.addSplits(splits);
     }
 
     @Override
     protected void onSplitFinished(Map<String, NatsSubjectSplitState> finishedSplitIds) {
+        LOG.debug("{} | onSplitFinished {}", id, finishedSplitIds);
+
         // Close all the finished splits.
         for (String splitId : finishedSplitIds.keySet()) {
             ((NatsSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);
-        }
-
-        // We don't require new splits, all the splits are pre-assigned by source enumerator.
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("onSplitFinished event: {}", finishedSplitIds);
         }
 
         for (Map.Entry<String, NatsSubjectSplitState> entry : finishedSplitIds.entrySet()) {
