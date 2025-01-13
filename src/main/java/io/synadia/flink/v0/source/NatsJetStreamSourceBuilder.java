@@ -18,6 +18,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
     private String consumerName;
+    private String streamName;
     private int messageQueueCapacity;
     private boolean enableAutoAcknowledgeMessage;
     private Duration fetchOneMessageTimeout;
@@ -111,6 +112,11 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return this;
     }
 
+    public NatsJetStreamSourceBuilder<OutputT> streamName(String streamName) {
+        this.streamName = streamName;
+        return this;
+    }
+
     public NatsJetStreamSourceBuilder<OutputT> consumerName(String consumerName) {
         this.consumerName = consumerName;
         return this;
@@ -152,7 +158,8 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         return new NatsJetStreamSource<>(payloadDeserializer,
             createConnectionFactory(),
             subjects,
-            new NatsJetStreamSourceConfiguration(consumerName,
+            new NatsJetStreamSourceConfiguration(streamName,
+                consumerName,
                 messageQueueCapacity,
                 enableAutoAcknowledgeMessage,
                 fetchOneMessageTimeout,

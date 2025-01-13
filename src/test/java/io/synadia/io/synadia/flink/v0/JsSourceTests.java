@@ -74,6 +74,7 @@ public class JsSourceTests extends TestBase {
                             .subjects(sourceSubject)
                             .payloadDeserializer(deserializer)
                             .connectionProperties(connectionProperties)
+                            .streamName(streamName)
                             .consumerName(consumerName)
                             .maxFetchRecords(100)
                             .maxFetchTime(Duration.ofSeconds(5))

@@ -59,6 +59,7 @@ public class SourceToSinkJsExample {
                 .subjects(sourceSubject)
                 .payloadDeserializer(deserializer) // Deserialize messages from source
                 .connectionProperties(connectionProperties)
+                .streamName(streamName)
                 .consumerName(consumerName)
                 .maxFetchRecords(100)
                 .maxFetchTime(Duration.ofSeconds(5))
