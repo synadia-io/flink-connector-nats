@@ -177,7 +177,7 @@ public class NatsJetStreamSourceReader<OutputT>
 
         try {
             ((NatsSourceFetcherManager) splitFetcherManager)
-                    .acknowledgeMessages(cursors);
+                .acknowledgeMessages(cursors);
             // Clean up the finish splits.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
         } catch (Exception e) {
