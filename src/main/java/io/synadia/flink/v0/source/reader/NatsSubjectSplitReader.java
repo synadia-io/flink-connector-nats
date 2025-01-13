@@ -141,21 +141,15 @@ public class NatsSubjectSplitReader
         unsubscribe();
     }
 
-    public void notifyCheckpointComplete(String subject, List<Message> messages)
-            throws Exception {
+    public void notifyCheckpointComplete(String splitId, List<Message> messages) throws Exception {
 
         // TODO Handle specially for ack all
         // For instance if we know it's ack all, we could look for the message
         // with the highest consumer sequence and just ack that one
 
-        // MANUAL ACK IS DONE INTENTIONALLY
-        // The message was received on a different connection,
-        // which could be closed at the time of ack
-        // TODO see if connection resources can be managed better
-        //noinspection resource
-        Connection conn = connection();
+        ConnectionContext ctx = getContext(splitId);
         for (Message m : messages) {
-            conn.publish(m.getReplyTo(), ACK_BODY_BYTES);
+            ctx.connection.publish(m.getReplyTo(), ACK_BODY_BYTES);
         }
     }
 

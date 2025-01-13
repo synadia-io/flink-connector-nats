@@ -85,7 +85,7 @@ public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsS
         }
     }
 
-    public void acknowledgeMessages(Map<String, List<Message>> cursorsToCommit) { //TODO Change to nats exception
+    public void acknowledgeMessages(Map<String, List<Message>> cursorsToCommit) throws Exception { //TODO Change to nats exception
         LOG.debug("Acknowledge messages {}", cursorsToCommit);
 
         for (Map.Entry<String, List<Message>> entry : cursorsToCommit.entrySet()) {
@@ -95,11 +95,9 @@ public class NatsSourceFetcherManager extends SplitFetcherManager<Message, NatsS
         }
     }
 
-    private void triggerAcknowledge(SplitFetcher<Message, NatsSubjectSplit> splitFetcher, String splitId, List<Message> messages) { //TODO Change to nats specific exception
-        // TODO Handle specially for ack all
-        // For instance if we know it's ack all, we could look for the message
-        // with the highest consumer sequence and just ack that one
-        messages.forEach(Message::ack);
+    private void triggerAcknowledge(SplitFetcher<Message, NatsSubjectSplit> splitFetcher, String splitId, List<Message> messages) throws Exception { //TODO Change to nats specific exception
+        NatsSubjectSplitReader splitReader = (NatsSubjectSplitReader) splitFetcher.getSplitReader();
+        splitReader.notifyCheckpointComplete(splitId, messages);
         startFetcher(splitFetcher);
     }
 
