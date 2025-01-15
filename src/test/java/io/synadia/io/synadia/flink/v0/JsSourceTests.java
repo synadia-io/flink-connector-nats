@@ -182,6 +182,14 @@ public class JsSourceTests extends TestBase {
 
             // Step 9: Cleanup
             env.close();
+
+            // wait for the execution environment to finish
+            // flink will take time to close it resources
+            // if this is not done, code will attempt to delete jet stream
+            // while one of the fetcher threads might be polling
+            Thread.sleep(5_000L);
+
+            // delete stream now
             jsm.deleteStream(streamName);
         });
     }
