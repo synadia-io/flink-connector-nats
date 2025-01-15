@@ -13,6 +13,7 @@ import java.time.Duration;
 public class NatsJetStreamSourceConfiguration implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    private final String streamName;
     private final String consumerName;
     private final int messageQueueCapacity;
     private final boolean enableAutoAcknowledgeMessage;
