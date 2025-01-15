@@ -39,7 +39,7 @@ public class NatsSubjectSplitReader
     private NatsSubjectSplit registeredSplit;
 
     private final Map<String, ConnectionContext> connections;
-    private JetStreamSubscription subscription;
+    private JetStreamSubscription jetStreamSubscription;
     private final ConnectionFactory connectionFactory;
 
     public NatsSubjectSplitReader(String sourceId, Map<String, ConnectionContext> connections, NatsJetStreamSourceConfiguration sourceConfiguration, ConnectionFactory connectionFactory) {
@@ -63,9 +63,9 @@ public class NatsSubjectSplitReader
 
         try {
             // update the subscription for the split
-            this.subscription = createSubscription(ctx, registeredSplit.getSubject());
+            this.jetStreamSubscription = createSubscription(ctx, registeredSplit.getSubject());
 
-            List<Message> messages = subscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+            List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
             messages.forEach(msg -> builder.add(splitId, msg));
 
             //Stop consuming if running in batch mode, and the configured size of messages is fetched
@@ -104,7 +104,7 @@ public class NatsSubjectSplitReader
 
         try {
             // update the subscription for the split
-            this.subscription = createSubscription(ctx, registeredSplit.getSubject());
+            this.jetStreamSubscription = createSubscription(ctx, registeredSplit.getSubject());
         } catch (JetStreamApiException | IOException e) {
             throw new FlinkRuntimeException(e);
         }
@@ -154,16 +154,16 @@ public class NatsSubjectSplitReader
     }
 
     private void unsubscribe() throws FlinkRuntimeException {
-        if (subscription == null) {
+        if (jetStreamSubscription == null) {
             return;
         }
 
         try {
-            subscription.unsubscribe();
+            jetStreamSubscription.unsubscribe();
         } catch (RuntimeException e) {
             throw new FlinkRuntimeException(e);
         } finally {
-            subscription = null;
+            jetStreamSubscription = null;
         }
     }
 
