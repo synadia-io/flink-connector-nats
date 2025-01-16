@@ -114,7 +114,7 @@ public class NatsJetStreamSourceReader<OutputT>
                 cursorsToCommit.computeIfAbsent(checkpointId, id -> new HashMap<>());
         // Put the cursors of the active splits.
         for (NatsSubjectSplit split : splits) {
-            cursors.put(split.getSubject(), split.getCurrentMessages());
+            cursors.put(split.splitId(), split.getCurrentMessages());
         }
         // Put cursors of all the finished splits.
         cursors.putAll(cursorsOfFinishedSplits);
@@ -162,7 +162,7 @@ public class NatsJetStreamSourceReader<OutputT>
         // So the checkpoint didn't really happen, so we just pass a fake checkpoint id.
         List<NatsSubjectSplit> splits = super.snapshotState(1L);
         for (NatsSubjectSplit split : splits) {
-            cursors.put(split.getSubject(), split.getCurrentMessages());
+            cursors.put(split.splitId(), split.getCurrentMessages());
         }
 
         try {
