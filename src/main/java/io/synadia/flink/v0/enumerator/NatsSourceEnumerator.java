@@ -22,7 +22,9 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     private final String id;
     private final SplitEnumeratorContext<NatsSubjectSplit> context;
     private final Queue<NatsSubjectSplit> remainingSplits;
-    private Integer minimumSplitsToAssign = 1;
+
+    // assumes splits to be less than or equal to parallelism
+    private int minimumSplitsToAssign = -1;
 
 
     public NatsSourceEnumerator(String sourceId,
@@ -38,6 +40,12 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     public void start() {
         int noOfSplits = remainingSplits.size();
         int parallelism = context.currentParallelism();
+
+        // let the splits be evenly distributed
+        if (noOfSplits <= parallelism) {
+            this.minimumSplitsToAssign = -1;
+            return;
+        }
 
         // minimum splits that needs to be assigned to reader
         this.minimumSplitsToAssign = noOfSplits / parallelism;
@@ -57,15 +65,21 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
         List<NatsSubjectSplit> nextSplits = new ArrayList<>();
         for (int i = 0; i < this.minimumSplitsToAssign; i++) {
             NatsSubjectSplit nextSplit = remainingSplits.poll();
+            if (nextSplit == null) {
+                break;
+            }
+
             nextSplits.add(nextSplit);
         }
 
-        Map<Integer, List<NatsSubjectSplit>> assignedSplits = new HashMap<>();
-        assignedSplits.put(subtaskId, nextSplits);
+        if (!nextSplits.isEmpty()) {
+            Map<Integer, List<NatsSubjectSplit>> assignedSplits = new HashMap<>();
+            assignedSplits.put(subtaskId, nextSplits);
 
-        // assign the splits back to the source reader
-        context.assignSplits(new SplitsAssignment<>(assignedSplits));
-        LOG.debug("{} | Assigned splits to subtask: {}", id, subtaskId);
+            // assign the splits back to the source reader
+            context.assignSplits(new SplitsAssignment<>(assignedSplits));
+            LOG.debug("{} | Assigned splits to subtask: {}", id, subtaskId);
+        }
 
         // Perform round-robin assignment for leftover splits
         // Assign only one split at a time since the number of leftover splits will always be less than the parallelism.
