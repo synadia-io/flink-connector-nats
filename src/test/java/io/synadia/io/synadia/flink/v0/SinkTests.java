@@ -65,7 +65,7 @@ public class SinkTests extends TestBase {
     {
         String subject = random();
         WordSubscriber sub = new WordSubscriber(nc, subject);
-        Sink<String> sink = newNatsSink(subject, connectionProperties, connectionPropertiesFile);
+        Sink<String> sink = newNatsStringSink(subject, connectionProperties, connectionPropertiesFile);
         __testSink(jobName + "-TestCoreSink", sink, sub);
 
         subject = random();
