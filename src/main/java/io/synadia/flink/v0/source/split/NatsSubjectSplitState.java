@@ -18,11 +18,15 @@ public class NatsSubjectSplitState {
 
     // this method gets called on every snapshot done by flink
     // flush the list to remove the last set of messages
-    // either they have already passed/failed while ack-ing
+    // either they will pass or fail while ack-ing
     // no need to maintain it anymore
     public NatsSubjectSplit toNatsSubjectSplit() {
         List<Message> messages = new ArrayList<>(split.getCurrentMessages());
+
+        // this resets the state to hold new messages
         split.getCurrentMessages().clear();
+
+        // return the messages for acknowledgment and store them in state backends
         return new NatsSubjectSplit(split.getSubject(), messages);
     }
 
