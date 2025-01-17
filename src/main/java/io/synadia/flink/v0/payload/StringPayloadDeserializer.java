@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.payload;
@@ -14,7 +14,7 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
- * A StringPayloadDeserializer takes a byte array and converts it to a String.
+ * A StringPayloadDeserializer uses the message data byte array and converts it to a String.
  */
 public class StringPayloadDeserializer implements PayloadDeserializer<String> {
     private static final long serialVersionUID = 1L;
@@ -54,6 +54,9 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      */
     @Override
     public String getObject(String subject, byte[] input, Headers headers) {
+        if (input == null || input.length == 0) {
+            return "";
+        }
         return new String(input, charset);
     }
 

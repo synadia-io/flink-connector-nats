@@ -7,6 +7,7 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.synadia.flink.v0.payload.ByteArrayPayloadSerializer;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.sink.NatsJetStreamSink;
 import io.synadia.flink.v0.sink.NatsJetStreamSinkBuilder;
@@ -201,7 +202,7 @@ public class TestBase {
         return props;
     }
 
-    public static NatsSink<String> newNatsSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+    public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
             .subjects(subject)
@@ -209,6 +210,23 @@ public class TestBase {
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
+        }
+        else {
+            builder.connectionProperties(connectionProperties);
+        }
+        return builder.build();
+    }
+
+    public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+        final ByteArrayPayloadSerializer serializer = new ByteArrayPayloadSerializer();
+        NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
+            .subjects(subject)
+            .payloadSerializer(serializer);
+
+        if (connectionProperties == null) {
+            if (connectionPropertiesFile != null) {
+                builder.connectionPropertiesFile(connectionPropertiesFile);
+            }
         }
         else {
             builder.connectionProperties(connectionProperties);
