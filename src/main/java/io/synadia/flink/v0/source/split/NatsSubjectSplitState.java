@@ -20,6 +20,8 @@ public class NatsSubjectSplitState {
     // flush the list to remove the last set of messages
     // either they will pass or fail while ack-ing
     // no need to maintain it anymore
+    // we only ack the messages only once they are check-pointed
+    // so even if they fail by some reason in later stages, they will be re-delivered by NATS
     public NatsSubjectSplit toNatsSubjectSplit() {
         List<Message> messages = new ArrayList<>(split.getCurrentMessages());
 
