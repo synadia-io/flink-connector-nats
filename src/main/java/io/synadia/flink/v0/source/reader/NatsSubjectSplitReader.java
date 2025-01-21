@@ -23,14 +23,13 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import static io.synadia.flink.v0.utils.ConnectionContext.ACK_BODY_BYTES;
 import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 
 public class NatsSubjectSplitReader
         implements SplitReader<Message, NatsSubjectSplit> {
 
     private static final Logger LOG = LoggerFactory.getLogger(NatsSubjectSplitReader.class);
-
-    private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
     private final String id;
     private final ConnectionFactory connectionFactory;

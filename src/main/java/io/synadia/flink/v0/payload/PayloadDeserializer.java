@@ -18,5 +18,5 @@ public interface PayloadDeserializer<OutputT> extends Serializable, ResultTypeQu
      * @param headers the message headers
      * @return the output object
      */
-    OutputT getObject(String subject, byte[] input, Headers headers);
+    OutputT getObject(String subject, byte[] input, Headers headers, String replyTo);
 }

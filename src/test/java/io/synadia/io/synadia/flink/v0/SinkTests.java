@@ -72,7 +72,7 @@ public class SinkTests extends TestBase {
         nc.jetStreamManagement().addStream(StreamConfiguration.builder()
             .name(subject).storageType(StorageType.Memory).build());
         sub = new WordSubscriber(nc, subject, true);
-        sink = newNatsJetStreamSink(subject, connectionProperties, connectionPropertiesFile);
+        sink = newNatsJetStreamStringSink(subject, connectionProperties, connectionPropertiesFile);
         __testSink(jobName + "-TestJsSink", sink, sub);
     }
 

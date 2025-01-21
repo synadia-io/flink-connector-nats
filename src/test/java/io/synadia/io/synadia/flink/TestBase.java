@@ -8,24 +8,32 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.synadia.flink.v0.payload.ByteArrayPayloadSerializer;
+import io.synadia.flink.v0.payload.Payload;
+import io.synadia.flink.v0.payload.PayloadBytesSerializer;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.sink.NatsJetStreamSink;
 import io.synadia.flink.v0.sink.NatsJetStreamSinkBuilder;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
+import io.synadia.flink.v0.utils.ConnectionContext;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.logging.Level;
+
+import static io.synadia.flink.v0.utils.ConnectionContext.ACK_BODY_BYTES;
 
 public class TestBase {
     public static final String PLAIN_ASCII = "hello world ascii";
@@ -234,11 +242,26 @@ public class TestBase {
         return builder.build();
     }
 
-    public static NatsJetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+    public static NatsJetStreamSink<String> newNatsJetStreamStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsJetStreamSinkBuilder<String> builder = new NatsJetStreamSinkBuilder<String>()
             .subjects(subject)
             .payloadSerializer(serializer);
+
+        if (connectionProperties == null) {
+            builder.connectionPropertiesFile(connectionPropertiesFile);
+        }
+        else {
+            builder.connectionProperties(connectionProperties);
+        }
+        return builder.build();
+    }
+
+    public static NatsJetStreamSink<Payload<byte[]>> newNatsJetStreamPayloadBytesSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
+        final PayloadBytesSerializer serializer = new PayloadBytesSerializer();
+        NatsJetStreamSinkBuilder<Payload<byte[]>> builder = new NatsJetStreamSinkBuilder<Payload<byte[]>>()
+                .subjects(subject)
+                .payloadSerializer(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
@@ -312,5 +335,44 @@ public class TestBase {
         Object outObject = objectInputStream.readObject();
         objectInputStream.close();
         return outObject;
+    }
+
+    // this FlatMapFunction requires members to be serializable, Nats connection is not serializable
+    // AckMessageFunction acks messages in a sequence up to a stopAtSeq
+    public static class AckMessageFunction implements FlatMapFunction<Payload<byte[]>, Payload<byte[]>> {
+        public final ConnectionFactory connectionFactory;
+        private int currSeq;
+        private final int stopAtSeq;
+
+        public AckMessageFunction(ConnectionFactory connectionFactory, int currSeq, int stopAtSeq) throws IllegalArgumentException {
+            this.connectionFactory = connectionFactory;
+            if (currSeq < 0 || currSeq > stopAtSeq) {
+                throw new IllegalArgumentException("currSeq must be less than stopAtSeq");
+            }
+
+            this.currSeq = currSeq;
+            this.stopAtSeq = stopAtSeq;
+        }
+
+        @Override
+        public void flatMap(Payload<byte[]> p, Collector<Payload<byte[]>> out) throws Exception {
+            if (currSeq > stopAtSeq) {
+                return;
+            }
+
+            assert p.replyTo != null;
+            ConnectionContext context = connectionFactory.connectContext();
+
+            // introduce random delays to simulate user acking at different intervals ranging from 100-500 ms
+            long sleep = (long) (Math.random() * 400) + 100;
+
+            System.out.println(p);
+            System.out.println("sleeping for " + sleep + "ms");
+
+            Thread.sleep(sleep);
+
+            context.connection.publish(p.replyTo, ACK_BODY_BYTES);
+            currSeq++;
+        }
     }
 }

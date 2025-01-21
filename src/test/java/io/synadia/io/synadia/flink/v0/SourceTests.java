@@ -137,10 +137,10 @@ public class SourceTests extends TestBase {
 
     static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
         @Override
-        public String getObject(String subject, byte[] input, Headers headers) {
+        public String getObject(String subject, byte[] input, Headers headers, String replyTo) {
             String hSubject = headers.getFirst("subject");
             String hNum = headers.getFirst("num");
-            return Publisher.dataString(hSubject, hNum);
+            return Publisher.dataString(hSubject, hNum) + "-" + replyTo;
         }
     }
 
