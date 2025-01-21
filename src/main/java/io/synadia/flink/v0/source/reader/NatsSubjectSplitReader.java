@@ -207,6 +207,7 @@ public class NatsSubjectSplitReader
     /** Create a specified {@link Consumer} by the given topic partition. */
     private JetStreamSubscription createSubscription(String subject) throws IOException, JetStreamApiException {
         PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+                .stream(sourceConfiguration.getStreamName())
                 .durable(sourceConfiguration.getConsumerName())
                 .build();
         return jetStream().subscribe(subject, pullOptions);

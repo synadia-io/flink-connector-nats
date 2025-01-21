@@ -13,6 +13,7 @@ import java.time.Duration;
 public class NatsJetStreamSourceConfiguration implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    private final String streamName;
     private final String consumerName;
     private final int messageQueueCapacity;
     private final boolean enableAutoAcknowledgeMessage;
@@ -23,7 +24,8 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
     private final Configuration configuration;
     private final Boundedness boundedness;
 
-    NatsJetStreamSourceConfiguration(String consumerName,
+    NatsJetStreamSourceConfiguration(String streamName,
+                                            String consumerName,
                                             int messageQueueCapacity,
                                             boolean enableAutoAcknowledgeMessage,
                                             Duration fetchOneMessageTimeout,
@@ -31,6 +33,7 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
                                             int maxFetchRecords,
                                             Duration autoAckInterval,
                                             Boundedness boundedness) {
+        this.streamName = streamName;
         this.consumerName = consumerName;
         this.messageQueueCapacity = messageQueueCapacity;
         this.enableAutoAcknowledgeMessage = enableAutoAcknowledgeMessage;
@@ -41,6 +44,10 @@ public class NatsJetStreamSourceConfiguration implements Serializable {
         configuration = new Configuration();
         configuration.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.key(), messageQueueCapacity);
         this.boundedness = boundedness;
+    }
+
+    public String getStreamName() {
+        return streamName;
     }
 
     public String getConsumerName() {
