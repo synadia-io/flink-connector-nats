@@ -5,17 +5,19 @@ package io.synadia.io.synadia.flink.v0;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.impl.Headers;
+import io.synadia.flink.v0.payload.*;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
-import io.synadia.flink.v0.payload.PayloadDeserializer;
-import io.synadia.flink.v0.payload.StringPayloadDeserializer;
-import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
+import io.synadia.flink.v0.utils.ConnectionFactory;
 import io.synadia.io.synadia.flink.TestBase;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -24,12 +26,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
-import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JsSourceTests extends TestBase {
@@ -45,6 +43,86 @@ public class JsSourceTests extends TestBase {
                 sleep(delay);
             }
         }
+    }
+
+    static class PayloadBytesDeserializer implements PayloadDeserializer<Payload<byte[]>> {
+
+        @Override
+        public Payload<byte[]> getObject(String subject, byte[] data, Headers headers, String replyTo) {
+            Map<String, List<String>> newHeaders = new HashMap<>();
+
+            // collect required information from the headers
+            if (headers != null) {
+                headers.forEach(newHeaders::put);
+            }
+
+            return new Payload<>(data, newHeaders, replyTo);
+        }
+
+        @Override
+        public TypeInformation<Payload<byte[]>> getProducedType() {
+            return TypeInformation.of(new TypeHint<Payload<byte[]>>() {});
+        }
+    }
+
+    @Test
+    public void testReplyToBounded() throws Exception {
+        String sourceSubject = random("sub");
+        String streamName = random("strm");
+        String consumerName = random("con");
+
+        runInServer(true, (nc, url) -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = jsm.jetStream();
+
+            // Step 1: Create the source stream and publish messages
+            createStream(jsm, streamName, sourceSubject);
+            publish(js, sourceSubject, 10);
+
+            // Step 2: Create a JetStream consumer
+            createExplicitConsumer(jsm, streamName, sourceSubject, consumerName);
+
+            // Step 3: Configure the NATS JetStream Source
+            Properties connectionProperties = defaultConnectionProperties(url);
+            PayloadBytesDeserializer deserializer = new PayloadBytesDeserializer();
+            NatsJetStreamSourceBuilder<Payload<byte[]>> builder =
+                    new NatsJetStreamSourceBuilder<Payload<byte[]>>()
+                            .subjects(sourceSubject)
+                            .payloadDeserializer(deserializer)
+                            .connectionProperties(connectionProperties)
+                            .consumerName(consumerName)
+                            .maxFetchRecords(100)
+                            .maxFetchTime(Duration.ofSeconds(5))
+                            .boundness(Boundedness.BOUNDED);
+
+            // Step 4: Set up Flink Streaming Environment
+            NatsJetStreamSource<Payload<byte[]>> natsSource = builder.build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            DataStream<Payload<byte[]>> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-input");
+
+            // Step 5: Process the messages and ack them
+            ConnectionFactory connectionFactory = new ConnectionFactory(connectionProperties);
+            ds.flatMap(new AckMessageFunction(connectionFactory, 1, 5));
+
+            // Step 6: Set Flink restart strategy and execute the job asynchronously
+            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
+            env.executeAsync("testReplyToBounded");
+
+            // Step 7: Wait for processing to complete
+            Thread.sleep(12_000);
+
+            // Step 8: Get ConsumerInfo and validate
+            ConsumerInfo consumerInfo = jsm.getConsumerInfo(streamName, consumerName);
+            assertEquals(5, consumerInfo.getNumAckPending(), "5/10 messages should be acked.");
+
+            // Step 9: Cleanup and validation
+            env.close();
+
+            // wait for the execution environment to finish
+            Thread.sleep(7_000);
+            jsm.deleteStream(streamName);
+            nc.close();
+        });
     }
 
     @Test
@@ -147,7 +225,7 @@ public class JsSourceTests extends TestBase {
             // Source: Read from NATS
             DataStream<String> ds = env.fromSource(builder.build(), WatermarkStrategy.noWatermarks(), "nats-source-input");
 
-            // Step 4: Setup a Dispatcher to listen to the sink subject and capture messages
+            // Step 4: Set up a Dispatcher to listen to the sink subject and capture messages
             Dispatcher d = nc.createDispatcher();
             d.subscribe(sinkSubject, syncList::add);
 
@@ -202,6 +280,16 @@ public class JsSourceTests extends TestBase {
             .build();
         jsm.addOrUpdateConsumer(streamName, cc);
         return cc;
+    }
+
+    private static void createExplicitConsumer(JetStreamManagement jsm, String streamName, String sourceSubject, String consumerName) throws IOException, JetStreamApiException {
+        ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .durable(consumerName)
+                .ackPolicy(AckPolicy.Explicit)
+                .filterSubject(sourceSubject)
+                .build();
+
+        jsm.addOrUpdateConsumer(streamName, cc);
     }
 
     private static void createStream(JetStreamManagement jsm, String streamName, String sourceSubject) throws IOException, JetStreamApiException {

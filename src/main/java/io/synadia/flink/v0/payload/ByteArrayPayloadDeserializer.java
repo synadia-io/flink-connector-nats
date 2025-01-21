@@ -15,7 +15,7 @@ public class ByteArrayPayloadDeserializer implements PayloadDeserializer<Byte[]>
     private static final long serialVersionUID = 1L;
 
     @Override
-    public Byte[] getObject(String subject, byte[] input, Headers headers) {
+    public Byte[] getObject(String subject, byte[] input, Headers headers, String replyTo) {
         int len = input == null ? 0 : input.length;
         Byte[] object = new Byte[len];
         for (int x = 0; x < len; x++) {

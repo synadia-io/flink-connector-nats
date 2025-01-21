@@ -93,25 +93,25 @@ public class SerializersDeserializersTests extends TestBase {
 
         String subject = "validateStringPayload";
         byte[] bytes = PLAIN_ASCII.getBytes();
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null));
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null, null));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null, null));
 
         bytes = spsAscii.getBytes(PLAIN_ASCII);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null));
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null, null));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null, null));
 
         bytes = spsUtf8.getBytes(PLAIN_ASCII);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null));
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(subject, bytes, null, null));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(subject, bytes, null, null));
 
         for (String su : UTF8_TEST_STRINGS) {
             bytes = su.getBytes(StandardCharsets.UTF_8);
-            assertNotEquals(su, spdAscii.getObject(subject, bytes, null));
-            assertEquals(su, spdUtf8.getObject(subject, bytes, null));
+            assertNotEquals(su, spdAscii.getObject(subject, bytes, null, null));
+            assertEquals(su, spdUtf8.getObject(subject, bytes, null, null));
 
             bytes = spsUtf8.getBytes(su);
-            assertNotEquals(su, spdAscii.getObject(subject, bytes, null));
-            assertEquals(su, spdUtf8.getObject(subject, bytes, null));
+            assertNotEquals(su, spdAscii.getObject(subject, bytes, null, null));
+            assertEquals(su, spdUtf8.getObject(subject, bytes, null, null));
         }
     }
 
@@ -124,7 +124,7 @@ public class SerializersDeserializersTests extends TestBase {
             byte[] bytes = ser.getBytes(wc);
             WordCount wc2 = new WordCount(bytes);
             assertEquals(wc, wc2);
-            wc2 = dser.getObject("testCustomPayload", bytes, null);
+            wc2 = dser.getObject("testCustomPayload", bytes, null, null);
             assertEquals(wc, wc2);
         }
     }

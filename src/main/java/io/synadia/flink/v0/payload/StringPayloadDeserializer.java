@@ -53,7 +53,7 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public String getObject(String subject, byte[] input, Headers headers) {
+    public String getObject(String subject, byte[] input, Headers headers, String replyTo) {
         if (input == null || input.length == 0) {
             return "";
         }

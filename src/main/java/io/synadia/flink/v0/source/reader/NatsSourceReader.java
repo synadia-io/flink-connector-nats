@@ -71,7 +71,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
             LOG.debug("{} | pollNext no message NOTHING_AVAILABLE", id);
             return InputStatus.NOTHING_AVAILABLE;
         }
-        output.collect(payloadDeserializer.getObject(m.getSubject(), m.getData(), m.getHeaders()));
+        output.collect(payloadDeserializer.getObject(m.getSubject(), m.getData(), m.getHeaders(), m.getReplyTo()));
         InputStatus is = messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
         LOG.debug("{} | pollNext had message, then {}", id, is);
         return is;

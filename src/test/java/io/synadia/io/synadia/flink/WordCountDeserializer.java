@@ -10,7 +10,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public class WordCountDeserializer implements PayloadDeserializer<WordCount> {
     @Override
-    public WordCount getObject(String subject, byte[] input, Headers headers) {
+    public WordCount getObject(String subject, byte[] input, Headers headers, String replyTo) {
         return new WordCount(input);
     }
 

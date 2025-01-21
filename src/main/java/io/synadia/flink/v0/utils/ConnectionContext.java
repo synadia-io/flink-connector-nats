@@ -7,10 +7,13 @@ import io.nats.client.Connection;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.JetStreamOptions;
+import io.nats.client.impl.AckType;
 
 import java.io.IOException;
 
 public class ConnectionContext {
+    public static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
+
     public final Connection connection;
     public final JetStreamManagement jsm;
     public final JetStream js;
