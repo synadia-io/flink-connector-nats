@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source.reader;
@@ -22,7 +22,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -39,7 +41,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldMaintainMessageOrderWithDelaysInUnboundedMode() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             // Setup stream
             String stream = stream();
             String subject = subject();
@@ -65,11 +67,11 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Boundedness.CONTINUOUS_UNBOUNDED
             );
 
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             // Publish test messages with delays
             JetStream js = nc.jetStream();
-            publishTestMessages(js, subject, NUM_MESSAGES,0);
+            publishTestMessages(js, subject, NUM_MESSAGES);
 
             // Register split and fetch messages
             NatsSubjectSplit split = new NatsSubjectSplit(subject);
@@ -116,7 +118,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldMarkSplitAsFinishedAndStopFetchingAfterAllMessagesConsumedInBoundedMode() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             // Setup stream
             String stream = stream();
             String subject = subject();
@@ -142,11 +144,11 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Boundedness.BOUNDED
             );
 
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             int messageCount = MAX_FETCH_RECORDS;
             JetStream js = nc.jetStream();
-            publishTestMessages(js, subject, messageCount, 0);
+            publishTestMessages(js, subject, messageCount);
 
             // Register split and fetch messages
             NatsSubjectSplit split = new NatsSubjectSplit(subject);
@@ -195,7 +197,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldAcknowledgeMessagesAndPreventRedeliveryAfterCheckpointCompletion() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             // Setup stream
             String stream = stream();
             String subject = subject();
@@ -208,7 +210,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
 
             nc.jetStreamManagement().addStream(streamConfig);
 
-            publishTestMessages(nc.jetStream(), subject, 5, 0);
+            publishTestMessages(nc.jetStream(), subject, 5);
 
             // Setup reader with real configuration
             NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
@@ -223,7 +225,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Boundedness.CONTINUOUS_UNBOUNDED
             );
 
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             // Register split and fetch messages
             NatsSubjectSplit split = new NatsSubjectSplit(subject);
@@ -282,7 +284,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldThrowUnsupportedOperationExceptionForNonSplitsAdditionChanges() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
 
             // Setup reader with real configuration
             NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
@@ -296,7 +298,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Duration.ofSeconds(10),
                     Boundedness.CONTINUOUS_UNBOUNDED
             );
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             // Create mock SplitsChange that is not SplitsAddition
             @SuppressWarnings("unchecked")
@@ -329,7 +331,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldReturnEmptyRecordSetWhenFetchCalledWithoutRegisteredSplit() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
                     "test-consumer",
                     stream(),
@@ -342,7 +344,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Boundedness.BOUNDED
             );
 
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             // Fetch without registering any split
             RecordsWithSplitIds<Message> records = reader.fetch();
@@ -366,7 +368,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldHandleWakeUpAndPauseResumeMethodsAsNoOpOperations() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             NatsJetStreamSourceConfiguration sourceConfig = createSourceConfig(
                     "test-consumer",
                     stream(),
@@ -379,7 +381,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
                     Boundedness.BOUNDED
             );
 
-            NatsSubjectSplitReader reader = createReader(nc, sourceConfig);
+            NatsSubjectSplitReader reader = createReader(url, sourceConfig);
 
             // Test wakeUp (no-op)
             reader.wakeUp();
@@ -460,7 +462,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
      */
     @Test
     void shouldPreserveInterruptFlagAndWrapExceptionWhenCloseIsInterrupted() throws Exception {
-        runInServer(true, (nc, url) -> {
+        runInJsServer((nc, url) -> {
             Connection mockConn = mock(Connection.class);
             JetStreamManagement mockJsm = mock(JetStreamManagement.class);
             JetStream mockJs = mock(JetStream.class);
@@ -556,24 +558,17 @@ class NatsSubjectSplitReaderTest extends TestBase {
     /**
      * Helper method to publish test messages to a subject
      */
-    private static void publishTestMessages(JetStream js, String subject, int numMessages, long delay) throws Exception {
+    private static void publishTestMessages(JetStream js, String subject, int numMessages) throws Exception {
         for (int i = 0; i < numMessages; i++) {
             js.publish(subject, String.valueOf(i).getBytes());
-            Thread.sleep(delay);
         }
     }
 
     /**
      * Helper method to create a NatsSubjectSplitReader with a given connection
      */
-    private NatsSubjectSplitReader createReader(Connection nc, NatsJetStreamSourceConfiguration config) {
-        ConnectionFactory connectionFactory = new ConnectionFactory(new Properties()) {
-            @Override
-            public Connection connect() {
-                return nc;
-            }
-        };
-        return new NatsSubjectSplitReader(SOURCE_ID, connectionFactory, config);
+    private NatsSubjectSplitReader createReader(String url, NatsJetStreamSourceConfiguration njssConfig) {
+        return new NatsSubjectSplitReader(SOURCE_ID, new ConnectionFactory(defaultConnectionProperties(url)), njssConfig);
     }
 }
 
