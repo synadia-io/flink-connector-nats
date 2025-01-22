@@ -41,7 +41,7 @@ public class SourceToSinkExample {
 
         // listen for messages that the sink publishes
         Dispatcher dispatcher = nc.createDispatcher(m -> {
-            System.out.printf("Listening. Subject: %s Payload: %s\n", m.getSubject(), new String(m.getData()));
+            System.out.printf("Listening. Subject: %s MessageRecord: %s\n", m.getSubject(), new String(m.getData()));
         });
         List<String> sinkSubjects = PropertiesUtils.getPropertyAsList(props, "sink.subjects");
         for (String subject : sinkSubjects) {

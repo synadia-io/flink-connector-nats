@@ -3,7 +3,6 @@
 
 package io.synadia.flink.v0.payload;
 
-import io.nats.client.impl.Headers;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -53,7 +52,8 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public String getObject(String subject, byte[] input, Headers headers) {
+    public String getObject(MessageRecord record) {
+        byte[] input = record.message.getData();
         if (input == null || input.length == 0) {
             return "";
         }

@@ -3,7 +3,6 @@
 
 package io.synadia.flink.v0.payload;
 
-import io.nats.client.impl.Headers;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.io.Serializable;
@@ -11,12 +10,8 @@ import java.io.Serializable;
 public interface PayloadDeserializer<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
 
     /**
-     * Get an object from message payload bytes
-     *
-     * @param subject the message subject
-     * @param input   the input bytes.
-     * @param headers the message headers
+     * Get an object from a payload object which currently just wraps a message
      * @return the output object
      */
-    OutputT getObject(String subject, byte[] input, Headers headers);
+    OutputT getObject(MessageRecord record);
 }
