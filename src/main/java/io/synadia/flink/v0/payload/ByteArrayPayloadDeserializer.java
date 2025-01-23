@@ -3,7 +3,6 @@
 
 package io.synadia.flink.v0.payload;
 
-import io.nats.client.impl.Headers;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import static org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO;
@@ -15,11 +14,12 @@ public class ByteArrayPayloadDeserializer implements PayloadDeserializer<Byte[]>
     private static final long serialVersionUID = 1L;
 
     @Override
-    public Byte[] getObject(String subject, byte[] input, Headers headers) {
-        int len = input == null ? 0 : input.length;
+    public Byte[] getObject(MessageRecord record) {
+        byte[] data = record.message.getData();
+        int len = data == null ? 0 : data.length;
         Byte[] object = new Byte[len];
         for (int x = 0; x < len; x++) {
-            object[x] = input[x];
+            object[x] = data[x];
         }
         return object;
     }

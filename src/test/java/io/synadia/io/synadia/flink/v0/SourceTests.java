@@ -7,6 +7,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.synadia.flink.v0.payload.ByteArrayPayloadDeserializer;
+import io.synadia.flink.v0.payload.MessageRecord;
 import io.synadia.flink.v0.payload.StringPayloadDeserializer;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.sink.NatsSink;
@@ -137,7 +138,8 @@ public class SourceTests extends TestBase {
 
     static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
         @Override
-        public String getObject(String subject, byte[] input, Headers headers) {
+        public String getObject(MessageRecord record) {
+            Headers headers = record.getMessage().getHeaders();
             String hSubject = headers.getFirst("subject");
             String hNum = headers.getFirst("num");
             return Publisher.dataString(hSubject, hNum);

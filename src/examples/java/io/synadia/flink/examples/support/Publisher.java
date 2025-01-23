@@ -37,7 +37,7 @@ public class Publisher implements Runnable {
                 int num = counter.incrementAndGet();
                 String payload = "data-" + subject + "-" + num;
                 nc.publish(subject, payload.getBytes());
-                System.out.printf("Publishing. Subject: %s Payload: %s\n", subject, payload);
+                System.out.printf("Publishing. Subject: %s MessageRecord: %s\n", subject, payload);
             }
             try {
                 //noinspection BusyWait
