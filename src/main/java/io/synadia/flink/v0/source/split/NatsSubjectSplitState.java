@@ -3,11 +3,6 @@
 
 package io.synadia.flink.v0.source.split;
 
-import io.nats.client.Message;
-
-import java.util.ArrayList;
-import java.util.List;
-
 public class NatsSubjectSplitState {
 
     private final NatsSubjectSplit split;
@@ -16,20 +11,8 @@ public class NatsSubjectSplitState {
         this.split = split;
     }
 
-    // this method gets called on every snapshot done by flink
-    // flush the list to remove the last set of messages
-    // either they will pass or fail while ack-ing
-    // no need to maintain it anymore
-    // we only ack the messages only once they are check-pointed
-    // so even if they fail by some reason in later stages, they will be re-delivered by NATS
     public NatsSubjectSplit toNatsSubjectSplit() {
-        List<Message> messages = new ArrayList<>(split.getCurrentMessages());
-
-        // this resets the state to hold new messages
-        split.getCurrentMessages().clear();
-
-        // return the messages for acknowledgment and store them in state backends
-        return new NatsSubjectSplit(split.getSubject(), messages);
+        return split;
     }
 
     public NatsSubjectSplit getSplit() {

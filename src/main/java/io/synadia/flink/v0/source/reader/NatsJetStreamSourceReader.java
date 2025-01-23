@@ -114,7 +114,16 @@ public class NatsJetStreamSourceReader<OutputT>
                 cursorsToCommit.computeIfAbsent(checkpointId, id -> new HashMap<>());
         // Put the cursors of the active splits.
         for (NatsSubjectSplit split : splits) {
-            cursors.put(split.splitId(), split.getCurrentMessages());
+            List<Message> messages = new ArrayList<>(split.getCurrentMessages());
+
+            cursors.put(split.splitId(), messages);
+
+            // flush the list to remove the last set of messages
+            // either they will pass or fail while ack-ing
+            // no need to maintain it anymore
+            // we only ack the messages only once they are check-pointed
+            // so even if they fail by some reason in later stages, they will be re-delivered by NATS
+            split.getCurrentMessages().clear();
         }
         // Put cursors of all the finished splits.
         cursors.putAll(cursorsOfFinishedSplits);
