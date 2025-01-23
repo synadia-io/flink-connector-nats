@@ -22,9 +22,8 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     private final String id;
     private final SplitEnumeratorContext<NatsSubjectSplit> context;
     private final Queue<NatsSubjectSplit> remainingSplits;
+    private List<List<NatsSubjectSplit>> precomputedSplitAssignments;
 
-    // assumes splits to be less than or equal to parallelism
-    private int minimumSplitsToAssign = -1;
 
 
     public NatsSourceEnumerator(String sourceId,
@@ -34,60 +33,80 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
         id = generatePrefixedId(sourceId);
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
+        this.precomputedSplitAssignments = Collections.synchronizedList(new LinkedList<>());
     }
 
     @Override
     public void start() {
-        int noOfSplits = remainingSplits.size();
+        int totalSplits = remainingSplits.size();
         int parallelism = context.currentParallelism();
 
-        // let the splits be evenly distributed
-        if (noOfSplits <= parallelism) {
-            this.minimumSplitsToAssign = -1;
-            return;
+        // Calculate the minimum splits per reader and leftover splits
+        int minimumSplitsPerReader = totalSplits / parallelism;
+        int leftoverSplits = totalSplits % parallelism;
+
+        // Precompute split assignments
+        List<List<NatsSubjectSplit>>splitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
+
+        // Store precomputed split assignments
+        this.precomputedSplitAssignments = splitAssignments;
+        LOG.debug("{} | Precomputed split assignments: {}", id, splitAssignments);
+    }
+
+    private List<List<NatsSubjectSplit>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
+        List<List<NatsSubjectSplit>> splitAssignments = new ArrayList<>(parallelism);
+
+        // Initialize lists
+        for (int i = 0; i < parallelism; i++) {
+            splitAssignments.add(new ArrayList<>());
         }
 
-        // minimum splits that needs to be assigned to reader
-        this.minimumSplitsToAssign = noOfSplits / parallelism;
+        // Distribute splits evenly among subtasks
+        for (int j = 0; j < parallelism; j++) {
+            List<NatsSubjectSplit> readerSplits = splitAssignments.get(j);
+
+            // Assign minimum splits to each reader
+            for (int i = 0; i < minimumSplitsPerReader && !remainingSplits.isEmpty(); i++) {
+                readerSplits.add(remainingSplits.poll());
+            }
+
+            // Assign one leftover split if available
+            if (leftoverSplits > 0 && !remainingSplits.isEmpty()) {
+                readerSplits.add(remainingSplits.poll());
+                leftoverSplits--;
+            }
+        }
+
+        return splitAssignments;
     }
 
     @Override
     public void close() {
+        // remove precomputed split assignments if any
+        precomputedSplitAssignments.clear();
     }
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        if (remainingSplits.isEmpty()) {
+        int size = precomputedSplitAssignments.size();
+
+        if (size == 0) {
+            LOG.debug("{} | No more splits available for subtask {}", id, subtaskId);
             context.signalNoMoreSplits(subtaskId);
-            return;
-        }
+        } else {
+            // O(1) operation with LinkedList
+            // Remove the first element from the list
+            // and assign splits to subtask
+            List<NatsSubjectSplit> splits = precomputedSplitAssignments.remove(0);
+            if (splits.isEmpty()) {
+                LOG.debug("{} | Empty split assignment for subtask {}", id, subtaskId);
+                context.signalNoMoreSplits(subtaskId);
+            } else {
 
-        List<NatsSubjectSplit> nextSplits = new ArrayList<>();
-        for (int i = 0; i < this.minimumSplitsToAssign; i++) {
-            NatsSubjectSplit nextSplit = remainingSplits.poll();
-            if (nextSplit == null) {
-                break;
+                // Assign splits to subtask
+                LOG.debug("{} | Assigning splits {} to subtask {}", id, splits, subtaskId);
+                context.assignSplits(new SplitsAssignment<>(Map.of(subtaskId, splits)));
             }
-
-            nextSplits.add(nextSplit);
-        }
-
-        if (!nextSplits.isEmpty()) {
-            Map<Integer, List<NatsSubjectSplit>> assignedSplits = new HashMap<>();
-            assignedSplits.put(subtaskId, nextSplits);
-
-            // assign the splits back to the source reader
-            context.assignSplits(new SplitsAssignment<>(assignedSplits));
-            LOG.debug("{} | Assigned splits to subtask: {}", id, subtaskId);
-        }
-
-        // Perform round-robin assignment for leftover splits
-        // Assign only one split at a time since the number of leftover splits will always be less than the parallelism.
-        // Each leftover split can be assigned to any reader, and the list will be exhausted quickly.
-        NatsSubjectSplit nextSplit = remainingSplits.poll();
-        if (nextSplit != null) {
-            context.assignSplit(nextSplit, subtaskId);
-            LOG.debug("{} | Assigned split in round-robin to subtask: {}", id, subtaskId);
         }
     }
 
