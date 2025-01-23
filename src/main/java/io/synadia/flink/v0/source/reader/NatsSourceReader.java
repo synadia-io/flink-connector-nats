@@ -108,7 +108,9 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     @Override
     public void close() throws Exception {
         LOG.debug("{} | close", id);
-        connection.close();
+        if (connection != null) {
+            connection.close();
+        }
     }
 
     @Override

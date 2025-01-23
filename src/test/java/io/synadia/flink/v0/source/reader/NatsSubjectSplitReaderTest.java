@@ -571,4 +571,3 @@ class NatsSubjectSplitReaderTest extends TestBase {
         return new NatsSubjectSplitReader(SOURCE_ID, new ConnectionFactory(defaultConnectionProperties(url)), njssConfig);
     }
 }
-
