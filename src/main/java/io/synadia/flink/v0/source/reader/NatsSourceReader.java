@@ -6,6 +6,7 @@ package io.synadia.flink.v0.source.reader;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.synadia.flink.v0.payload.MessageRecord;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.split.NatsSubjectSplit;
 import io.synadia.flink.v0.utils.ConnectionFactory;
@@ -71,7 +72,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
             LOG.debug("{} | pollNext no message NOTHING_AVAILABLE", id);
             return InputStatus.NOTHING_AVAILABLE;
         }
-        output.collect(payloadDeserializer.getObject(m.getSubject(), m.getData(), m.getHeaders()));
+        output.collect(payloadDeserializer.getObject(new MessageRecord(m)));
         InputStatus is = messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
         LOG.debug("{} | pollNext had message, then {}", id, is);
         return is;
