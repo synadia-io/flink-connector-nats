@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
 package io.synadia.flink.v0.enumerator;
@@ -34,6 +34,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
         this.precomputedSplitAssignments = Collections.synchronizedList(new LinkedList<>());
+        LOG.debug("{} | init {}", id, remainingSplits);
     }
 
     @Override
@@ -46,11 +47,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
         int leftoverSplits = totalSplits % parallelism;
 
         // Precompute split assignments
-        List<List<NatsSubjectSplit>>splitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
-
-        // Store precomputed split assignments
-        this.precomputedSplitAssignments = splitAssignments;
-        LOG.debug("{} | Precomputed split assignments: {}", id, splitAssignments);
+        this.precomputedSplitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
     }
 
     private List<List<NatsSubjectSplit>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
@@ -77,11 +74,13 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
             }
         }
 
+        LOG.debug("{} | Precomputed split assignments: {}", id, splitAssignments);
         return splitAssignments;
     }
 
     @Override
     public void close() {
+        LOG.debug("{} | close", id);
         // remove precomputed split assignments if any
         precomputedSplitAssignments.clear();
     }
@@ -113,10 +112,12 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     @Override
     public void addSplitsBack(List<NatsSubjectSplit> splits, int subtaskId) {
         remainingSplits.addAll(splits);
+        LOG.debug("{} | addSplitsBack IN {} {}", id, subtaskId, remainingSplits);
     }
 
     @Override
     public void addReader(int subtaskId) {
+        LOG.debug("{} | addReader {}", id, subtaskId);
         handleSplitRequest(subtaskId, null);
     }
 

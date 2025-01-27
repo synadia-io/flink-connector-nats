@@ -42,7 +42,7 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.27.1'
     implementation 'commons-io:commons-io:2.18.0'
 
-    ext.flinkVersion='1.17.2'
+    ext.flinkVersion='1.20.0'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
     implementation "org.apache.flink:flink-java:${flinkVersion}"
     implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"

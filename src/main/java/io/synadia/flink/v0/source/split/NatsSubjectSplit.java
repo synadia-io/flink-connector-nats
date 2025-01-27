@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source.split;
@@ -58,6 +58,6 @@ public class NatsSubjectSplit implements SourceSplit {
 
     @Override
     public String toString() {
-        return String.format("[Subject: %s]", subject);
+        return String.format("%s", subject);
     }
 }
