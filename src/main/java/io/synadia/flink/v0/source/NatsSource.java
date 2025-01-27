@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source;
@@ -53,12 +53,12 @@ public class NatsSource<OutputT> implements
         this.subjects = subjects;
         this.payloadDeserializer = payloadDeserializer;
         this.connectionFactory = connectionFactory;
-        logger = LoggerFactory.getLogger(logClazz);
+        logger = LoggerFactory.getLogger(logClazz.getCanonicalName()); // done this way to get full package path - needed to
+        logger.debug("{} | Init {}", id, subjects);
     }
 
     @Override
     public Boundedness getBoundedness() {
-        logger.debug("{} | Boundedness", id);
         return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
