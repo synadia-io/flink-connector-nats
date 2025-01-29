@@ -11,12 +11,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
 
 class NatsSourceEnumeratorTests extends TestBase {
 
@@ -49,7 +53,7 @@ class NatsSourceEnumeratorTests extends TestBase {
         splitsQueue.addAll(params.splits.stream().map(NatsSubjectSplit::new).collect(Collectors.toList()));
 
         when(context.currentParallelism()).thenReturn(params.parallelism);
-        enumerator = new NatsSourceEnumerator("test", context, splitsQueue);
+        enumerator = new NatsSourceEnumerator<>("test", context, splitsQueue);
 
         // precompute split assignments
         enumerator.start();

@@ -3,7 +3,7 @@
 
 package io.synadia.flink.v0.enumerator;
 
-import io.synadia.flink.v0.source.split.NatsSubjectSplit;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
@@ -16,20 +16,17 @@ import java.util.*;
 import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> {
+public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEnumerator<SplitT, Collection<SplitT>> {
     private static final Logger LOG = LoggerFactory.getLogger(NatsSourceEnumerator.class);
 
     private final String id;
-    private final SplitEnumeratorContext<NatsSubjectSplit> context;
-    private final Queue<NatsSubjectSplit> remainingSplits;
-    private List<List<NatsSubjectSplit>> precomputedSplitAssignments;
-
-
+    private final SplitEnumeratorContext<SplitT> context;
+    private final Queue<SplitT> remainingSplits;
+    private List<List<SplitT>> precomputedSplitAssignments;
 
     public NatsSourceEnumerator(String sourceId,
-                                SplitEnumeratorContext<NatsSubjectSplit> context,
-                                Collection<NatsSubjectSplit> splits)
-    {
+                                SplitEnumeratorContext<SplitT> context,
+                                Collection<SplitT> splits) {
         id = generatePrefixedId(sourceId);
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
@@ -50,8 +47,8 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
         this.precomputedSplitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
     }
 
-    private List<List<NatsSubjectSplit>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
-        List<List<NatsSubjectSplit>> splitAssignments = new ArrayList<>(parallelism);
+    private List<List<SplitT>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
+        List<List<SplitT>> splitAssignments = new ArrayList<>(parallelism);
 
         // Initialize lists
         for (int i = 0; i < parallelism; i++) {
@@ -60,7 +57,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
 
         // Distribute splits evenly among subtasks
         for (int j = 0; j < parallelism; j++) {
-            List<NatsSubjectSplit> readerSplits = splitAssignments.get(j);
+            List<SplitT> readerSplits = splitAssignments.get(j);
 
             // Assign minimum splits to each reader
             for (int i = 0; i < minimumSplitsPerReader && !remainingSplits.isEmpty(); i++) {
@@ -96,7 +93,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
             // O(1) operation with LinkedList
             // Remove the first element from the list
             // and assign splits to subtask
-            List<NatsSubjectSplit> splits = precomputedSplitAssignments.remove(0);
+            List<SplitT> splits = precomputedSplitAssignments.remove(0);
             if (splits.isEmpty()) {
                 LOG.debug("{} | Empty split assignment for subtask {}", id, subtaskId);
                 context.signalNoMoreSplits(subtaskId);
@@ -110,7 +107,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     }
 
     @Override
-    public void addSplitsBack(List<NatsSubjectSplit> splits, int subtaskId) {
+    public void addSplitsBack(List<SplitT> splits, int subtaskId) {
         remainingSplits.addAll(splits);
         LOG.debug("{} | addSplitsBack IN {} {}", id, subtaskId, remainingSplits);
     }
@@ -122,7 +119,7 @@ public class NatsSourceEnumerator implements SplitEnumerator<NatsSubjectSplit, C
     }
 
     @Override
-    public Collection<NatsSubjectSplit> snapshotState(long checkpointId) throws Exception {
+    public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
         return remainingSplits;
     }
 }
