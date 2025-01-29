@@ -9,9 +9,12 @@ import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.v0.payload.StringPayloadSerializer;
 import io.synadia.flink.v0.utils.ConnectionFactory;
 import io.synadia.io.synadia.flink.TestBase;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -198,6 +201,10 @@ class NatsJetStreamSinkWriterTest extends TestBase {
         @Override public int getAttemptNumber() { return 0; }
         @Override public SinkWriterMetricGroup metricGroup() { return null; }
         @Override public OptionalLong getRestoredCheckpointId() { return null; }
+        @Override public JobInfo getJobInfo() { return null;}
+        @Override public TaskInfo getTaskInfo() { return null;}
         @Override public SerializationSchema.InitializationContext asSerializationSchemaInitializationContext() { return null; }
+        @Override public boolean isObjectReuseEnabled() { return false; }
+        @Override public <IN> TypeSerializer<IN> createInputSerializer() { return null; }
     }
 }
