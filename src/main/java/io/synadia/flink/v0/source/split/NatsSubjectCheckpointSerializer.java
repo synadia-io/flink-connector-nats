@@ -19,7 +19,7 @@ import java.util.Collection;
 @Internal
 public class NatsSubjectCheckpointSerializer implements SimpleVersionedSerializer<Collection<NatsSubjectSplit>> {
 
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     @Override
     public int getVersion() {
@@ -35,22 +35,33 @@ public class NatsSubjectCheckpointSerializer implements SimpleVersionedSerialize
         final DataOutputSerializer out = new DataOutputSerializer(startSize);
         out.writeInt(splits.size());
         for (NatsSubjectSplit split : splits) {
-            NatsSubjectSplitSerializer.serializeV1(out, split);
+            NatsSubjectSplitSerializer.serializeV2(out, split);
         }
         return out.getCopyOfBuffer();
     }
 
     @Override
     public Collection<NatsSubjectSplit> deserialize(int version, byte[] serialized) throws IOException {
-        if (version != CURRENT_VERSION) {
-            throw new IOException("Unrecognized version: " + version);
-        }
         final DataInputDeserializer in = new DataInputDeserializer(serialized);
         final int num = in.readInt();
         final ArrayList<NatsSubjectSplit> result = new ArrayList<>(num);
-        for (int x = 0; x < num; x++) {
-            result.add(NatsSubjectSplitSerializer.deserializeV1(in));
+
+        if (version > 2 ) {
+            throw new IOException("Unrecognized version or corrupt state: " + version);
         }
+
+        if (version == 1) {
+            for (int x = 0; x < num; x++) {
+                result.add(NatsSubjectSplitSerializer.deserializeV1(in));
+            }
+
+            return result;
+        }
+
+        for (int x = 0; x < num; x++) {
+            result.add(NatsSubjectSplitSerializer.deserializeV2(in));
+        }
+
         return result;
     }
 }
