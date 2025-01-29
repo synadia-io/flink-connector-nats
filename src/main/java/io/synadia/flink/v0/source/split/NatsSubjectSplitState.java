@@ -12,7 +12,7 @@ public class NatsSubjectSplitState {
     }
 
     public NatsSubjectSplit toNatsSubjectSplit() {
-        return new NatsSubjectSplit(split.getSubject(), split.getCurrentMessages());
+        return split;
     }
 
     public NatsSubjectSplit getSplit() {

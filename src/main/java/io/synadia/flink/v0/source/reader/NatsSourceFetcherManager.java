@@ -97,21 +97,22 @@ public class NatsSourceFetcherManager
         LOG.debug("Acknowledge messages {}", cursorsToCommit);
 
         for (Map.Entry<String, List<Message>> entry : cursorsToCommit.entrySet()) {
-            String partition = entry.getKey();
-            SplitFetcher<Message, NatsSubjectSplit> fetcher =
-                    getOrCreateFetcher(partition);
-            triggerAcknowledge(fetcher, partition, entry.getValue());
+            LOG.debug("No of messages to ack: {}", entry.getValue().size());
+
+            String splitId = entry.getKey();
+            SplitFetcher<Message, NatsSubjectSplit> fetcher = getOrCreateFetcher(splitId);
+            triggerAcknowledge(fetcher, splitId, entry.getValue());
         }
     }
 
     private void triggerAcknowledge(
             SplitFetcher<Message, NatsSubjectSplit> splitFetcher,
-            String partition,
+            String splitId,
             List<Message> messages)
             throws Exception { //TODO Change to nats specific exception
         NatsSubjectSplitReader splitReader =
                 (NatsSubjectSplitReader) splitFetcher.getSplitReader();
-        splitReader.notifyCheckpointComplete(partition, messages);
+        splitReader.notifyCheckpointComplete(splitId, messages);
         startFetcher(splitFetcher);
     }
 
