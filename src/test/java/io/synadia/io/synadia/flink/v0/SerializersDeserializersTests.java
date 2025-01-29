@@ -129,7 +129,15 @@ public class SerializersDeserializersTests extends TestBase {
             builder.replyTo("_inbox." + subject);
         }
 
-        messages.add(builder.subject(subject).data(subject.getBytes()).build());
+        Message firstMessage = builder.subject(subject).data(subject + "1").build();
+        Message secondMessage = builder.subject(subject).data(subject + "2").build();
+        Message thirdMessage = builder.subject(subject).data(subject + "3").build();
+        Message fourthMessage = builder.subject(subject).data(subject + "4").build();
+
+        messages.add(firstMessage);
+        messages.add(secondMessage);
+        messages.add(thirdMessage);
+        messages.add(fourthMessage);
         return messages;
     }
 
