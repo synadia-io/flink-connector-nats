@@ -80,7 +80,7 @@ public class NatsSource<OutputT> implements
         Collection<NatsSubjectSplit> checkpoint)
     {
         logger.debug("{} | restoreEnumerator", id);
-        return new NatsSourceEnumerator(id, enumContext, checkpoint);
+        return new NatsSourceEnumerator<>(id, enumContext, checkpoint);
     }
 
     @Override
