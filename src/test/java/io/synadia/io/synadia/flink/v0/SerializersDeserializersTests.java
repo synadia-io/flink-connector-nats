@@ -3,6 +3,8 @@
 
 package io.synadia.io.synadia.flink.v0;
 
+import io.nats.client.Message;
+import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import io.synadia.flink.v0.enumerator.NatsSourceEnumeratorStateSerializer;
 import io.synadia.flink.v0.enumerator.NatsSubjectSourceEnumeratorState;
@@ -16,34 +18,119 @@ import io.synadia.io.synadia.flink.TestBase;
 import io.synadia.io.synadia.flink.WordCount;
 import io.synadia.io.synadia.flink.WordCountDeserializer;
 import io.synadia.io.synadia.flink.WordCountSerializer;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Stream;
 
+import static io.synadia.flink.v0.source.split.NatsSubjectSplitSerializer.CURRENT_VERSION;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SerializersDeserializersTests extends TestBase {
 
-    @Test
-    public void testSourceSideSerialization() throws Exception {
+    @DisplayName("Test Serialization for subject")
+    @ParameterizedTest(name = "{2} | Subjects: {1}")
+    @MethodSource("provideSplitTestData")
+    void testSourceSideSerialization(int version, List<NatsSubjectSplit> splits, String description) throws Exception {
         NatsSubjectSplitSerializer splitSerializer = new NatsSubjectSplitSerializer();
         NatsSubjectCheckpointSerializer checkpointSerializer = new NatsSubjectCheckpointSerializer();
 
-        List<NatsSubjectSplit> splits = new ArrayList<>();
-        String[] subjects = new String[]{"one", "two", "three", "four", "five"};
-        for (String subject : subjects) {
-            NatsSubjectSplit split = new NatsSubjectSplit(subject);
+        for (NatsSubjectSplit split : splits) {
             byte[] serialized = splitSerializer.serialize(split);
-            NatsSubjectSplit de = splitSerializer.deserialize(NatsSubjectSplitSerializer.CURRENT_VERSION, serialized);
-            assertEquals(subject, de.splitId());
-            splits.add(split);
+            NatsSubjectSplit deserializedSplit = splitSerializer.deserialize(version, serialized);
+            assertEquals(split.splitId(), deserializedSplit.splitId());
+
+            if (version == CURRENT_VERSION) {
+                for (int i = 0; i < split.getCurrentMessages().size(); i++) {
+                    Message expectedMessage = split.getCurrentMessages().get(i);
+                    Message actualMessage = deserializedSplit.getCurrentMessages().get(i);
+
+                    assertEquals(expectedMessage.getSubject(), actualMessage.getSubject());
+                    assertArrayEquals(expectedMessage.getData(), actualMessage.getData());
+
+                    if (expectedMessage.getReplyTo() == null) {
+                        assertNull(actualMessage.getReplyTo());
+                    } else {
+                        assertEquals(expectedMessage.getReplyTo(), actualMessage.getReplyTo());
+                    }
+
+                    if (expectedMessage.getHeaders() == null) {
+                        assertNull(actualMessage.getHeaders());
+                    } else {
+                        assertEquals(expectedMessage.getHeaders().get("key1"), actualMessage.getHeaders().get("key1"));
+                        assertEquals(expectedMessage.getHeaders().get("key2"), actualMessage.getHeaders().get("key2"));
+                    }
+                }
+            }
         }
 
-        byte[] serialized = checkpointSerializer.serialize(splits);
-        Collection<NatsSubjectSplit> deserialized = checkpointSerializer.deserialize(NatsSubjectSplitSerializer.CURRENT_VERSION, serialized);
-        assertEquals(splits, deserialized);
+        byte[] serializedCheckpoint = checkpointSerializer.serialize(splits);
+        Collection<NatsSubjectSplit> deserializedCheckpoint = checkpointSerializer.deserialize(version, serializedCheckpoint);
+
+        assertEquals(splits, deserializedCheckpoint, "Checkpoint serialization failed");
+    }
+
+    private static Stream<Arguments> provideSplitTestData() {
+        return Stream.of(
+                // Standard cases with headers and replyTo
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("three", "four", "five"), false, false),
+                        String.format("Version %d | Three splits", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("six", "seven", "eight", "nine"), false, false),
+                        String.format("Version %d | Four splits", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("ten"), false, false),
+                        String.format("Version %d | Single split", CURRENT_VERSION)),
+
+                // Cases without headers
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("three", "four", "five"), true, false),
+                        String.format("Version %d | Three splits without headers", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("six", "seven", "eight", "nine"), true, false),
+                        String.format("Version %d | Four splits without headers", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("ten"), true, false),
+                        String.format("Version %d | Single split without headers", CURRENT_VERSION)),
+
+                // Cases without replyTo
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("three", "four", "five"), false, true),
+                        String.format("Version %d | Three splits without replyTo", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("six", "seven", "eight", "nine"), false, true),
+                        String.format("Version %d | Four splits without replyTo", CURRENT_VERSION)),
+                Arguments.of(CURRENT_VERSION, generateSplits(List.of("ten"), false, true),
+                        String.format("Version %d | Single split without replyTo", CURRENT_VERSION))
+        );
+    }
+
+    private static List<NatsSubjectSplit> generateSplits(List<String> subjects, boolean headersNull, boolean replyToNull) {
+        List<NatsSubjectSplit> splits = new ArrayList<>();
+        for (String subject : subjects) {
+            List<Message> messages = generateMessages(subject, headersNull, replyToNull);
+            splits.add(new NatsSubjectSplit(subject, messages));
+        }
+        return splits;
+    }
+
+    private static List<Message> generateMessages(String subject, boolean headersNull, boolean replyToNull) {
+        List<Message> messages = new ArrayList<>();
+
+        NatsMessage.Builder builder = new NatsMessage.Builder();
+        if (!headersNull) {
+            Headers headers = new Headers();
+            headers.put("key1", "value1");
+            headers.put("key2", "value2");
+
+            builder.headers(headers);
+        }
+
+        if (!replyToNull) {
+            builder.replyTo("_inbox." + subject);
+        }
+
+        messages.add(builder.subject(subject).data(subject.getBytes()).build());
+        return messages;
     }
 
     @Test
