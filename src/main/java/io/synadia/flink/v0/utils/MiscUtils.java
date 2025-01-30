@@ -43,4 +43,27 @@ public abstract class MiscUtils {
     public static String generatePrefixedId(String prefix) {
         return prefix + "-" + generateId();
     }
+
+    public static String encodedConsumerName(String prefix, String subject) {
+        StringBuilder sb = new StringBuilder(prefix).append("--");
+        int len = subject.length();
+        for (int x = 0; x < len; x++) {
+            char c = subject.charAt(x);
+            if (c == '.' || c == '>' || c == '*' | c < 33) {
+                sb.append("-");
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    public static boolean provided(String s) {
+        return s != null && !s.isEmpty();
+    }
+
+    public static boolean notProvided(String s) {
+        return s == null || s.isEmpty();
+    }
 }
