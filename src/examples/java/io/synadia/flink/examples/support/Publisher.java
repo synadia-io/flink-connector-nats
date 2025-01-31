@@ -1,6 +1,7 @@
 package io.synadia.flink.examples.support;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +15,7 @@ public class Publisher implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(Publisher.class);
 
     final Connection nc;
+    final JetStream js;
     final List<String> subjects;
     final boolean noisy;
     final long delayJitter;
@@ -22,11 +24,24 @@ public class Publisher implements Runnable {
     final AtomicBoolean keepGoing;
 
     public Publisher(Connection nc, List<String> subjects) throws IOException {
-        this(nc, subjects, true, 500, 1);
+        this(nc, null, subjects, true, 500, 1);
     }
 
     public Publisher(Connection nc, List<String> subjects, boolean noisy, long delayJitter, int messageCountJitter) throws IOException {
+        this(nc, null, subjects, noisy, delayJitter, messageCountJitter);
+    }
+
+    public Publisher(JetStream js, List<String> subjects) throws IOException {
+        this(null, js, subjects, true, 500, 1);
+    }
+
+    public Publisher(JetStream js, List<String> subjects, boolean noisy, long delayJitter, int messageCountJitter) throws IOException {
+        this(null, js, subjects, noisy, delayJitter, messageCountJitter);
+    }
+
+    Publisher(Connection nc, JetStream js, List<String> subjects, boolean noisy, long delayJitter, int messageCountJitter) throws IOException {
         this.nc = nc;
+        this.js = js;
         this.subjects = subjects;
         this.noisy = noisy;
         this.delayJitter = delayJitter;
@@ -47,7 +62,18 @@ public class Publisher implements Runnable {
                 for (int c = 0; c < count; c++) {
                     int num = counter.incrementAndGet();
                     String payload = makePayload(subject, num);
-                    nc.publish(subject, payload.getBytes());
+                    if (js == null) {
+                        nc.publish(subject, payload.getBytes());
+                    }
+                    else {
+                        try {
+                            js.publish(subject, payload.getBytes());
+                        }
+                        catch (Exception e) {
+                            // this should never really happen during an example run
+                            throw new RuntimeException(e);
+                        }
+                    }
                     if (noisy) {
                         LOG.info("Publishing. Subject: {} MessageRecord: {}", subject, payload);
                     }
@@ -63,7 +89,7 @@ public class Publisher implements Runnable {
         }
     }
 
-    private static String makePayload(String subject, int num) {
+    public static String makePayload(String subject, int num) {
         return "data--" + subject + "--" + num;
     }
 

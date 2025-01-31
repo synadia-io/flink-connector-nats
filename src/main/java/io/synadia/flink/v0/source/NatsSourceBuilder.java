@@ -6,6 +6,7 @@ package io.synadia.flink.v0.source;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.utils.Constants;
 import io.synadia.flink.v0.utils.PropertiesUtils;
+import io.synadia.flink.v0.utils.SinkOrSourceBuilderBase;
 
 import java.util.Properties;
 
@@ -29,7 +30,7 @@ import static io.synadia.flink.v0.utils.Constants.SOURCE_PREFIX;
  * @see NatsSource
  * @param <OutputT> type of the records written
  */
-public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSourceBuilder<OutputT>> {
+public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSourceBuilder<OutputT>> {
     private PayloadDeserializer<OutputT> payloadDeserializer;
     private String payloadDeserializerClass;
 
@@ -100,7 +101,7 @@ public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSour
                 throw new IllegalStateException("Valid payload serializer class must be provided.", e);
             }
         }
-        baseBuild();
+        baseBuild(true);
         return new NatsSource<>(payloadDeserializer, createConnectionFactory(), subjects);
     }
 }
