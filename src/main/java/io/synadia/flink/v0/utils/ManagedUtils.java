@@ -10,6 +10,7 @@ import java.time.ZonedDateTime;
 public abstract class ManagedUtils {
 
     public static final String SEP = "--";
+    public static final String NULL_SEGMENT = "na";
     public static final String CN_BOUNDED = "bnd";
     public static final String CN_UNBOUNDED = "unbnd";
 
@@ -42,22 +43,23 @@ public abstract class ManagedUtils {
         boolean first = true;
         StringBuilder sb = new StringBuilder();
         for (Object o : parts) {
-            if (o != null) {
-                if (first) {
-                    first = false;
-                }
-                else {
-                    sb.append(SEP);
-                }
-                if (o instanceof ZonedDateTime) {
-                    ZonedDateTime zdt = (ZonedDateTime)o;
-                    sb.append(zdt.toEpochSecond());
-                }
-                else {
-                    sb.append(o);
-                }
+            if (first) {
+                first = false;
+            }
+            else {
+                sb.append(SEP);
+            }
+            if (o == null) {
+                sb.append(NULL_SEGMENT);
+            }
+            else if (o instanceof ZonedDateTime) {
+                ZonedDateTime zdt = (ZonedDateTime)o;
+                sb.append(zdt.toEpochSecond());
+            }
+            else {
+                sb.append(o);
             }
         }
-        return sb.toString();
+        return Integer.toHexString(sb.toString().hashCode()).toUpperCase();
     }
 }

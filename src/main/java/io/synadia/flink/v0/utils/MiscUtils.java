@@ -7,6 +7,7 @@ import io.nats.client.NUID;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Collection;
 import java.util.List;
 
 public abstract class MiscUtils {
@@ -65,5 +66,13 @@ public abstract class MiscUtils {
 
     public static boolean notProvided(String s) {
         return s == null || s.isEmpty();
+    }
+
+    public static boolean provided(Collection<?> c) {
+        return c != null && !c.isEmpty();
+    }
+
+    public static boolean notProvided(Collection<?> c) {
+        return c == null || c.isEmpty();
     }
 }

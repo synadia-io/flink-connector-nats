@@ -7,6 +7,8 @@ import io.nats.client.support.*;
 import io.synadia.flink.v0.source.ManagedSubjectConfiguration;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -16,9 +18,10 @@ import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 
 public class ManagedSplit implements SourceSplit, JsonSerializable {
+    private static final Logger LOG = LoggerFactory.getLogger(ManagedSplit.class);
 
-    private final AtomicLong lastEmittedStreamSequence;
-    private final ManagedSubjectConfiguration subjectConfig;
+    public final AtomicLong lastEmittedStreamSequence;
+    public final ManagedSubjectConfiguration subjectConfig;
 
     public ManagedSplit(ManagedSubjectConfiguration subjectConfig){
         this.subjectConfig = subjectConfig;
@@ -28,7 +31,7 @@ public class ManagedSplit implements SourceSplit, JsonSerializable {
     public ManagedSplit(String json) {
         try {
             JsonValue jv = JsonParser.parse(json);
-            this.lastEmittedStreamSequence = new AtomicLong(JsonValueUtils.readLong(jv, LAST_SEQ, -1));
+            lastEmittedStreamSequence = new AtomicLong(JsonValueUtils.readLong(jv, LAST_SEQ, -1));
             JsonValue jcConfig = JsonValueUtils.readObject(jv, CONFIG);
             subjectConfig = new ManagedSubjectConfiguration.Builder().jsonValue(jcConfig).build();
         }
@@ -53,19 +56,16 @@ public class ManagedSplit implements SourceSplit, JsonSerializable {
         return subjectConfig.getConfigId();
     }
 
-    public long getLastEmittedStreamSequence() {
-        return lastEmittedStreamSequence.get();
-    }
-
     public void setLastEmittedStreamSequence(long lastEmittedStreamSequence) {
+        LOG.debug("{} setLastEmittedStreamSequence {} --> {}", splitId(), this.lastEmittedStreamSequence.get(), lastEmittedStreamSequence);
         this.lastEmittedStreamSequence.set(lastEmittedStreamSequence);
     }
 
     @Override
     public String toString() {
         return "ManagedSplit{" +
-            "splitId='" + subjectConfig.getConfigId() + '\'' +
-            ", lastStreamSequence=" + lastEmittedStreamSequence.get() +
+            ", lastEmittedStreamSequence=" + lastEmittedStreamSequence +
+            ", subjectConfig=" + subjectConfig +
             '}';
     }
 }

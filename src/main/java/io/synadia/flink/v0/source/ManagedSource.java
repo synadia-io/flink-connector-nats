@@ -5,7 +5,7 @@ package io.synadia.flink.v0.source;
 
 import io.synadia.flink.v0.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
-import io.synadia.flink.v0.source.reader.ManagedReader;
+import io.synadia.flink.v0.source.reader.ManagedSourceReader;
 import io.synadia.flink.v0.source.split.ManagedCheckpointSerializer;
 import io.synadia.flink.v0.source.split.ManagedSplit;
 import io.synadia.flink.v0.source.split.ManagedSplitSerializer;
@@ -13,6 +13,7 @@ import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static io.synadia.flink.v0.utils.MiscUtils.generateId;
 
@@ -35,24 +37,41 @@ public class ManagedSource<OutputT> implements
 
     protected final String id;
     protected final PayloadDeserializer<OutputT> payloadDeserializer;
-    protected final ManagedSourceConfiguration sourceConfig;
-
+    protected final Boundedness boundedness;
+    protected final Map<String, ManagedSubjectConfiguration> configById;
     protected final ConnectionFactory connectionFactory;
+    public final Configuration configuration;
 
-    ManagedSource(PayloadDeserializer<OutputT> payloadDeserializer,
-                  ConnectionFactory connectionFactory,
-                  ManagedSourceConfiguration sourceConfig)
+    @Override
+    public String toString() {
+        return "ManagedSource{" +
+            "id='" + id + '\'' +
+            ", payloadDeserializer=" + payloadDeserializer +
+            ", boundedness=" + boundedness +
+            ", configById=" + configById +
+            ", connectionFactory=" + connectionFactory +
+            ", configuration=" + configuration +
+            '}';
+    }
+
+    public ManagedSource(PayloadDeserializer<OutputT> payloadDeserializer,
+                         Boundedness boundedness,
+                         Map<String, ManagedSubjectConfiguration> configById,
+                         ConnectionFactory connectionFactory,
+                         Configuration configuration)
     {
         id = generateId();
-        this.sourceConfig = sourceConfig;
         this.payloadDeserializer = payloadDeserializer;
+        this.boundedness = boundedness;
+        this.configById = configById;
         this.connectionFactory = connectionFactory;
-        LOG.debug("{} | init {}", id, sourceConfig);
+        this.configuration = configuration;
+        LOG.debug("{} | init", id);
     }
 
     @Override
     public Boundedness getBoundedness() {
-        return sourceConfig.defaultManagedConsumeOptions.getBoundedness();
+        return boundedness;
     }
 
     @Override
@@ -61,7 +80,7 @@ public class ManagedSource<OutputT> implements
     {
         LOG.debug("{} | createEnumerator", id);
         List<ManagedSplit> list = new ArrayList<>();
-        for (ManagedSubjectConfiguration mcc : sourceConfig.configById.values()) {
+        for (ManagedSubjectConfiguration mcc : configById.values()) {
             list.add(new ManagedSplit(mcc));
         }
         return restoreEnumerator(enumContext, list);
@@ -91,7 +110,7 @@ public class ManagedSource<OutputT> implements
     @Override
     public SourceReader<OutputT, ManagedSplit> createReader(SourceReaderContext readerContext) throws Exception {
         LOG.debug("{} | createReader", id);
-        return new ManagedReader<>(id, connectionFactory, payloadDeserializer, readerContext);
+        return new ManagedSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext);
     }
 
     @Override

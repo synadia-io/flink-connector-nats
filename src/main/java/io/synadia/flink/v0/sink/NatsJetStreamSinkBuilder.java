@@ -4,9 +4,9 @@
 package io.synadia.flink.v0.sink;
 
 import io.synadia.flink.v0.payload.PayloadSerializer;
-import io.synadia.flink.v0.source.NatsSinkOrSourceBuilder;
 import io.synadia.flink.v0.utils.Constants;
 import io.synadia.flink.v0.utils.PropertiesUtils;
+import io.synadia.flink.v0.utils.SinkOrSourceBuilderBase;
 
 import java.util.Properties;
 
@@ -30,7 +30,7 @@ import static io.synadia.flink.v0.utils.Constants.SINK_PREFIX;
  * @see NatsSink
  * @param <InputT> type of the records written
  */
-public class NatsJetStreamSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<NatsJetStreamSinkBuilder<InputT>> {
+public class NatsJetStreamSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsJetStreamSinkBuilder<InputT>> {
     private PayloadSerializer<InputT> payloadSerializer;
     private String payloadSerializerClass;
 
@@ -102,7 +102,7 @@ public class NatsJetStreamSinkBuilder<InputT> extends NatsSinkOrSourceBuilder<Na
             }
         }
 
-        baseBuild();
+        baseBuild(true);
         return new NatsJetStreamSink<>(subjects, payloadSerializer, createConnectionFactory());
     }
 }

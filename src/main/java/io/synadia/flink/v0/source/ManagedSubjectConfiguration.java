@@ -12,6 +12,7 @@ import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.v0.utils.MiscUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.io.Serializable;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
@@ -24,7 +25,8 @@ import static io.synadia.flink.v0.utils.ManagedUtils.toSplitId;
  * It takes more than a subject to consume.
  * This tells us the way to start consuming.
  */
-public class ManagedSubjectConfiguration implements JsonSerializable {
+public class ManagedSubjectConfiguration implements JsonSerializable, Serializable {
+    private static final long serialVersionUID = 1L;
 
     public final String streamName;
     public final String subject;
@@ -34,6 +36,19 @@ public class ManagedSubjectConfiguration implements JsonSerializable {
     public final ManagedConsumeOptions managedConsumeOptions;
     public final String configId;
 
+    @Override
+    public String toString() {
+        return "ManagedSubjectConfiguration{" +
+            "streamName='" + streamName + '\'' +
+            ", subject='" + subject + '\'' +
+            ", deliverPolicy=" + deliverPolicy +
+            ", startSequence=" + startSequence +
+            ", startTime=" + startTime +
+            ", managedConsumeOptions=" + managedConsumeOptions +
+            ", configId='" + configId + '\'' +
+            '}';
+    }
+
     private ManagedSubjectConfiguration(Builder b) {
         this.streamName = b.streamName;
         this.subject = b.subject;
@@ -41,12 +56,17 @@ public class ManagedSubjectConfiguration implements JsonSerializable {
         this.startSequence = b.startSequence;
         this.startTime = b.startTime;
         this.managedConsumeOptions = b.managedConsumeOptions;
-        if (MiscUtils.provided(b.configId)) {
-            this.configId = b.configId;
-        }
-        else {
-            this.configId = toSplitId(streamName, subject, deliverPolicy, startSequence, startTime);
-        }
+        this.configId = b.configId;
+    }
+
+    ManagedSubjectConfiguration(ManagedSubjectConfiguration orig, ManagedConsumeOptions replacementManagedConsumeOptions) {
+        this.streamName = orig.streamName;
+        this.subject = orig.subject;
+        this.deliverPolicy = orig.deliverPolicy;
+        this.startSequence = orig.startSequence;
+        this.startTime = orig.startTime;
+        this.managedConsumeOptions = replacementManagedConsumeOptions;
+        this.configId = orig.configId;
     }
 
     @Override
@@ -89,6 +109,10 @@ public class ManagedSubjectConfiguration implements JsonSerializable {
 
     public String getConfigId() {
         return configId;
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public static class Builder {
@@ -177,6 +201,15 @@ public class ManagedSubjectConfiguration implements JsonSerializable {
         }
 
         public ManagedSubjectConfiguration build() {
+            if (MiscUtils.notProvided(streamName)) {
+                throw new IllegalStateException("Stream name is required.");
+            }
+            if (MiscUtils.notProvided(subject)) {
+                throw new IllegalStateException("Subject is required.");
+            }
+            if (MiscUtils.notProvided(configId)) {
+                configId = toSplitId(streamName, subject, deliverPolicy, startSequence, startTime);
+            }
             return new ManagedSubjectConfiguration(this);
         }
     }

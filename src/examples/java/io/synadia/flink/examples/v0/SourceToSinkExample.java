@@ -2,10 +2,6 @@ package io.synadia.flink.examples.v0;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.synadia.flink.examples.support.ExampleConnectionListener;
-import io.synadia.flink.examples.support.ExampleErrorListener;
 import io.synadia.flink.examples.support.Publisher;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
@@ -29,7 +25,7 @@ public class SourceToSinkExample {
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
-        Connection nc = connect(props);
+        Connection nc = ExampleUtils.connect(props);
 
         // start publishing to where the source will get
         // the source will have missed some messages by the time it gets running
@@ -78,14 +74,5 @@ public class SourceToSinkExample {
         publisher.stop();
         env.close();
         System.exit(0);
-    }
-
-    private static Connection connect(Properties props) throws Exception {
-        Options options = new Options.Builder()
-            .properties(props)
-            .connectionListener(new ExampleConnectionListener())
-            .errorListener(new ExampleErrorListener())
-            .build();
-        return Nats.connect(options);
     }
 }

@@ -1,11 +1,7 @@
 // Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.v0.source;
-
-import io.synadia.flink.v0.utils.ConnectionFactory;
-import io.synadia.flink.v0.utils.Constants;
-import io.synadia.flink.v0.utils.PropertiesUtils;
+package io.synadia.flink.v0.utils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,7 +12,7 @@ import java.util.Properties;
 import static io.synadia.flink.v0.utils.Constants.*;
 import static io.synadia.flink.v0.utils.PropertiesUtils.NO_PREFIX;
 
-public abstract class NatsSinkOrSourceBuilder<BuilderT> {
+public abstract class SinkOrSourceBuilderBase<BuilderT> {
     protected final String[] prefixes;
 
     protected List<String> subjects;
@@ -27,7 +23,7 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
 
     protected abstract BuilderT getThis();
 
-    public NatsSinkOrSourceBuilder(String prefix) {
+    public SinkOrSourceBuilderBase(String prefix) {
         prefixes = new String[]{NO_PREFIX, prefix, NATS_PREFIX + prefix};
     }
 
@@ -124,8 +120,8 @@ public abstract class NatsSinkOrSourceBuilder<BuilderT> {
         return getThis();
     }
 
-    protected void baseBuild() {
-        if (subjects == null || subjects.isEmpty()) {
+    protected void baseBuild(boolean validateSubjects) {
+        if (validateSubjects && MiscUtils.notProvided(subjects)) {
             throw new IllegalStateException("One or more subjects must be provided.");
         }
 

@@ -2,11 +2,15 @@ package io.synadia.flink.examples.v0;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamManagement;
 import io.synadia.flink.examples.support.Publisher;
+import io.synadia.flink.v0.payload.StringPayloadDeserializer;
 import io.synadia.flink.v0.sink.NatsSink;
 import io.synadia.flink.v0.sink.NatsSinkBuilder;
-import io.synadia.flink.v0.source.NatsSource;
-import io.synadia.flink.v0.source.NatsSourceBuilder;
+import io.synadia.flink.v0.source.ManagedSource;
+import io.synadia.flink.v0.source.ManagedSourceBuilder;
+import io.synadia.flink.v0.source.ManagedSubjectConfiguration;
 import io.synadia.flink.v0.utils.PropertiesUtils;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -15,21 +19,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.v0.ExampleUtils.connect;
 
-public class SourceToSinkExample2 {
-    private static final Logger LOG = LoggerFactory.getLogger(SourceToSinkExample2.class);
+public class ManagedExample extends ManagedExample1Setup {
+    private static final Logger LOG = LoggerFactory.getLogger(ManagedExample.class);
 
-    public static final String EXAMPLE_NAME = "Example2";
-
-    public static final int NUM_SOURCE_SUBJECTS = 8;
+    public static final String SINK_SUBJECT = EXAMPLE_NAME + "-sink";
     public static final int PARALLELISM = 5; // if 0 or less, parallelism will not be set
-    public static final int RUN_TIME = 3000; // millis
-    public static final long PUBLISH_DELAY = 250; // miils
-    public static final int PUBLISH_MESSAGE_COUNT_JITTER = 3; // will publish 1 to n messages per subject each publish loop
+    public static final int RUN_TIME = 30000; // millis
 
     public static void main(String[] args) throws Exception {
         // load properties from a file for example application.properties
@@ -38,17 +40,8 @@ public class SourceToSinkExample2 {
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
         Connection nc = connect(props);
-
-        // start publishing to where the source will get
-        // the source will have missed some messages by the time it gets running
-        // but that's typical for a non-stream subject and something for
-        // the developer to plan for
-        List<String> sourceSubjects = new ArrayList<>();
-        for (int s = 1; s <= NUM_SOURCE_SUBJECTS; s++) {
-            sourceSubjects.add("source." + s);
-        }
-        Publisher publisher = new Publisher(nc, sourceSubjects, false, PUBLISH_DELAY, PUBLISH_MESSAGE_COUNT_JITTER);
-        new Thread(publisher).start();
+        JetStreamManagement jsm = nc.jetStreamManagement();
+        JetStream js = nc.jetStream();
 
         // listen for messages that the sink publishes
         Map<String, AtomicInteger> receivedMap = new HashMap<>();
@@ -62,11 +55,30 @@ public class SourceToSinkExample2 {
         String sinkSubject = "sink-target";
         dispatcher.subscribe(sinkSubject);
 
-        // create source
-        NatsSource<String> source = new NatsSourceBuilder<String>()
-            .sourceProperties(props)
+        ManagedSubjectConfiguration msc11 = ManagedSubjectConfiguration.builder()
+            .streamName(STREAM1_NAME)
+            .subject(STREAM1_SUBJECT1)
+            .build();
+
+        ManagedSubjectConfiguration msc12 = ManagedSubjectConfiguration.builder()
+            .streamName(STREAM1_NAME)
+            .subject(STREAM1_SUBJECT2)
+            .build();
+
+        ManagedSubjectConfiguration msc21 = ManagedSubjectConfiguration.builder()
+            .streamName(STREAM2_NAME)
+            .subject(STREAM2_SUBJECT1)
+            .build();
+
+        ManagedSubjectConfiguration msc22 = ManagedSubjectConfiguration.builder()
+            .streamName(STREAM2_NAME)
+            .subject(STREAM2_SUBJECT2)
+            .build();
+
+        ManagedSource<String> source = new ManagedSourceBuilder<String>()
+            .subjectConfigurations(msc11, msc12, msc21, msc22)
+            .payloadDeserializer(new StringPayloadDeserializer())
             .connectionProperties(props)
-            .subjects(sourceSubjects) // subjects come last because the builder uses the last input
             .build();
         LOG.info("{}", source);
 
@@ -81,18 +93,12 @@ public class SourceToSinkExample2 {
         // setup and start flink
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
-        if (PARALLELISM > 0) {
-            env.setParallelism(PARALLELISM);
-        }
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), EXAMPLE_NAME);
         dataStream.sinkTo(sink);
         env.executeAsync(EXAMPLE_NAME);
 
         Thread.sleep(RUN_TIME);
-
-        publisher.stop();
-        env.close();
 
         for (Map.Entry<String, AtomicInteger> entry : receivedMap.entrySet()) {
             LOG.info("Messages received for subject '{}' : {}", entry.getKey(), entry.getValue().get());
