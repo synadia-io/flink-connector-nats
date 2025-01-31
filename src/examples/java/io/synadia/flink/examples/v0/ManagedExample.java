@@ -16,8 +16,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,11 +25,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.synadia.flink.examples.v0.ExampleUtils.connect;
 
 public class ManagedExample extends ManagedExample1Setup {
-    private static final Logger LOG = LoggerFactory.getLogger(ManagedExample.class);
-
     public static final String SINK_SUBJECT = EXAMPLE_NAME + "-sink";
     public static final int PARALLELISM = 5; // if 0 or less, parallelism will not be set
-    public static final int RUN_TIME = 30000; // millis
+    public static final int RUN_TIME = 10000; // millis
 
     public static void main(String[] args) throws Exception {
         // load properties from a file for example application.properties
@@ -80,7 +76,7 @@ public class ManagedExample extends ManagedExample1Setup {
             .payloadDeserializer(new StringPayloadDeserializer())
             .connectionProperties(props)
             .build();
-        LOG.info("{}", source);
+        System.out.println(source);
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
@@ -88,7 +84,7 @@ public class ManagedExample extends ManagedExample1Setup {
             .connectionProperties(props)
             .subjects(sinkSubject) // subject comes last because the builder uses the last input
             .build();
-        LOG.info("{}", sink);
+        System.out.println(sink);
 
         // setup and start flink
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -101,7 +97,7 @@ public class ManagedExample extends ManagedExample1Setup {
         Thread.sleep(RUN_TIME);
 
         for (Map.Entry<String, AtomicInteger> entry : receivedMap.entrySet()) {
-            LOG.info("Messages received for subject '{}' : {}", entry.getKey(), entry.getValue().get());
+            System.out.println("Messages received for subject '" + entry.getKey() + "' : " + entry.getValue().get());
         }
         System.exit(0);
     }
