@@ -6,17 +6,13 @@ package io.synadia.flink.v0.source.reader;
 import io.nats.client.*;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
-import io.synadia.flink.v0.payload.MessageRecord;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
 import io.synadia.flink.v0.source.split.ManagedSplit;
 import io.synadia.flink.v0.utils.ConnectionFactory;
-import io.synadia.flink.v0.utils.Debug;
-import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,44 +24,55 @@ import java.util.concurrent.CompletableFuture;
 import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, ManagedSplit> {
-    private static final Logger LOG = LoggerFactory.getLogger(ManagedSourceReader.class);
+abstract class ManagedSourceReaderBase<OutputT> implements SourceReader<OutputT, ManagedSplit> {
+    protected final String id;
+    protected final ConnectionFactory connectionFactory;
+    protected final PayloadDeserializer<OutputT> payloadDeserializer;
+    protected final Map<String, ManagedSplit> splitMap;
+    protected final Map<String, ConsumerHolder> consumerMap;
+    protected final FutureCompletingBlockingQueue<SplitAwareMessage> receivedMessages;
+    protected Connection connection;
+    protected final Logger logger;
 
-    private final String id;
-    private final ConnectionFactory connectionFactory;
-    private final PayloadDeserializer<OutputT> payloadDeserializer;
-    private final SourceReaderContext readerContext;
-    private final Map<String, ManagedSplit> subbedSplitMap;
-    private final Map<String, ConsumerHolder> consumerMap;
-    private final FutureCompletingBlockingQueue<SplitAwareMessage> receivedMessages;
-    private Connection connection;
+    protected static class SplitAwareMessage {
+        protected String splitId;
+        protected Message natsMessage;
 
-    static class SplitAwareMessage {
-        String splitId;
-        Message natsMessage;
-
-        public SplitAwareMessage(String splitId, Message natsMessage) {
+        protected SplitAwareMessage(String splitId, Message natsMessage) {
             this.splitId = splitId;
             this.natsMessage = natsMessage;
         }
     }
 
-    public ManagedSourceReader(String sourceId,
-                               ConnectionFactory connectionFactory,
-                               PayloadDeserializer<OutputT> payloadDeserializer,
-                               SourceReaderContext readerContext) {
+    protected static class ConsumerHolder {
+        protected OrderedConsumerContext consumerContext;
+        protected MessageConsumer consumer;
+
+        protected ConsumerHolder(OrderedConsumerContext consumerContext) {
+            this.consumerContext = consumerContext;
+        }
+    }
+
+    protected ManagedSourceReaderBase(String sourceId,
+                                      ConnectionFactory connectionFactory,
+                                      PayloadDeserializer<OutputT> payloadDeserializer,
+                                      SourceReaderContext readerContext,
+                                      Class<?> logClazz)
+    {
         id = generatePrefixedId(sourceId);
         this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
-        this.readerContext = checkNotNull(readerContext);
-        subbedSplitMap = new HashMap<>();
+        checkNotNull(readerContext); // it's not used but is supposed to be provided
+        splitMap = new HashMap<>();
         consumerMap = new HashMap<>();
         receivedMessages = new FutureCompletingBlockingQueue<>();
+        logger = LoggerFactory.getLogger(logClazz.getCanonicalName()); // done this way to get full package path - needed to
+        logger.debug("{} | Init", id);
     }
 
     @Override
     public void start() {
-        LOG.debug("{} | start", id);
+        logger.debug("{} | start", id);
         try {
             connection = connectionFactory.connect();
         }
@@ -75,24 +82,9 @@ public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, Manag
     }
 
     @Override
-    public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
-        SplitAwareMessage m = receivedMessages.poll();
-        if (m == null) {
-            LOG.debug("{} | pollNext no message NOTHING_AVAILABLE", id);
-            return InputStatus.NOTHING_AVAILABLE;
-        }
-        output.collect(payloadDeserializer.getObject(new MessageRecord(m.natsMessage)));
-        ManagedSplit split = subbedSplitMap.get(m.splitId);
-        split.setLastEmittedStreamSequence(m.natsMessage.metaData().streamSequence());
-        InputStatus is = receivedMessages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
-        LOG.debug("{} | pollNext had message, then {}", id, is);
-        return is;
-    }
-
-    @Override
     public List<ManagedSplit> snapshotState(long checkpointId) {
-        LOG.debug("{} | snapshotState", id);
-        return Collections.unmodifiableList(new ArrayList<>(subbedSplitMap.values()));
+        logger.debug("{} | snapshotState", id);
+        return Collections.unmodifiableList(new ArrayList<>(splitMap.values()));
     }
 
     @Override
@@ -100,18 +92,10 @@ public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, Manag
         return receivedMessages.getAvailabilityFuture();
     }
 
-    static class ConsumerHolder {
-        OrderedConsumerContext ctx;
-        MessageConsumer consumer;
-        public ConsumerHolder(OrderedConsumerContext ctx) {
-            this.ctx = ctx;
-        }
-    }
-
     @Override
     public void addSplits(List<ManagedSplit> splits) {
         for (ManagedSplit split : splits) {
-            if (!subbedSplitMap.containsKey(split.splitId())) {
+            if (!splitMap.containsKey(split.splitId())) {
                 OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                     .filterSubject(split.subjectConfig.subject);
                 long lastSeq = split.lastEmittedStreamSequence.get();
@@ -127,15 +111,13 @@ public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, Manag
                         occ.startTime(split.subjectConfig.startTime);
                     }
                 }
-                LOG.debug("{} | addSplits {} {}", id, split, occ.toJson());
+                logger.debug("{} | addSplits {} {}", id, split, occ.toJson());
                 try {
                     StreamContext sc = connection.getStreamContext(split.subjectConfig.streamName);
                     ConsumerHolder holder = new ConsumerHolder(sc.createOrderedConsumer(occ));
-                    holder.consumer = holder.ctx.consume(m -> {
-                        receivedMessages.put(1, new SplitAwareMessage(split.splitId(), m));
-                    });
-                    consumerMap.put(split.subjectConfig.configId, holder);
-                    subbedSplitMap.put(split.splitId(), split);
+                    subAddSplits(split, holder, occ);
+                    consumerMap.put(split.splitId(), holder);
+                    splitMap.put(split.splitId(), split);
                 }
                 catch (Exception e) {
                     throw new FlinkRuntimeException(e);
@@ -144,20 +126,24 @@ public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, Manag
         }
     }
 
+    protected abstract void subAddSplits(ManagedSplit split, ConsumerHolder holder, OrderedConsumerConfiguration occ) throws JetStreamApiException, IOException;
+
     @Override
     public void notifyNoMoreSplits() {
-        LOG.debug("{} | notifyNoMoreSplits", id);
+        logger.debug("{} | notifyNoMoreSplits", id);
     }
 
     @Override
     public void close() throws Exception {
-        LOG.debug("{} | close", id);
-        Debug.stackTrace("CLOSE");
+        logger.debug("{} | close", id);
+        for (ConsumerHolder holder : consumerMap.values()) {
+            holder.consumer.stop();
+        }
         connection.close();
     }
 
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
-        LOG.debug("{} | handleSourceEvents {}", id, sourceEvent);
+        logger.debug("{} | handleSourceEvents {}", id, sourceEvent);
     }
 }

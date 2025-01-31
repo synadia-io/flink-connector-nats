@@ -5,7 +5,8 @@ package io.synadia.flink.v0.source;
 
 import io.synadia.flink.v0.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.v0.payload.PayloadDeserializer;
-import io.synadia.flink.v0.source.reader.ManagedSourceReader;
+import io.synadia.flink.v0.source.reader.ManagedBoundSourceReader;
+import io.synadia.flink.v0.source.reader.ManagedUnboundSourceReader;
 import io.synadia.flink.v0.source.split.ManagedCheckpointSerializer;
 import io.synadia.flink.v0.source.split.ManagedSplit;
 import io.synadia.flink.v0.source.split.ManagedSplitSerializer;
@@ -109,8 +110,10 @@ public class ManagedSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, ManagedSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        LOG.debug("{} | createReader", id);
-        return new ManagedSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext);
+        LOG.debug("{} | createReader {}", id, boundedness);
+        return boundedness == Boundedness.CONTINUOUS_UNBOUNDED
+            ? new ManagedUnboundSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext)
+            : new ManagedBoundSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext);
     }
 
     @Override
