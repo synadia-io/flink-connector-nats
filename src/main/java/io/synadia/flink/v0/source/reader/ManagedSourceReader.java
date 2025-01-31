@@ -132,7 +132,6 @@ public class ManagedSourceReader<OutputT> implements SourceReader<OutputT, Manag
                     StreamContext sc = connection.getStreamContext(split.subjectConfig.streamName);
                     ConsumerHolder holder = new ConsumerHolder(sc.createOrderedConsumer(occ));
                     holder.consumer = holder.ctx.consume(m -> {
-                        System.out.println("CONSUME " + split.splitId() + " | " + m);
                         receivedMessages.put(1, new SplitAwareMessage(split.splitId(), m));
                     });
                     consumerMap.put(split.subjectConfig.configId, holder);
