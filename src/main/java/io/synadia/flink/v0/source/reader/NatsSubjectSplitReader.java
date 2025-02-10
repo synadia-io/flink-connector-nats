@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
 
@@ -39,12 +41,17 @@ public class NatsSubjectSplitReader
     private NatsSubjectSplit registeredSplit;
     private ConnectionContext _context; // lazy init from the factory
 
+    private final ReentrantLock contextLock;
+    private final AtomicBoolean closeWasCalled;
+
     public NatsSubjectSplitReader(String sourceId,
             ConnectionFactory connectionFactory,
             NatsJetStreamSourceConfiguration sourceConfiguration) {
         id = generatePrefixedId(sourceId);
         this.connectionFactory = connectionFactory;
         this.sourceConfiguration = sourceConfiguration;
+        contextLock = new ReentrantLock();
+        closeWasCalled = new AtomicBoolean(false);
     }
 
     @Override
@@ -62,6 +69,7 @@ public class NatsSubjectSplitReader
         String splitId = registeredSplit.splitId();
         try {
             List<Message> messages = jetStreamSubscription.fetch(sourceConfiguration.getMaxFetchRecords(), sourceConfiguration.getFetchTimeout());
+            LOG.debug("{} | RecordsWithSplitIds {}", id, messages.size());
             messages.forEach(msg -> builder.add(splitId, msg));
 
             //Stop consuming if running in batch mode and configured size of messages are fetched
@@ -131,8 +139,9 @@ public class NatsSubjectSplitReader
 
     @Override
     public void close() throws Exception {
+        LOG.debug("{} | close", id);
         unsubscribe();
-        closeConnection();
+        closeWasCalled.set(true);
     }
 
     public void notifyCheckpointComplete(String subject, List<Message> messages)
@@ -142,29 +151,71 @@ public class NatsSubjectSplitReader
         // For instance if we know it's ack all, we could look for the message
         // with the highest consumer sequence and just ack that one
 
-        // MANUAL ACK IS DONE INTENTIONALLY
-        // The message was received on a different connection,
-        // which could be closed at the time of ack
-        // TODO see if connection resources can be managed better
-        //noinspection resource
-        Connection conn = connection();
-        for (Message m : messages) {
-            conn.publish(m.getReplyTo(), ACK_BODY_BYTES);
+        contextLock.lock();
+        try {
+            if (_context == null) {
+                LOG.debug("{} | NCC NOT original connection {}", id, messages.size());
+                Connection conn = connection();
+                for (Message m : messages) {
+                    conn.publish(m.getReplyTo(), ACK_BODY_BYTES);
+                }
+                closeContext();
+            }
+            else {
+                LOG.debug("{} | NCC ORIGINAL connection {}", id, messages.size());
+                messages.forEach(Message::ack);
+                if (closeWasCalled.get()) {
+                    // this will usually be the case that close was called
+                    // before notifyCheckpointComplete. I'm assuming
+                    closeContext();
+                }
+            }
+        }
+        finally {
+            contextLock.unlock();
         }
     }
 
     // --------------------------- Helper Methods -----------------------------
 
     private ConnectionContext getContext() {
-        if (_context == null) {
-            try {
-                _context = connectionFactory.connectContext();
+        contextLock.lock();
+        try {
+            if (_context == null) {
+                try {
+                    _context = connectionFactory.connectContext();
+                }
+                catch (IOException e) {
+                    throw new FlinkRuntimeException(e);
+                }
             }
-            catch (IOException e) {
-                throw new FlinkRuntimeException(e);
+            return _context;
+        }
+        finally {
+            contextLock.unlock();
+        }
+    }
+
+    private void closeContext() {
+        LOG.debug("{} | closeContext", id);
+        contextLock.lock();
+        try {
+            if (_context != null) {
+                try {
+                    _context.connection.close();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new FlinkRuntimeException(e);
+                }
+                finally {
+                    _context = null;
+                }
             }
         }
-        return _context;
+        finally {
+            contextLock.unlock();
+        }
     }
 
     private Connection connection() {
@@ -173,21 +224,6 @@ public class NatsSubjectSplitReader
 
     private JetStream jetStream() {
         return getContext().js;
-    }
-
-    private void closeConnection() {
-        if (_context != null) {
-            try {
-                _context.connection.close();
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new FlinkRuntimeException(e);
-            }
-            finally {
-                _context = null;
-            }
-        }
     }
 
     private void unsubscribe() {
