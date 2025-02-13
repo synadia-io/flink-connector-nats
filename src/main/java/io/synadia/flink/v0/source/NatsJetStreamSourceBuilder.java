@@ -133,11 +133,42 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
      * @return the source
      */
     public NatsJetStreamSource<OutputT> build() {
-
+        // Validate consumer name
         if (consumerName == null || consumerName.isEmpty()) {
             throw new IllegalStateException("Consumer name must be provided.");
         }
 
+        // Validate stream name
+        if (streamName == null || streamName.isEmpty()) {
+            throw new IllegalStateException("Stream name must be provided.");
+        }
+
+        // Validate auto ack interval when enabled
+        if (enableAutoAcknowledgeMessage &&
+                (autoAckInterval == null || autoAckInterval.isZero() || autoAckInterval.isNegative())) {
+            throw new IllegalStateException("Auto acknowledge interval must be positive when auto acknowledge is enabled");
+        }
+
+        // Validate max fetch records
+        if (maxFetchRecords <= 0) {
+            throw new IllegalStateException("Maximum fetch records must be positive");
+        }
+
+        // Validate message queue capacity
+        if (messageQueueCapacity <= 0) {
+            throw new IllegalStateException("Message queue capacity must be positive");
+        }
+
+        // Add validation for fetch timeouts
+        if (fetchOneMessageTimeout == null || fetchOneMessageTimeout.isNegative()) {
+            throw new IllegalStateException("Fetch timeout must be non-negative");
+        }
+
+        if (fetchTimeout == null || fetchTimeout.isNegative()) {
+            throw new IllegalStateException("Max fetch time must be non-negative");
+        }
+
+        // Validate payload deserializer
         if (payloadDeserializer == null) {
             if (payloadDeserializerClass == null) {
                 throw new IllegalStateException("Valid payload deserializer class must be provided.");
@@ -156,15 +187,15 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         baseBuild();
 
         return new NatsJetStreamSource<>(payloadDeserializer,
-            createConnectionFactory(),
-            subjects,
-            new NatsJetStreamSourceConfiguration(streamName,
-                consumerName,
-                messageQueueCapacity,
-                enableAutoAcknowledgeMessage,
-                fetchOneMessageTimeout,
-                fetchTimeout,
-                maxFetchRecords,
-                autoAckInterval, boundedness));
+                createConnectionFactory(),
+                subjects,
+                new NatsJetStreamSourceConfiguration(streamName,
+                        consumerName,
+                        messageQueueCapacity,
+                        enableAutoAcknowledgeMessage,
+                        fetchOneMessageTimeout,
+                        fetchTimeout,
+                        maxFetchRecords,
+                        autoAckInterval, boundedness));
     }
 }

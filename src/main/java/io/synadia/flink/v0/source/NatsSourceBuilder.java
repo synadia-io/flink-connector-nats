@@ -100,6 +100,12 @@ public class NatsSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder<NatsSour
                 throw new IllegalStateException("Valid payload serializer class must be provided.", e);
             }
         }
+
+        // Validate subjects
+        if (subjects == null || subjects.isEmpty()) {
+            throw new IllegalStateException("Subjects list is empty. At least one subject must be provided.");
+        }
+
         baseBuild();
         return new NatsSource<>(payloadDeserializer, createConnectionFactory(), subjects);
     }
