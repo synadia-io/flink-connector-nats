@@ -118,6 +118,7 @@ public class TestBase {
                 if (jetstream) {
                     cleanupJs(nc);
                 }
+                runner.close();
             }
         }
     }
