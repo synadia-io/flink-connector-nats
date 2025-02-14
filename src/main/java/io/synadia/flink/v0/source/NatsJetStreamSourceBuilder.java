@@ -187,15 +187,15 @@ public class NatsJetStreamSourceBuilder<OutputT> extends NatsSinkOrSourceBuilder
         baseBuild();
 
         return new NatsJetStreamSource<>(payloadDeserializer,
-                createConnectionFactory(),
-                subjects,
-                new NatsJetStreamSourceConfiguration(streamName,
-                        consumerName,
-                        messageQueueCapacity,
-                        enableAutoAcknowledgeMessage,
-                        fetchOneMessageTimeout,
-                        fetchTimeout,
-                        maxFetchRecords,
-                        autoAckInterval, boundedness));
+            createConnectionFactory(),
+            subjects,
+            new NatsJetStreamSourceConfiguration(streamName,
+                consumerName,
+                messageQueueCapacity,
+                enableAutoAcknowledgeMessage,
+                fetchOneMessageTimeout,
+                fetchTimeout,
+                maxFetchRecords,
+                autoAckInterval, boundedness));
     }
 }
