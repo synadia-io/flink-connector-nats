@@ -1,18 +1,18 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source;
 
-import io.synadia.flink.v0.payload.PayloadDeserializer;
-import io.synadia.flink.v0.utils.Constants;
-import io.synadia.flink.v0.utils.PropertiesUtils;
-import io.synadia.flink.v0.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.utils.Constants;
+import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.utils.SinkOrSourceBuilderBase;
 import org.apache.flink.api.connector.source.Boundedness;
 
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.synadia.flink.v0.utils.Constants.*;
+import static io.synadia.flink.utils.Constants.*;
 
 public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsJetStreamSourceBuilder<OutputT>> {
 
@@ -134,11 +134,42 @@ public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase
      * @return the source
      */
     public NatsJetStreamSource<OutputT> build() {
-
+        // Validate consumer name
         if (consumerName == null || consumerName.isEmpty()) {
             throw new IllegalStateException("Consumer name must be provided.");
         }
 
+        // Validate stream name
+        if (streamName == null || streamName.isEmpty()) {
+            throw new IllegalStateException("Stream name must be provided.");
+        }
+
+        // Validate auto ack interval when enabled
+        if (enableAutoAcknowledgeMessage &&
+            (autoAckInterval == null || autoAckInterval.isZero() || autoAckInterval.isNegative())) {
+            throw new IllegalStateException("Auto acknowledge interval must be positive when auto acknowledge is enabled");
+        }
+
+        // Validate max fetch records
+        if (maxFetchRecords <= 0) {
+            throw new IllegalStateException("Maximum fetch records must be positive");
+        }
+
+        // Validate message queue capacity
+        if (messageQueueCapacity <= 0) {
+            throw new IllegalStateException("Message queue capacity must be positive");
+        }
+
+        // Add validation for fetch timeouts
+        if (fetchOneMessageTimeout == null || fetchOneMessageTimeout.isNegative()) {
+            throw new IllegalStateException("Fetch timeout must be non-negative");
+        }
+
+        if (fetchTimeout == null || fetchTimeout.isNegative()) {
+            throw new IllegalStateException("Max fetch time must be non-negative");
+        }
+
+        // Validate payload deserializer
         if (payloadDeserializer == null) {
             if (payloadDeserializerClass == null) {
                 throw new IllegalStateException("Valid payload deserializer class must be provided.");

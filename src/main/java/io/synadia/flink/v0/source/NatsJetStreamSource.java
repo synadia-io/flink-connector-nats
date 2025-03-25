@@ -1,15 +1,16 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source;
 
 import io.nats.client.Message;
-import io.synadia.flink.v0.payload.PayloadDeserializer;
+import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.source.NatsSource;
+import io.synadia.flink.source.reader.NatsSubjectSplitReader;
+import io.synadia.flink.source.split.NatsSubjectSplit;
+import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.v0.source.reader.NatsJetStreamSourceFetcherManager;
 import io.synadia.flink.v0.source.reader.NatsJetStreamSourceReader;
-import io.synadia.flink.v0.source.reader.NatsSourceFetcherManager;
-import io.synadia.flink.v0.source.reader.NatsSubjectSplitReader;
-import io.synadia.flink.v0.source.split.NatsSubjectSplit;
-import io.synadia.flink.v0.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -20,7 +21,7 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import java.util.List;
 import java.util.function.Supplier;
 
-import static io.synadia.flink.v0.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.generateId;
 
 public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
     protected final String id;
@@ -48,8 +49,8 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
         Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
             () -> new NatsSubjectSplitReader(id, connectionFactory, sourceConfiguration);
 
-        NatsSourceFetcherManager fetcherManager =
-            new NatsSourceFetcherManager(
+        NatsJetStreamSourceFetcherManager fetcherManager =
+            new NatsJetStreamSourceFetcherManager(
                 elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
 
         return new NatsJetStreamSourceReader<>(

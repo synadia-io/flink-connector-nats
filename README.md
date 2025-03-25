@@ -22,14 +22,7 @@ The JNATS library is built with Java 8 and is compatible being run by a later ve
 
 ## Beta Release and Implementation Versioning
 
-This library adheres to [semver](https://semver.org/). 
-In order to allow for completely different implementations for JetStream support,
-the implementations have been put into distinct Java packages, for instance
-`io.synadia.flink.v0` This has allowed us to release this while provide the future ability 
-to _change_ the api without requiring a semver major bump. To accomplish this, the
-new implementation will be put in the `io.synadia.flink.v1` package hierarchy.
-
-The reason the current release is also _beta_ is that we are hoping for use and feedback. 
+The current release is a _beta_ and all API are subject to change. 
 
 ## Source
 In order to construct a source, you must use the builder.
@@ -380,5 +373,5 @@ If you need a snapshot version, you must enable snapshots and change your depend
 </dependency>
 ```
 
-Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 See [LICENSE](LICENSE) and [NOTICE](NOTICE) file for details.
