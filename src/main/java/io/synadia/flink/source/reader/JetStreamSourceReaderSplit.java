@@ -3,12 +3,17 @@
 
 package io.synadia.flink.source.reader;
 
+import io.nats.client.BaseConsumerContext;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
 import io.synadia.flink.source.JetStreamSubjectConfiguration;
 import io.synadia.flink.source.split.JetStreamSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class JetStreamSourceReaderSplit<ConsumerT extends MessageConsumer, BaseConsumerContext> {
+public class JetStreamSourceReaderSplit {
+    private static final Logger LOG = LoggerFactory.getLogger(JetStreamSourceReaderSplit.class);
+
     public final JetStreamSplit split;
     public final BaseConsumerContext consumerContext;
     public final MessageConsumer consumer;
@@ -32,6 +37,7 @@ public class JetStreamSourceReaderSplit<ConsumerT extends MessageConsumer, BaseC
         catch (Exception ignore) {
             // TODO log maybe?
         }
+        LOG.debug("{} | done {} {}", split.splitId(), consumer.isStopped(), consumer.isFinished());
     }
 
     public long getLastEmittedStreamSequence() {

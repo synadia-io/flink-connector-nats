@@ -3,7 +3,10 @@
 
 package io.synadia.flink.source.reader;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.MessageConsumer;
+import io.nats.client.OrderedConsumerContext;
+import io.nats.client.StreamContext;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.payload.MessageRecord;
@@ -32,7 +35,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final boolean bounded;
     private final ConnectionFactory connectionFactory;
     private final PayloadDeserializer<OutputT> payloadDeserializer;
-    private final Map<String, JetStreamSourceReaderSplit<MessageConsumer, BaseConsumerContext>> splitMap;
+    private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
     private final CompletableFuture<Void> availableFuture;
     private int activeSplits;
@@ -73,7 +76,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         }
         // 1. Get the split
         // 2. The split could be finished but more messages came into the queue. These will just be ignored.
-        JetStreamSourceReaderSplit<MessageConsumer, BaseConsumerContext> srSplit = splitMap.get(sm.splitId);
+        JetStreamSourceReaderSplit srSplit = splitMap.get(sm.splitId);
         if (!srSplit.isFinished()) {
             // 1. collect the message
             // 2. mark the message as emitted - this increments the count
@@ -83,8 +86,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             if (bounded && emittedCount >= srSplit.getMaxMessagesToRead()) {
                 // this split has fulfilled it's bound. Not all splits reader necessarily have yet
                 // so only say END_OF_INPUT if all are done
-                LOG.debug("{} | pollNext {} {} > {}", id, sm.splitId, emittedCount, srSplit.getMaxMessagesToRead());
                 srSplit.done();
+                LOG.debug("{} | pollNext {} {} {} > {}", id, sm.splitId, (activeSplits - 1), emittedCount, srSplit.getMaxMessagesToRead());
                 if (--activeSplits < 1) {
                     availableFuture.complete(null);
                     return InputStatus.END_OF_INPUT;
@@ -99,7 +102,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public List<JetStreamSplit> snapshotState(long checkpointId) {
         LOG.debug("{} | snapshotState", id);
         List<JetStreamSplit> splits = new ArrayList<>();
-        for (JetStreamSourceReaderSplit<MessageConsumer, BaseConsumerContext> srSplit : splitMap.values()) {
+        for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             splits.add(srSplit.split);
         }
         return Collections.unmodifiableList(splits);
@@ -136,8 +139,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     MessageConsumer consumer = consumerContext.consume(
                         split.subjectConfig.consumeOptions.getConsumeOptions(),
                         msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg)));
-                    JetStreamSourceReaderSplit<MessageConsumer, BaseConsumerContext> srSplit =
-                        new JetStreamSourceReaderSplit<>(split, consumerContext, consumer);
+                    JetStreamSourceReaderSplit srSplit =
+                        new JetStreamSourceReaderSplit(split, consumerContext, consumer);
                     splitMap.put(split.splitId(), srSplit);
                     activeSplits++;
                 }
@@ -167,7 +170,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     @Override
     public void close() throws Exception {
         LOG.debug("{} | close", id);
-        for (JetStreamSourceReaderSplit<MessageConsumer, BaseConsumerContext> srSplit : splitMap.values()) {
+        for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             srSplit.consumer.stop();
         }
         connection.close();
