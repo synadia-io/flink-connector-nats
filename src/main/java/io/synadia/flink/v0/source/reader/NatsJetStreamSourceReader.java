@@ -1,21 +1,18 @@
-// Copyright (c) 2023-2024 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.v0.source.reader;
 
 import io.nats.client.Message;
-import io.synadia.flink.v0.emitter.NatsRecordEmitter;
-import io.synadia.flink.v0.payload.PayloadDeserializer;
+import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.source.split.NatsSubjectSplit;
+import io.synadia.flink.source.split.NatsSubjectSplitState;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
-import io.synadia.flink.v0.source.split.NatsSubjectSplit;
-import io.synadia.flink.v0.source.split.NatsSubjectSplitState;
-import io.synadia.flink.v0.utils.ConnectionFactory;
+import io.synadia.flink.v0.source.emitter.NatsJetStreamRecordEmitter;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
@@ -25,7 +22,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.synadia.flink.v0.utils.MiscUtils.generatePrefixedId;
+import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
@@ -35,29 +32,23 @@ public class NatsJetStreamSourceReader<OutputT>
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
 
     private final String id;
-    private final ConnectionFactory connectionFactory;
-    private final SourceReaderContext readerContext;
     private final AtomicReference<Throwable> cursorCommitThrowable;
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
     private final ConcurrentMap<String, List<Message>> cursorsOfFinishedSplits;
     private final NatsJetStreamSourceConfiguration sourceConfiguration;
 
     public NatsJetStreamSourceReader(String sourceId,
-                                     FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
-                                     NatsSourceFetcherManager fetcherManager,
+                                     NatsJetStreamSourceFetcherManager fetcherManager,
                                      NatsJetStreamSourceConfiguration sourceConfiguration,
-                                     ConnectionFactory connectionFactory,
                                      PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext
     ) {
-        super(elementsQueue,
-            fetcherManager,
-            new NatsRecordEmitter<>(payloadDeserializer),
+        super(fetcherManager,
+            new NatsJetStreamRecordEmitter<>(payloadDeserializer),
             sourceConfiguration.getConfiguration(), readerContext);
         id = generatePrefixedId(sourceId);
         this.sourceConfiguration = sourceConfiguration;
-        this.connectionFactory = connectionFactory;
-        this.readerContext = checkNotNull(readerContext);
+        checkNotNull(readerContext);
         this.cursorsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.cursorsOfFinishedSplits = new ConcurrentHashMap<>();
         this.cursorCommitThrowable = new AtomicReference<>();
@@ -74,7 +65,6 @@ public class NatsJetStreamSourceReader<OutputT>
                     sourceConfiguration.getAutoAckInterval().toMillis(),
                     TimeUnit.MILLISECONDS);
         }
-
     }
 
     @Override
@@ -93,7 +83,7 @@ public class NatsJetStreamSourceReader<OutputT>
         //TODO convert string to Subject Class
         Map<String, List<Message>> cursors = cursorsToCommit.get(checkpointId);
         try {
-            ((NatsSourceFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
+            ((NatsJetStreamSourceFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
             LOG.debug("{} | Successfully acknowledge cursors for checkpoint {}", id, checkpointId);
 
             // Clean up the cursors.
@@ -145,7 +135,7 @@ public class NatsJetStreamSourceReader<OutputT>
     protected void onSplitFinished(Map<String, NatsSubjectSplitState> finishedSplitIds) {
         // Close all the finished splits.
         for (String splitId : finishedSplitIds.keySet()) {
-            ((NatsSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);
+            ((NatsJetStreamSourceFetcherManager) splitFetcherManager).closeFetcher(splitId);
         }
 
         for (Map.Entry<String, NatsSubjectSplitState> entry : finishedSplitIds.entrySet()) {
@@ -175,7 +165,7 @@ public class NatsJetStreamSourceReader<OutputT>
         }
 
         try {
-            ((NatsSourceFetcherManager) splitFetcherManager)
+            ((NatsJetStreamSourceFetcherManager) splitFetcherManager)
                 .acknowledgeMessages(cursors);
             // Clean up the finish splits.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());

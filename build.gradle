@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.0.0-beta5"
+def jarVersion = "2.1.0-beta1"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
@@ -33,10 +33,13 @@ repositories {
     maven {
         url "https://oss.sonatype.org/content/repositories/releases/"
     }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.20.5'
+    implementation 'io.nats:jnats:2.21.0-SNAPSHOT'
 
     // these are here to override flink since the flink dependency version has vulnerabilities
     implementation 'org.apache.commons:commons-compress:1.27.1'
@@ -49,10 +52,10 @@ dependencies {
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
 
-    implementation 'org.slf4j:slf4j-api:2.0.16'
-    // implementation 'org.slf4j:slf4j-simple:2.0.16' // comment in for local testing
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    // implementation 'org.slf4j:slf4j-simple:2.0.17' // comment in for local testing
 
-    testImplementation 'org.slf4j:slf4j-simple:2.0.9'
+    testImplementation 'org.slf4j:slf4j-simple:2.0.17'
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
@@ -64,6 +67,9 @@ sourceSets {
     main {
         java {
             srcDirs = ['src/main/java','src/examples/java']
+        }
+        resources {
+            srcDirs = ['src/examples/resources']
         }
     }
     test {
