@@ -8,7 +8,6 @@ import io.nats.client.impl.AckType;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
-import io.synadia.flink.utils.Debug;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
@@ -50,7 +49,6 @@ public class NatsSubjectSplitReader
 
     @Override
     public RecordsWithSplitIds<Message> fetch() throws IOException {
-        Debug.stackTrace("FETCH");
         RecordsBySplits.Builder<Message> builder = new RecordsBySplits.Builder<>();
 
         // Return when no split registered to this reader.

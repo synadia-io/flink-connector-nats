@@ -14,9 +14,7 @@ import io.synadia.flink.v0.source.reader.NatsJetStreamSourceReader;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,22 +40,17 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue =
-            new FutureCompletingBlockingQueue<>(queueCapacity);
-
         Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
             () -> new NatsSubjectSplitReader(id, connectionFactory, sourceConfiguration);
 
         NatsJetStreamSourceFetcherManager fetcherManager =
-            new NatsJetStreamSourceFetcherManager(
-                elementsQueue, splitReaderSupplier, readerContext.getConfiguration());
+            new NatsJetStreamSourceFetcherManager(splitReaderSupplier, readerContext.getConfiguration());
 
         return new NatsJetStreamSourceReader<>(
             id,
-            elementsQueue,
             fetcherManager,
-            sourceConfiguration, connectionFactory, payloadDeserializer,
+            sourceConfiguration,
+            payloadDeserializer,
             readerContext);
     }
 }

@@ -51,7 +51,7 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
     }
 
     @Override
-    public void write(InputT element, SinkWriter.Context context) throws IOException, InterruptedException {
+    public void write(InputT element, Context context) throws IOException, InterruptedException {
         byte[] payload = payloadSerializer.getBytes(element);
         for (String subject : subjects) {
             ctx.connection.publish(subject, null, null, payload);

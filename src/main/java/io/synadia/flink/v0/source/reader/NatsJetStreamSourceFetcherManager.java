@@ -7,12 +7,9 @@ import io.nats.client.Message;
 import io.synadia.flink.source.reader.NatsSubjectSplitReader;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
-import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,17 +32,13 @@ public class NatsJetStreamSourceFetcherManager
     /**
      * Creates a new SplitFetcherManager with multiple I/O threads.
      *
-     * @param elementsQueue The queue that is used to hand over data from the I/O thread (the
-     *     fetchers) to the reader, which emits the records and book-keeps the state. This must be
-     *     the same queue instance that is also passed to the {@link SourceReaderBase}.
      * @param splitReaderSupplier The factory for the split reader that connects to the source
      * @param configuration The configuration object
      */
     public NatsJetStreamSourceFetcherManager(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
             Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier,
             Configuration configuration) {
-        super(elementsQueue, splitReaderSupplier, configuration);
+        super(splitReaderSupplier, configuration);
     }
 
     @Override

@@ -29,6 +29,7 @@ import static io.synadia.flink.utils.ManagedUtils.toSplitId;
 public class JetStreamSubjectConfiguration implements JsonSerializable, Serializable {
     private static final long serialVersionUID = 1L;
     private static final String CONSUME_OPTIONS = "consume_options";
+    private static final String ACK = "ack";
 
     public final String configId;
     public final String streamName;
@@ -39,6 +40,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final SerializableConsumeOptions consumeOptions;
     public final long maxMessagesToRead;
     public final Boundedness boundedness;
+    public final boolean ack;
 
     private JetStreamSubjectConfiguration(Builder b, String subject, String configId) {
         this.configId = configId;
@@ -49,6 +51,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         startTime = b.startTime;
         consumeOptions = b.consumeOptions;
         maxMessagesToRead = b.maxMessagesToRead;
+        ack = b.ack;
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
@@ -65,48 +68,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, CONSUME_OPTIONS, consumeOptions.getConsumeOptions().toJsonValue());
         JsonUtils.addField(sb, MAX_MSGS, maxMessagesToRead);
+        JsonUtils.addFldWhenTrue(sb, ACK, ack);
         return endJson(sb).toString();
     }
 
     @Override
     public String toString() {
         return toJson();
-    }
-
-    public String getConfigId() {
-        return configId;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public String getStreamName() {
-        return streamName;
-    }
-
-    public DeliverPolicy getDeliverPolicy() {
-        return deliverPolicy;
-    }
-
-    public Long getStartSequence() {
-        return startSequence;
-    }
-
-    public ZonedDateTime getStartTime() {
-        return startTime;
-    }
-
-    public Boundedness getBoundedness() {
-        return boundedness;
-    }
-
-    public SerializableConsumeOptions getConsumeOptions() {
-        return consumeOptions;
-    }
-
-    public long getMaxMessagesToRead() {
-        return maxMessagesToRead;
     }
 
     public static Builder builder() {
@@ -119,10 +87,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
     public static JetStreamSubjectConfiguration fromJsonValue(JsonValue jv) {
         Builder b = new Builder()
-            .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
+            .streamName(readString(jv, STREAM_NAME))
             .startSequence(readLong(jv, OPT_START_SEQ, ConsumerConfiguration.LONG_UNSET))
             .startTime(readDate(jv, OPT_START_TIME))
             .maxMessagesToRead(readLong(jv, MAX_MSGS, -1))
+            .ack(readBoolean(jv, ACK, false))
             ;
 
         String temp = readString(jv, DELIVER_POLICY); // not required
@@ -147,6 +116,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private ZonedDateTime startTime;
         private SerializableConsumeOptions consumeOptions;
         private long maxMessagesToRead = -1;
+        private boolean ack = false;
 
         public Builder() {
             consumeOptions(DEFAULT_CONSUME_OPTIONS);
@@ -206,6 +176,19 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          */
         public Builder maxMessagesToRead(long maxMessagesToRead) {
             this.maxMessagesToRead = maxMessagesToRead < 1 ? -1 : maxMessagesToRead;
+            return this;
+        }
+
+        /**
+         * Set whether to ack messages. If acking is on,
+         * ack will occur when a checkpoint is complete via ack all
+         * It's not recommend to set ack unless your stream is a workqueue
+         * but even then, be sure of why you are running this against a workqueue
+         * @param ack whether to ack or not
+         * @return The Builder
+         */
+        public Builder ack(boolean ack) {
+            this.ack = ack;
             return this;
         }
 

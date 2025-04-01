@@ -3,12 +3,12 @@
 
 package io.synadia.flink.source.reader;
 
-import io.nats.client.Connection;
-import io.nats.client.MessageConsumer;
-import io.nats.client.OrderedConsumerContext;
-import io.nats.client.StreamContext;
+import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
+import io.nats.client.impl.AckType;
 import io.synadia.flink.payload.MessageRecord;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.JetStreamSplit;
@@ -18,18 +18,18 @@ import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
-    private static final Logger LOG = LoggerFactory.getLogger(JetStreamSourceReader.class);
+    private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
     private final String id;
     private final boolean bounded;
@@ -38,6 +38,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
     private final CompletableFuture<Void> availableFuture;
+    private final ExecutorService scheduler;
+
     private int activeSplits;
     private Connection connection;
 
@@ -53,13 +55,12 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         splitMap = new HashMap<>();
         queue = new FutureCompletingBlockingQueue<>();
-        this.availableFuture = CompletableFuture.completedFuture(null);
-        LOG.debug("{} | Init", id);
+        availableFuture = CompletableFuture.completedFuture(null);
+        scheduler = Executors.newCachedThreadPool();
     }
 
     @Override
     public void start() {
-        LOG.debug("{} | start", id);
         try {
             connection = connectionFactory.connect();
         }
@@ -87,7 +88,6 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                 // this split has fulfilled it's bound. Not all splits reader necessarily have yet
                 // so only say END_OF_INPUT if all are done
                 srSplit.done();
-                LOG.debug("{} | pollNext {} {} {} > {}", id, sm.splitId, (activeSplits - 1), emittedCount, srSplit.getMaxMessagesToRead());
                 if (--activeSplits < 1) {
                     availableFuture.complete(null);
                     return InputStatus.END_OF_INPUT;
@@ -100,9 +100,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public List<JetStreamSplit> snapshotState(long checkpointId) {
-        LOG.debug("{} | snapshotState", id);
         List<JetStreamSplit> splits = new ArrayList<>();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
+            srSplit.takeSnapshot(checkpointId);
             splits.add(srSplit.split);
         }
         return Collections.unmodifiableList(splits);
@@ -117,28 +117,16 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public void addSplits(List<JetStreamSplit> splits) {
         for (JetStreamSplit split : splits) {
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
-                OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
-                    .filterSubject(split.subjectConfig.subject);
-                long lastSeq = split.lastEmittedStreamSequence.get();
-                if (lastSeq > 0) {
-                    ocConfig.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
-                }
-                else {
-                    ocConfig.deliverPolicy(split.subjectConfig.deliverPolicy);
-                    if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartSequence) {
-                        ocConfig.startSequence(split.subjectConfig.startSequence);
-                    }
-                    else if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartTime) {
-                        ocConfig.startTime(split.subjectConfig.startTime);
-                    }
-                }
-                LOG.debug("{} | addSplits {} {}", id, split, ocConfig.toJson());
                 try {
-                    StreamContext sc = connection.getStreamContext(split.subjectConfig.streamName);
-                    OrderedConsumerContext consumerContext = sc.createOrderedConsumer(ocConfig);
-                    MessageConsumer consumer = consumerContext.consume(
-                        split.subjectConfig.consumeOptions.getConsumeOptions(),
-                        msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg)));
+                    StreamContext sc = connectionFactory.connectContext().js.getStreamContext(split.subjectConfig.streamName);
+                    BaseConsumerContext consumerContext = split.subjectConfig.ack
+                        ? createConsumer(split, sc)
+                        : createOrderedConsumer(split, sc);
+
+                    ConsumeOptions consumeOptions = split.subjectConfig.consumeOptions.getConsumeOptions();
+                    MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
+                    MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
+
                     JetStreamSourceReaderSplit srSplit =
                         new JetStreamSourceReaderSplit(split, consumerContext, consumer);
                     splitMap.put(split.splitId(), srSplit);
@@ -151,25 +139,70 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         }
     }
 
+    private BaseConsumerContext createConsumer(JetStreamSplit split, StreamContext sc) throws JetStreamApiException, IOException {
+        ConsumerConfiguration.Builder b = ConsumerConfiguration.builder()
+            .ackPolicy(AckPolicy.All)
+            .filterSubject(split.subjectConfig.subject);
+        long lastSeq = split.lastEmittedStreamSequence.get();
+        if (lastSeq > 0) {
+            b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
+        }
+        else {
+            b.deliverPolicy(split.subjectConfig.deliverPolicy);
+            if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartSequence) {
+                b.startSequence(split.subjectConfig.startSequence);
+            }
+            else if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartTime) {
+                b.startTime(split.subjectConfig.startTime);
+            }
+        }
+        return sc.createOrUpdateConsumer(b.build());
+    }
+
+    private BaseConsumerContext createOrderedConsumer(JetStreamSplit split, StreamContext sc) throws JetStreamApiException, IOException {
+        OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
+            .filterSubject(split.subjectConfig.subject);
+        long lastSeq = split.lastEmittedStreamSequence.get();
+        if (lastSeq > 0) {
+            ocConfig.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
+        }
+        else {
+            ocConfig.deliverPolicy(split.subjectConfig.deliverPolicy);
+            if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartSequence) {
+                ocConfig.startSequence(split.subjectConfig.startSequence);
+            }
+            else if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartTime) {
+                ocConfig.startTime(split.subjectConfig.startTime);
+            }
+        }
+        return sc.createOrderedConsumer(ocConfig);
+    }
+
     @Override
     public void notifyNoMoreSplits() {
-        LOG.debug("{} | notifyNoMoreSplits", id);
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        LOG.debug("{} | notifyCheckpointComplete", id);
-        SourceReader.super.notifyCheckpointComplete(checkpointId);
+        for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
+            JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
+            if (snapshot != null && srSplit.ack()) {
+                // Manual ack since we don't have the message, just the reply_to
+                // but we know that this \/ is what an ack is
+                // Also we execute as a task so as not to slow down the reader
+                // This is probably not perfect, but the whole acking thing is questionable anyway...
+                scheduler.execute(() -> connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
+            }
+        }
     }
 
     @Override
     public void handleSourceEvents(SourceEvent sourceEvent) {
-        LOG.debug("{} | handleSourceEvents {}", id, sourceEvent);
+        // N/A
     }
 
     @Override
     public void close() throws Exception {
-        LOG.debug("{} | close", id);
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             srSplit.consumer.stop();
         }

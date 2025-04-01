@@ -3,8 +3,6 @@
 
 package io.synadia.flink.utils;
 
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
-
 public interface Constants {
     String NATS_PREFIX = "nats.";
     String SOURCE_PREFIX = "source.";
@@ -17,7 +15,10 @@ public interface Constants {
     String PAYLOAD_SERIALIZER = "payload.serializer";
 
     String READER_ELEMENT_QUEUE_CAPACITY = "reader.element.queue.capacity";
-    int DEFAULT_ELEMENT_QUEUE_CAPACITY = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+    // Flink's default value is 2.  See SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+    // Not really sure what's good here but we are going to get a lot of messages from NATS consuming
+    // This can always be supplied by the user and we can tune it later.
+    int DEFAULT_ELEMENT_QUEUE_CAPACITY = 1000;
 
     String FETCH_ONE_MESSAGE_TIMEOUT = "fetch.one.timeout";
     long DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS = 1000;

@@ -7,15 +7,12 @@ import io.nats.client.Message;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitState;
-import io.synadia.flink.utils.ConnectionFactory;
 import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import io.synadia.flink.v0.source.emitter.NatsJetStreamRecordEmitter;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
@@ -35,29 +32,23 @@ public class NatsJetStreamSourceReader<OutputT>
     private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
 
     private final String id;
-    private final ConnectionFactory connectionFactory;
-    private final SourceReaderContext readerContext;
     private final AtomicReference<Throwable> cursorCommitThrowable;
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
     private final ConcurrentMap<String, List<Message>> cursorsOfFinishedSplits;
     private final NatsJetStreamSourceConfiguration sourceConfiguration;
 
     public NatsJetStreamSourceReader(String sourceId,
-                                     FutureCompletingBlockingQueue<RecordsWithSplitIds<Message>> elementsQueue,
                                      NatsJetStreamSourceFetcherManager fetcherManager,
                                      NatsJetStreamSourceConfiguration sourceConfiguration,
-                                     ConnectionFactory connectionFactory,
                                      PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext
     ) {
-        super(elementsQueue,
-            fetcherManager,
+        super(fetcherManager,
             new NatsJetStreamRecordEmitter<>(payloadDeserializer),
             sourceConfiguration.getConfiguration(), readerContext);
         id = generatePrefixedId(sourceId);
         this.sourceConfiguration = sourceConfiguration;
-        this.connectionFactory = connectionFactory;
-        this.readerContext = checkNotNull(readerContext);
+        checkNotNull(readerContext);
         this.cursorsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.cursorsOfFinishedSplits = new ConcurrentHashMap<>();
         this.cursorCommitThrowable = new AtomicReference<>();

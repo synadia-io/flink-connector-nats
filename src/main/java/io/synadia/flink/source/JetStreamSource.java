@@ -15,8 +15,6 @@ import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,8 +31,6 @@ public class JetStreamSource<OutputT> implements
     Source<OutputT, JetStreamSplit, Collection<JetStreamSplit>>,
     ResultTypeQueryable<OutputT>
 {
-    private static final Logger LOG = LoggerFactory.getLogger(JetStreamSource.class);
-
     protected final String id;
     protected final PayloadDeserializer<OutputT> payloadDeserializer;
     protected final Boundedness boundedness;
@@ -46,7 +42,7 @@ public class JetStreamSource<OutputT> implements
     public String toString() {
         return "JetStreamSource{" +
             "id=" + id + '\'' +
-            ", payloadDeserializer=" + payloadDeserializer +
+            ", payloadDeserializer=" + payloadDeserializer.getClass().getSimpleName() +
             ", configById=" + configById +
             ", connectionFactory=" + connectionFactory +
             ", configuration=" + configuration +
@@ -65,7 +61,6 @@ public class JetStreamSource<OutputT> implements
         this.configById = configById;
         this.connectionFactory = connectionFactory;
         this.configuration = configuration;
-        LOG.debug("{} | init", id);
     }
 
     @Override
@@ -77,7 +72,6 @@ public class JetStreamSource<OutputT> implements
     public SplitEnumerator<JetStreamSplit, Collection<JetStreamSplit>> createEnumerator(
         SplitEnumeratorContext<JetStreamSplit> enumContext) throws Exception
     {
-        LOG.debug("{} | createEnumerator", id);
         List<JetStreamSplit> list = new ArrayList<>();
         for (JetStreamSubjectConfiguration mcc : configById.values()) {
             list.add(new JetStreamSplit(mcc));
@@ -90,25 +84,21 @@ public class JetStreamSource<OutputT> implements
         SplitEnumeratorContext<JetStreamSplit> enumContext,
         Collection<JetStreamSplit> checkpoint)
     {
-        LOG.debug("{} | restoreEnumerator", id);
         return new NatsSourceEnumerator<>(id, enumContext, checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<JetStreamSplit> getSplitSerializer() {
-        LOG.debug("{} | getSplitSerializer", id);
         return new JetStreamSplitSerializer();
     }
 
     @Override
     public SimpleVersionedSerializer<Collection<JetStreamSplit>> getEnumeratorCheckpointSerializer() {
-        LOG.debug("{} | getEnumeratorCheckpointSerializer", id);
         return new JetStreamCheckpointSerializer();
     }
 
     @Override
     public SourceReader<OutputT, JetStreamSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        LOG.debug("{} | createReader", id);
         return new JetStreamSourceReader<>(id, boundedness, connectionFactory, payloadDeserializer, readerContext);
     }
 

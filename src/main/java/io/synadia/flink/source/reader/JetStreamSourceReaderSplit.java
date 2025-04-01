@@ -8,24 +8,43 @@ import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
 import io.synadia.flink.source.JetStreamSubjectConfiguration;
 import io.synadia.flink.source.split.JetStreamSplit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class JetStreamSourceReaderSplit {
-    private static final Logger LOG = LoggerFactory.getLogger(JetStreamSourceReaderSplit.class);
-
     public final JetStreamSplit split;
     public final BaseConsumerContext consumerContext;
     public final MessageConsumer consumer;
+    public final Map<Long, Snapshot> snapshots; // snapshot by checkpoint id
+
+    public static class Snapshot {
+        public final String replyTo;
+        public final long streamSequence;
+
+        public Snapshot(JetStreamSplit split) {
+            this.replyTo = split.lastEmittedMessageReplyTo.get();
+            this.streamSequence = split.lastEmittedStreamSequence.get();
+        }
+    }
 
     public JetStreamSourceReaderSplit(JetStreamSplit split, BaseConsumerContext consumerContext, MessageConsumer consumer) {
         this.split = split;
         this.consumerContext = consumerContext;
         this.consumer = consumer;
+        snapshots = new ConcurrentHashMap<>();
     }
 
     public long markEmitted(Message message) {
         return split.markEmitted(message);
+    }
+
+    public void takeSnapshot(long checkpointId) {
+        snapshots.put(checkpointId, new Snapshot(split));
+    }
+
+    public Snapshot removeSnapshot(long checkpointId) {
+        return snapshots.remove(checkpointId);
     }
 
     public void done() {
@@ -37,7 +56,6 @@ public class JetStreamSourceReaderSplit {
         catch (Exception ignore) {
             // TODO log maybe?
         }
-        LOG.debug("{} | done {} {}", split.splitId(), consumer.isStopped(), consumer.isFinished());
     }
 
     public long getLastEmittedStreamSequence() {
@@ -54,6 +72,10 @@ public class JetStreamSourceReaderSplit {
 
     public JetStreamSubjectConfiguration getSubjectConfig() {
         return split.subjectConfig;
+    }
+
+    public boolean ack() {
+        return split.subjectConfig.ack;
     }
 
     public long getMaxMessagesToRead() {
