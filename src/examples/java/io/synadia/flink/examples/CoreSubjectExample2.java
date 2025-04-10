@@ -12,17 +12,13 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.support.ExampleUtils.connect;
 
-public class SourceToSinkExample2 {
-    private static final Logger LOG = LoggerFactory.getLogger(SourceToSinkExample2.class);
-
+public class CoreSubjectExample2 {
     public static final String EXAMPLE_NAME = "Example2";
 
     public static final int NUM_SOURCE_SUBJECTS = 8;
@@ -33,11 +29,16 @@ public class SourceToSinkExample2 {
 
     public static void main(String[] args) throws Exception {
         // load properties from a file for example application.properties
-        Properties props = PropertiesUtils.loadPropertiesFromFile("src/examples/resources/application.properties");
+        Properties connectionProps = PropertiesUtils
+            .loadPropertiesFromFile("src/examples/resources/connection.properties");
+        Properties sourceProps = PropertiesUtils
+            .loadPropertiesFromFile("src/examples/resources/core-source.properties");
+        Properties sinkProps = PropertiesUtils
+            .loadPropertiesFromFile("src/examples/resources/core-sink.properties");
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
-        Connection nc = connect(props);
+        Connection nc = connect(connectionProps);
 
         // start publishing to where the source will get
         // the source will have missed some messages by the time it gets running
@@ -64,19 +65,19 @@ public class SourceToSinkExample2 {
 
         // create source
         NatsSource<String> source = new NatsSourceBuilder<String>()
-            .sourceProperties(props)
-            .connectionProperties(props)
+            .sourceProperties(sourceProps)
+            .connectionProperties(connectionProps)
             .subjects(sourceSubjects) // subjects come last because the builder uses the last input
             .build();
-        LOG.info("{}", source);
+        System.out.println(source);
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
-            .sinkProperties(props)
-            .connectionProperties(props)
+            .sinkProperties(sinkProps)
+            .connectionProperties(connectionProps)
             .subjects(sinkSubject) // subject comes last because the builder uses the last input
             .build();
-        LOG.info("{}", sink);
+        System.out.println(sink);
 
         // setup and start flink
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -95,7 +96,7 @@ public class SourceToSinkExample2 {
         env.close();
 
         for (Map.Entry<String, AtomicInteger> entry : receivedMap.entrySet()) {
-            LOG.info("Messages received for subject '{}' : {}", entry.getKey(), entry.getValue().get());
+            System.out.println("Messages received for subject '" + entry.getKey() + "' : " + entry.getValue().get());
         }
         System.exit(0);
     }

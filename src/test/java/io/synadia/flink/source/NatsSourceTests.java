@@ -9,14 +9,11 @@ import io.nats.client.impl.Headers;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.helpers.Publisher;
 import io.synadia.flink.payload.ByteArrayPayloadDeserializer;
-import io.synadia.flink.payload.MessageRecord;
 import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.payload.StringPayloadSerializer;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
@@ -61,7 +58,6 @@ public class NatsSourceTests extends TestBase {
             NatsSink<String> sink = newNatsStringSink(sinkSubject, connectionProperties, null);
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithString");
 
             Thread.sleep(1000);
@@ -105,7 +101,6 @@ public class NatsSourceTests extends TestBase {
             NatsSink<Byte[]> sink = newNatsByteArraySink(sinkSubject, connectionProperties, null);
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithByteArray");
 
             Thread.sleep(1000);
@@ -135,10 +130,10 @@ public class NatsSourceTests extends TestBase {
         assertTrue(hasSourceSubject2);
     }
 
-    static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
+    public static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
         @Override
-        public String getObject(MessageRecord record) {
-            Headers headers = record.getMessage().getHeaders();
+        public String getObject(Message message) {
+            Headers headers = message.getHeaders();
             String hSubject = headers.getFirst("subject");
             String hNum = headers.getFirst("num");
             return Publisher.dataString(hSubject, hNum);
@@ -190,7 +185,6 @@ public class NatsSourceTests extends TestBase {
 
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithHeaders");
 
             Thread.sleep(1000);

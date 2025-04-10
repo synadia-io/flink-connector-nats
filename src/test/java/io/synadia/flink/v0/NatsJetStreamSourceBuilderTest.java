@@ -104,11 +104,11 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(streamConfig);
 
             Properties props = defaultConnectionProperties(url);
-            props.setProperty("nats.source.subjects", subject);
-            props.setProperty("nats.source.payload.deserializer",
+            props.setProperty("subjects", subject);
+            props.setProperty("payload.deserializer",
                 "io.synadia.flink.payload.StringPayloadDeserializer");
-            props.setProperty("nats.source.stream.name", streamName);
-            props.setProperty("nats.source.consumer.name", "test-consumer");
+            props.setProperty("stream.name", streamName);
+            props.setProperty("consumer.name", "test-consumer");
 
             NatsJetStreamSource<String> source = new NatsJetStreamSourceBuilder<String>()
                 .sourceProperties(props)
@@ -383,37 +383,6 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             assertTrue(ex.getMessage().toLowerCase().contains("fetch") &&
                     ex.getMessage().toLowerCase().contains("time"),
                 "Exception should mention fetch time");
-        });
-    }
-
-    /**
-     * Tests validation of connection jitter settings.
-     * Minimum jitter must not exceed maximum jitter.
-     *
-     * Expected behavior:
-     * - Should throw IllegalStateException when min > max
-     * - Error message should mention invalid jitter values
-     */
-    @Test
-    void testBuildValidationWithInvalidJitterValues() throws Exception {
-        runInJsServer((nc, url) -> {
-            String subject = subject();
-            Properties props = defaultConnectionProperties(url);
-
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
-                    .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
-                    .streamName("test-stream")
-                    .consumerName("test-consumer")
-                    .minConnectionJitter(100)
-                    .maxConnectionJitter(50)  // Min > Max is invalid
-                    .build()
-            );
-            assertTrue(ex.getMessage().contains("jitter"),
-                "Exception should mention invalid jitter values");
         });
     }
 

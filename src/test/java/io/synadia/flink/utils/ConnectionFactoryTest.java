@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -66,43 +65,6 @@ class ConnectionFactoryTest extends TestBase {
                 connection = factory.connect();
                 assertNotNull(connection);
                 assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-            } finally {
-                if (connection != null) {
-                    connection.close();
-                }
-            }
-        });
-    }
-
-    /**
-     * Tests connection creation with connection jitter settings.
-     * Verifies that:
-     * 1. Jitter values are preserved in factory
-     * 2. Connection is created with jitter options properly configured
-     * 3. Both min and max reconnect jitter values are properly applied to connection options
-     */
-    @Test
-    void testConnectWithJitterSettingsShouldApplyJitterAndConnect() throws Exception {
-        runInServer((nc, url) -> {
-            Properties props = defaultConnectionProperties(url);
-            long minJitter = 100;
-            long maxJitter = 500;
-
-            ConnectionFactory factory = new ConnectionFactory(props, minJitter, maxJitter);
-
-            // Verify jitter values are stored in factory
-            assertEquals(minJitter, factory.getMinConnectionJitter());
-            assertEquals(maxJitter, factory.getMaxConnectionJitter());
-
-            Connection connection = null;
-            try {
-                connection = factory.connect();
-                assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-
-                // Verify both min and max jitter values are set in the connection options
-                Options options = connection.getOptions();
-                assertEquals(Duration.ofMillis(minJitter), options.getReconnectJitter());
             } finally {
                 if (connection != null) {
                     connection.close();
@@ -192,7 +154,7 @@ class ConnectionFactoryTest extends TestBase {
      * Tests serialization/deserialization of ConnectionFactory.
      * Verifies that:
      * 1. Factory can be serialized
-     * 2. Multiple deserializations produce consistent objects
+     * 2. Deserializations produce consistent objects
      * 3. All deserialized instances maintain original properties and state
      * 4. Each deserialized factory can create valid connections
      */
@@ -200,39 +162,21 @@ class ConnectionFactoryTest extends TestBase {
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
-            ConnectionFactory originalFactory = new ConnectionFactory(props, 100, 500);
+            props.setProperty(Constants.CONNECT_JITTER, "1000");
+            ConnectionFactory originalFactory = new ConnectionFactory(props);
 
             // Create multiple deserialized instances
-            ConnectionFactory deserializedFactory1 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-            ConnectionFactory deserializedFactory2 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-            ConnectionFactory deserializedFactory3 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
+            ConnectionFactory deserialized = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
+            assertNotNull(deserialized);
 
-            // Verify all instances have same properties
-            assertNotNull(deserializedFactory1);
-            assertNotNull(deserializedFactory2);
-            assertNotNull(deserializedFactory3);
-
-            // Verify properties are consistent across all instances
-            assertEquals(deserializedFactory1.getMinConnectionJitter(), deserializedFactory2.getMinConnectionJitter());
-            assertEquals(deserializedFactory2.getMinConnectionJitter(), deserializedFactory3.getMinConnectionJitter());
-            assertEquals(deserializedFactory1.getMaxConnectionJitter(), deserializedFactory2.getMaxConnectionJitter());
-            assertEquals(deserializedFactory2.getMaxConnectionJitter(), deserializedFactory3.getMaxConnectionJitter());
-
-            // Verify all maintain original properties
-            assertEquals(originalFactory.getMinConnectionJitter(), deserializedFactory1.getMinConnectionJitter());
-            assertEquals(originalFactory.getMaxConnectionJitter(), deserializedFactory1.getMaxConnectionJitter());
+            props = deserialized.getConnectionProperties();
+            assertEquals("1000", props.getProperty(Constants.CONNECT_JITTER));
 
             // Verify each instance can create valid connections
-            for (ConnectionFactory factory : Arrays.asList(deserializedFactory1, deserializedFactory2, deserializedFactory3)) {
-                Connection connection = null;
-                try {
-                    connection = factory.connect();
+            for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {
+                try (Connection connection = factory.connect()) {
                     assertNotNull(connection);
-                    assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-                } finally {
-                    if (connection != null) {
-                        connection.close();
-                    }
+                    assertSame(connection.getStatus(), Connection.Status.CONNECTED);
                 }
             }
         });

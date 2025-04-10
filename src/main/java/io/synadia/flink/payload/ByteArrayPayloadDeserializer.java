@@ -3,19 +3,20 @@
 
 package io.synadia.flink.payload;
 
+import io.nats.client.Message;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import static org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO;
 
 /**
- * A ByteArrayPayloadDeserializer uses the message data byte array and copys it to a Byte[] object.
+ * A ByteArrayPayloadDeserializer uses the message data byte array and copies it to a Byte[] object.
  */
 public class ByteArrayPayloadDeserializer implements PayloadDeserializer<Byte[]> {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public Byte[] getObject(MessageRecord record) {
-        byte[] data = record.message.getData();
+    public Byte[] getObject(Message message) {
+        byte[] data = message.getData();
         int len = data == null ? 0 : data.length;
         Byte[] object = new Byte[len];
         for (int x = 0; x < len; x++) {

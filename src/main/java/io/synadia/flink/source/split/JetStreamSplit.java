@@ -13,16 +13,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.support.ApiConstants.CONFIG;
-import static io.nats.client.support.ApiConstants.MSGS;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.*;
 
 public class JetStreamSplit implements SourceSplit, JsonSerializable {
-    public static final String FINISHED = "finished";
-    public static final String LAST_REPLY_TO = "last_reply_to";
-    public static final String LAST_EMITTED_SEQ = "last_emitted_seq";
-
     public final AtomicReference<String> lastEmittedMessageReplyTo;
     public final AtomicLong lastEmittedStreamSequence;
     public final AtomicLong emittedCount;
@@ -68,7 +63,7 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
      */
     @Override
     public String splitId() {
-        return subjectConfig.configId;
+        return subjectConfig.id;
     }
 
     public long markEmitted(Message message) {

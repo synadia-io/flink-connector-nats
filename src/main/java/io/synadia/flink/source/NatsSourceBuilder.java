@@ -4,14 +4,11 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
 
+import java.util.List;
 import java.util.Properties;
-
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
 
 /**
  * Builder to construct {@link NatsSource}.
@@ -30,12 +27,9 @@ import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
  * @see NatsSource
  * @param <OutputT> type of the records written
  */
-public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSourceBuilder<OutputT>> {
-    private PayloadDeserializer<OutputT> payloadDeserializer;
-    private String payloadDeserializerClass;
-
+public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceBuilder<OutputT>> {
     public NatsSourceBuilder() {
-        super(SOURCE_PREFIX);
+        super(true, false);
     }
 
     @Override
@@ -50,14 +44,25 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        baseProperties(properties);
+        return super.properties(properties);
+    }
 
-        String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_DESERIALIZER, prefixes);
-        if (s != null) {
-            payloadDeserializerClass(s);
-        }
+    /**
+     * Set one or more subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> subjects(String... subjects) {
+        return super.subjects(subjects);
+    }
 
-        return this;
+    /**
+     * Set the subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> subjects(List<String> subjects) {
+        return super.subjects(subjects);
     }
 
     /**
@@ -66,9 +71,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        this.payloadDeserializer = payloadDeserializer;
-        this.payloadDeserializerClass = null;
-        return this;
+        return super.payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -77,9 +80,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializer = null;
-        this.payloadDeserializerClass = payloadDeserializerClass;
-        return this;
+        return super.payloadDeserializerClass(payloadDeserializerClass);
     }
 
     /**
@@ -87,27 +88,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the source
      */
     public NatsSource<OutputT> build() {
-        if (payloadDeserializer == null) {
-            if (payloadDeserializerClass == null) {
-                throw new IllegalStateException("Valid payload deserializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadDeserializer = (PayloadDeserializer<OutputT>) Class.forName(payloadDeserializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        // Validate subjects
-        if (subjects == null || subjects.isEmpty()) {
-            throw new IllegalStateException("Subjects list is empty. At least one subject must be provided.");
-        }
-
-        baseBuild(true);
-        return new NatsSource<>(payloadDeserializer, createConnectionFactory(), subjects);
+        beforeBuild();
+        return new NatsSource<>(payloadDeserializer, connectionFactory, subjects);
     }
 }

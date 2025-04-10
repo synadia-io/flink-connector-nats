@@ -429,8 +429,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
         );
 
         NatsSubjectSplitReader reader = new NatsSubjectSplitReader(
-                "test-source",
-                failingFactory,
+            failingFactory,
                 sourceConfig
         );
 
@@ -495,8 +494,7 @@ class NatsSubjectSplitReaderTest extends TestBase {
             );
 
             NatsSubjectSplitReader reader = new NatsSubjectSplitReader(
-                    "test-source",
-                    mockFactory,
+                mockFactory,
                     sourceConfig
             );
 
@@ -569,6 +567,6 @@ class NatsSubjectSplitReaderTest extends TestBase {
      * Helper method to create a NatsSubjectSplitReader with a given connection
      */
     private NatsSubjectSplitReader createReader(String url, NatsJetStreamSourceConfiguration njssConfig) {
-        return new NatsSubjectSplitReader(SOURCE_ID, new ConnectionFactory(defaultConnectionProperties(url)), njssConfig);
+        return new NatsSubjectSplitReader(new ConnectionFactory(defaultConnectionProperties(url)), njssConfig);
     }
 }

@@ -27,27 +27,25 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
 
     NatsJetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer, ConnectionFactory connectionFactory, List<String> subjects,
                         NatsJetStreamSourceConfiguration sourceConfiguration) {
-        super(payloadDeserializer, connectionFactory, subjects, NatsJetStreamSource.class);
+        super(payloadDeserializer, connectionFactory, subjects);
         id = generateId();
         this.sourceConfiguration = sourceConfiguration;
     }
 
     @Override
     public Boundedness getBoundedness() {
-        logger.debug("{} | Boundedness", id);
         return sourceConfiguration.getBoundedness(); // TODO this varies from NatsSource, understand why
     }
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
         Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =
-            () -> new NatsSubjectSplitReader(id, connectionFactory, sourceConfiguration);
+            () -> new NatsSubjectSplitReader(connectionFactory, sourceConfiguration);
 
         NatsJetStreamSourceFetcherManager fetcherManager =
             new NatsJetStreamSourceFetcherManager(splitReaderSupplier, readerContext.getConfiguration());
 
         return new NatsJetStreamSourceReader<>(
-            id,
             fetcherManager,
             sourceConfiguration,
             payloadDeserializer,

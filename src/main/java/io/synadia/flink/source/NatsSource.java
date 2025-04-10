@@ -14,8 +14,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,26 +33,15 @@ public class NatsSource<OutputT> implements
     protected final List<String> subjects;
     protected final PayloadDeserializer<OutputT> payloadDeserializer;
     protected final ConnectionFactory connectionFactory;
-    protected final Logger logger;
-
-    NatsSource(PayloadDeserializer<OutputT> payloadDeserializer,
-               ConnectionFactory connectionFactory,
-               List<String> subjects)
-    {
-        this(payloadDeserializer, connectionFactory, subjects, NatsSource.class);
-    }
 
     protected NatsSource(PayloadDeserializer<OutputT> payloadDeserializer,
-                         ConnectionFactory connectionFactory,
-                         List<String> subjects,
-                         Class<?> logClazz)
+               ConnectionFactory connectionFactory,
+               List<String> subjects)
     {
         id = generateId();
         this.subjects = subjects;
         this.payloadDeserializer = payloadDeserializer;
         this.connectionFactory = connectionFactory;
-        logger = LoggerFactory.getLogger(logClazz.getCanonicalName()); // done this way to get full package path - needed to
-        logger.debug("{} | Init {}", id, subjects);
     }
 
     @Override
@@ -66,7 +53,6 @@ public class NatsSource<OutputT> implements
     public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
         SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception
     {
-        logger.debug("{} | createEnumerator", id);
         List<NatsSubjectSplit> list = new ArrayList<>();
         for (String subject : subjects) {
             list.add(new NatsSubjectSplit(subject));
@@ -79,26 +65,22 @@ public class NatsSource<OutputT> implements
         SplitEnumeratorContext<NatsSubjectSplit> enumContext,
         Collection<NatsSubjectSplit> checkpoint)
     {
-        logger.debug("{} | restoreEnumerator", id);
-        return new NatsSourceEnumerator<>(id, enumContext, checkpoint);
+        return new NatsSourceEnumerator<>(enumContext, checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<NatsSubjectSplit> getSplitSerializer() {
-        logger.debug("{} | getSplitSerializer", id);
         return new NatsSubjectSplitSerializer();
     }
 
     @Override
     public SimpleVersionedSerializer<Collection<NatsSubjectSplit>> getEnumeratorCheckpointSerializer() {
-        logger.debug("{} | getEnumeratorCheckpointSerializer", id);
         return new NatsSubjectCheckpointSerializer();
     }
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        logger.debug("{} | createReader", id);
-        return new NatsSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext);
+        return new NatsSourceReader<>(connectionFactory, payloadDeserializer, readerContext);
     }
 
     @Override

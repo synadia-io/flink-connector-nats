@@ -7,31 +7,22 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEnumerator<SplitT, Collection<SplitT>> {
-    private static final Logger LOG = LoggerFactory.getLogger(NatsSourceEnumerator.class);
-
-    private final String id;
     private final SplitEnumeratorContext<SplitT> context;
     private final Queue<SplitT> remainingSplits;
     private List<List<SplitT>> precomputedSplitAssignments;
 
-    public NatsSourceEnumerator(String sourceId,
-                                SplitEnumeratorContext<SplitT> context,
+    public NatsSourceEnumerator(SplitEnumeratorContext<SplitT> context,
                                 Collection<SplitT> splits) {
-        id = generatePrefixedId(sourceId);
         this.context = checkNotNull(context);
         this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
         this.precomputedSplitAssignments = Collections.synchronizedList(new LinkedList<>());
-        LOG.debug("{} | init {}", id, remainingSplits);
     }
 
     @Override
@@ -71,13 +62,11 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
             }
         }
 
-        LOG.debug("{} | Precomputed split assignments: {}", id, splitAssignments);
         return splitAssignments;
     }
 
     @Override
     public void close() {
-        LOG.debug("{} | close", id);
         // remove precomputed split assignments if any
         precomputedSplitAssignments.clear();
     }
@@ -87,7 +76,6 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
         int size = precomputedSplitAssignments.size();
 
         if (size == 0) {
-            LOG.debug("{} | No more splits available for subtask {}", id, subtaskId);
             context.signalNoMoreSplits(subtaskId);
         } else {
             // O(1) operation with LinkedList
@@ -95,12 +83,10 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
             // and assign splits to subtask
             List<SplitT> splits = precomputedSplitAssignments.remove(0);
             if (splits.isEmpty()) {
-                LOG.debug("{} | Empty split assignment for subtask {}", id, subtaskId);
                 context.signalNoMoreSplits(subtaskId);
             } else {
 
                 // Assign splits to subtask
-                LOG.debug("{} | Assigning splits {} to subtask {}", id, splits, subtaskId);
                 context.assignSplits(new SplitsAssignment<>(Map.of(subtaskId, splits)));
             }
         }
@@ -109,12 +95,10 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
     @Override
     public void addSplitsBack(List<SplitT> splits, int subtaskId) {
         remainingSplits.addAll(splits);
-        LOG.debug("{} | addSplitsBack IN {} {}", id, subtaskId, remainingSplits);
     }
 
     @Override
     public void addReader(int subtaskId) {
-        LOG.debug("{} | addReader {}", id, subtaskId);
         handleSplitRequest(subtaskId, null);
     }
 

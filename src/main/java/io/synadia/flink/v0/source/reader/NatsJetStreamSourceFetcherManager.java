@@ -10,8 +10,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcher;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,8 +22,6 @@ public class NatsJetStreamSourceFetcherManager
     extends SplitFetcherManager<Message, NatsSubjectSplit>
     implements Supplier<SplitReader<Message, NatsSubjectSplit>>
 {
-    private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceFetcherManager.class);
-
     private final Map<String, Integer> splitFetcherMapping = new HashMap<>();
     private final Map<Integer, Boolean> fetcherStatus = new HashMap<>();
 
@@ -88,10 +84,8 @@ public class NatsJetStreamSourceFetcherManager
 
     public void acknowledgeMessages(Map<String, List<Message>> cursorsToCommit)
             throws Exception { //TODO Change to nats exception
-        LOG.debug("Acknowledge messages {}", cursorsToCommit);
 
         for (Map.Entry<String, List<Message>> entry : cursorsToCommit.entrySet()) {
-            LOG.debug("No of messages to ack: {}", entry.getValue().size());
 
             String splitId = entry.getKey();
             SplitFetcher<Message, NatsSubjectSplit> fetcher = getOrCreateFetcher(splitId);

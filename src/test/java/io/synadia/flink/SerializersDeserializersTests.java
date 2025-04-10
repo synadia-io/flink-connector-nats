@@ -11,7 +11,6 @@ import io.synadia.flink.enumerator.NatsSubjectSourceEnumeratorState;
 import io.synadia.flink.helpers.WordCount;
 import io.synadia.flink.helpers.WordCountDeserializer;
 import io.synadia.flink.helpers.WordCountSerializer;
-import io.synadia.flink.payload.MessageRecord;
 import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.payload.StringPayloadSerializer;
 import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
@@ -190,31 +189,31 @@ public class SerializersDeserializersTests extends TestBase {
         String subject = "validateStringPayload";
         byte[] bytes = PLAIN_ASCII.getBytes();
 
-        MessageRecord p = toPayload(subject, bytes);
+        Message m = toMessage(subject, bytes);
 
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(m));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(m));
 
         bytes = spsAscii.getBytes(PLAIN_ASCII);
-        p = toPayload(subject, bytes);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        m = toMessage(subject, bytes);
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(m));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(m));
 
         bytes = spsUtf8.getBytes(PLAIN_ASCII);
-        p = toPayload(subject, bytes);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        m = toMessage(subject, bytes);
+        assertEquals(PLAIN_ASCII, spdAscii.getObject(m));
+        assertEquals(PLAIN_ASCII, spdUtf8.getObject(m));
 
         for (String data : UTF8_TEST_STRINGS) {
             bytes = data.getBytes(StandardCharsets.UTF_8);
-            p = toPayload("utf-data-1", bytes);
-            assertNotEquals(data, spdAscii.getObject(p));
-            assertEquals(data, spdUtf8.getObject(p));
+            m = toMessage("utf-data-1", bytes);
+            assertNotEquals(data, spdAscii.getObject(m));
+            assertEquals(data, spdUtf8.getObject(m));
 
             bytes = spsUtf8.getBytes(data);
-            p = toPayload("utf-data-2", bytes);
-            assertNotEquals(data, spdAscii.getObject(p));
-            assertEquals(data, spdUtf8.getObject(p));
+            m = toMessage("utf-data-2", bytes);
+            assertNotEquals(data, spdAscii.getObject(m));
+            assertEquals(data, spdUtf8.getObject(m));
         }
     }
 
@@ -227,12 +226,13 @@ public class SerializersDeserializersTests extends TestBase {
             byte[] bytes = ser.getBytes(wc);
             WordCount wc2 = new WordCount(bytes);
             assertEquals(wc, wc2);
-            wc2 = dser.getObject(toPayload("testCustomPayload", bytes));
+            wc2 = dser.getObject(toMessage("testCustomPayload", bytes));
             assertEquals(wc, wc2);
         }
     }
 
-    private static MessageRecord toPayload(String subject, byte[] bytes) {
-        return new MessageRecord(new NatsMessage(subject, null, bytes));
+    private static Message toMessage(String subject, byte[] bytes) {
+        //noinspection DataFlowIssue
+        return new NatsMessage(subject, null, null, bytes);
     }
 }

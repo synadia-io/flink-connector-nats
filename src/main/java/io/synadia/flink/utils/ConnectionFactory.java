@@ -7,41 +7,27 @@ import io.nats.client.Connection;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ConnectionFactory implements Serializable {
-    static String[] JSO_PROPERTY_PREFIXES = new String[]{PropertiesUtils.NO_PREFIX, Constants.NATS_PREFIX};
-
     private final Properties connectionProperties;
     private final String connectionPropertiesFile;
-    private final long minConnectionJitter;
-    private final long maxConnectionJitter;
 
     public ConnectionFactory(Properties connectionProperties) {
-        this(connectionProperties, null, 0, 0);
-    }
-
-    public ConnectionFactory(Properties connectionProperties, long minConnectionJitter, long maxConnectionJitter) {
-        this(connectionProperties, null, minConnectionJitter, maxConnectionJitter);
+        this.connectionProperties = connectionProperties;
+        this.connectionPropertiesFile = null;
     }
 
     public ConnectionFactory(String connectionPropertiesFile) {
-        this(null, connectionPropertiesFile, 0, 0);
-    }
-
-    public ConnectionFactory(String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
-        this(null, connectionPropertiesFile, minConnectionJitter, maxConnectionJitter);
-    }
-
-    public ConnectionFactory(Properties connectionProperties, String connectionPropertiesFile, long minConnectionJitter, long maxConnectionJitter) {
-        this.connectionProperties = connectionProperties;
+        this.connectionProperties = null;
         this.connectionPropertiesFile = connectionPropertiesFile;
-        this.minConnectionJitter = minConnectionJitter;
-        this.maxConnectionJitter = maxConnectionJitter;
     }
 
     public Connection connect() throws IOException {
@@ -49,17 +35,24 @@ public class ConnectionFactory implements Serializable {
     }
 
     public ConnectionContext connectContext() throws IOException {
-        Options.Builder builder = new Options.Builder();
         Properties props = connectionProperties;
         if (connectionPropertiesFile != null) {
             props = PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
         }
-        builder = builder.properties(props);
+
+        long jitter = PropertiesUtils.getLongProperty(props, Constants.CONNECT_JITTER, 0);
+        if (jitter > 0) {
+            try {
+                long sleep = ThreadLocalRandom.current().nextLong(jitter) + 1;
+                Thread.sleep(sleep);
+            }
+            catch (InterruptedException e) {
+                throw new FlinkRuntimeException(e);
+            }
+        }
 
         try {
-            Options options = builder.maxReconnects(0).build();
-            PropertiesUtils.jitter(minConnectionJitter, maxConnectionJitter);
-
+            Options options = getOptions(props);
             return new ConnectionContext(Nats.connect(options), getJetStreamOptions(props));
         }
         catch (Exception e) {
@@ -67,18 +60,22 @@ public class ConnectionFactory implements Serializable {
         }
     }
 
-    private JetStreamOptions getJetStreamOptions(Properties props) throws IOException {
+    private static Options getOptions(Properties props) {
+        return Options.builder().properties(props).maxReconnects(0).build();
+    }
+
+    private static JetStreamOptions getJetStreamOptions(Properties props) {
         JetStreamOptions.Builder b = JetStreamOptions.builder();
-        long rtMillis = PropertiesUtils.getLongProperty(props, Constants.JSO_REQUEST_TIMEOUT, 0, JSO_PROPERTY_PREFIXES);
+        long rtMillis = PropertiesUtils.getLongProperty(props, Constants.JSO_REQUEST_TIMEOUT, 0);
         if (rtMillis > 0) {
             b.requestTimeout(Duration.ofMillis(rtMillis));
         }
-        String temp = PropertiesUtils.getStringProperty(props, Constants.JSO_PREFIX, JSO_PROPERTY_PREFIXES);
+        String temp = PropertiesUtils.getStringProperty(props, Constants.JSO_PREFIX);
         if (temp != null) {
             b.prefix(temp);
         }
         else {
-            temp = PropertiesUtils.getStringProperty(props, Constants.JSO_DOMAIN, JSO_PROPERTY_PREFIXES);
+            temp = PropertiesUtils.getStringProperty(props, Constants.JSO_DOMAIN);
             if (temp != null) {
                 b.domain(temp);
             }
@@ -102,31 +99,27 @@ public class ConnectionFactory implements Serializable {
         return connectionPropertiesFile;
     }
 
-    /**
-     * Get the min jitter setting
-     * @return the min jitter
-     */
-    public long getMinConnectionJitter() {
-        return minConnectionJitter;
-    }
-
-    /**
-     * Get the max jitter setting
-     * @return the max jitter
-     */
-    public long getMaxConnectionJitter() {
-        return maxConnectionJitter;
+    @Override
+    public String toString() {
+        return connectionPropertiesFile == null
+            ? ("connectionProperties=" + connectionProperties)
+            : ("connectionPropertiesFile='" + connectionPropertiesFile + '\'');
     }
 
     @Override
-    public String toString() {
-        String c = connectionPropertiesFile == null
-            ? ("connectionProperties=" + connectionProperties)
-            : ("connectionPropertiesFile='" + connectionPropertiesFile + '\'');
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ConnectionFactory)) return false;
 
-        return "ConnectionFactory{" + c +
-            ", minConnectionJitter=" + minConnectionJitter +
-            ", maxConnectionJitter=" + maxConnectionJitter +
-            '}';
+        ConnectionFactory that = (ConnectionFactory) o;
+        return Objects.equals(connectionProperties, that.connectionProperties)
+            && Objects.equals(connectionPropertiesFile, that.connectionPropertiesFile);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(connectionProperties);
+        result = 31 * result + Objects.hashCode(connectionPropertiesFile);
+        return result;
     }
 }

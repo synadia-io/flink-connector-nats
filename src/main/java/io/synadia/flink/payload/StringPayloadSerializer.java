@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
@@ -20,14 +21,23 @@ public class StringPayloadSerializer implements PayloadSerializer<String> {
     private transient Charset charset;
 
     /**
-     * Construct a StringPayloadSerializer for the default character set, UTF-8
+     * Construct a StringPayloadSerializer with the default character set, UTF-8
      */
     public StringPayloadSerializer() {
-        this("UTF-8");
+        this(StandardCharsets.UTF_8);
     }
 
     /**
-     * Construct a StringPayloadSerializer for the provided character set.
+     * Construct a StringPayloadSerializer with the supplied charset
+     * @param charset the charset
+     */
+    public StringPayloadSerializer(Charset charset) {
+        this.charset = charset;
+        charsetName = charset.name();
+    }
+
+    /**
+     * Construct a StringPayloadSerializer with the provided character set.
      * @param  charsetName
      *         The name of the requested charset; may be either
      *         a canonical name or an alias
@@ -40,9 +50,7 @@ public class StringPayloadSerializer implements PayloadSerializer<String> {
      *          in this instance of the Java virtual machine
      */
     public StringPayloadSerializer(String charsetName) {
-        Charset tempInCaseException = Charset.forName(charsetName);
-        this.charsetName = charsetName;
-        this.charset = tempInCaseException;
+        this(Charset.forName(charsetName));
     }
 
     /**

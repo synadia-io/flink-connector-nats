@@ -3,6 +3,7 @@
 
 package io.synadia.flink.payload;
 
+import io.nats.client.Message;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
@@ -18,19 +20,27 @@ import java.nio.charset.UnsupportedCharsetException;
 public class StringPayloadDeserializer implements PayloadDeserializer<String> {
     private static final long serialVersionUID = 1L;
 
+    private transient Charset charset;
     private final String charsetName;
 
-    private transient Charset charset;
-
     /**
-     * Construct a StringPayloadDeserializer for the default character set, UTF-8
+     * Construct a StringPayloadDeserializer with the default character set, UTF-8
      */
     public StringPayloadDeserializer() {
-        this("UTF-8");
+        this(StandardCharsets.UTF_8);
     }
 
     /**
-     * Construct a StringPayloadDeserializer for the provided character set.
+     * Construct a StringPayloadDeserializer with the supplied charset
+     * @param charset the charset
+     */
+    public StringPayloadDeserializer(Charset charset) {
+        this.charset = charset;
+        charsetName = charset.name();
+    }
+
+    /**
+     * Construct a StringPayloadDeserializer with the provided character set.
      * @param  charsetName
      *         The name of the requested charset; may be either
      *         a canonical name or an alias
@@ -43,17 +53,15 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      *          in this instance of the Java virtual machine
      */
     public StringPayloadDeserializer(String charsetName) {
-        Charset tempInCaseException = Charset.forName(charsetName);
-        this.charsetName = charsetName;
-        this.charset = tempInCaseException;
+        this(Charset.forName(charsetName));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public String getObject(MessageRecord record) {
-        byte[] input = record.message.getData();
+    public String getObject(Message message) {
+        byte[] input = message.getData();
         if (input == null || input.length == 0) {
             return "";
         }

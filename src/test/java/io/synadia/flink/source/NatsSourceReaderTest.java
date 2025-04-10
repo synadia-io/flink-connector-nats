@@ -184,8 +184,7 @@ class NatsSourceReaderTest extends TestBase {
         }
 
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                "test-source",
-                failingFactory,
+            failingFactory,
                 new StringPayloadDeserializer(),
                 mock(SourceReaderContext.class)
         );
@@ -229,8 +228,7 @@ class NatsSourceReaderTest extends TestBase {
     void testSourceEvents() {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                sourceId,
-                mock(ConnectionFactory.class),
+            mock(ConnectionFactory.class),
                 new StringPayloadDeserializer(),
                 mock(SourceReaderContext.class)
         );
@@ -255,8 +253,7 @@ class NatsSourceReaderTest extends TestBase {
     void testNotifyNoMoreSplits() {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                sourceId,
-                mock(ConnectionFactory.class),
+            mock(ConnectionFactory.class),
                 new StringPayloadDeserializer(),
                 mock(SourceReaderContext.class)
         );
@@ -273,8 +270,7 @@ class NatsSourceReaderTest extends TestBase {
     // Helper method to create reader with specific context
     private NatsSourceReader<String> createReader(String url, SourceReaderContext context) {
         return new NatsSourceReader<>(
-                "test-source",
-                new ConnectionFactory(defaultConnectionProperties(url)),
+            new ConnectionFactory(defaultConnectionProperties(url)),
                 new StringPayloadDeserializer(),
                 context
         );

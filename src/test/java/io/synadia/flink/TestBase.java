@@ -270,6 +270,17 @@ public class TestBase {
         }
     }
 
+    public static InputStream resourceAsStream(String fileName) {
+        try {
+            ClassLoader classLoader = TestBase.class.getClassLoader();
+            //noinspection DataFlowIssue
+            return classLoader.getResource(fileName).openStream();
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static void sleep(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) { /* ignored */ }
     }

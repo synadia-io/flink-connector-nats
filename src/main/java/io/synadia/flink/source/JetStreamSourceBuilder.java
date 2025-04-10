@@ -3,28 +3,31 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
+import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<JetStreamSourceBuilder<OutputT>> {
-    private PayloadDeserializer<OutputT> payloadDeserializer;
-    private String payloadDeserializerClass;
-    private int messageQueueCapacity = Constants.DEFAULT_ELEMENT_QUEUE_CAPACITY;
-    private Configuration configuration;
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.MiscUtils.getInputStream;
+import static io.synadia.flink.utils.MiscUtils.readAllBytes;
+import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
+
+public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
 
     public JetStreamSourceBuilder() {
-        super(Constants.SOURCE_PREFIX);
+        super(false, false);
     }
 
     @Override
@@ -33,19 +36,48 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
     }
 
     /**
-     * Set source properties from a properties object
+     * Set source configuration from a properties file
      * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * @param propertiesFilePath the location of the file
      * @return the builder
      */
-    public JetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        baseProperties(properties);
+    public JetStreamSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
+        return properties(loadPropertiesFromFile(propertiesFilePath));
+    }
 
-        String s = PropertiesUtils.getStringProperty(properties, Constants.PAYLOAD_DESERIALIZER, prefixes);
-        if (s != null) {
-            payloadDeserializerClass(s);
+    /**
+     * Set source configuration from a json file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is an
+     */
+    public JetStreamSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
+        JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
+        JsonValue jvConfigs = JsonValueUtils.readObject(jv, JETSTREAM_SUBJECT_CONFIGURATIONS);
+        if (jvConfigs != null && jvConfigs.type == JsonValue.Type.ARRAY) {
+            for (JsonValue config : jvConfigs.array) {
+                addSubjectConfigurations(JetStreamSubjectConfiguration.fromJsonValue(config));
+            }
         }
-        return this;
+        return jsonValue(jv);
+    }
+
+    /**
+     * Set source configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is an
+     */
+    public JetStreamSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
+        Yaml yaml = new Yaml();
+        Map<String, Object> map = yaml.load(getInputStream(yamlFilePath));
+        List<Map<String, Object>> mapConfigs = YamlUtils.readArray(map, JETSTREAM_SUBJECT_CONFIGURATIONS);
+        if (mapConfigs != null) {
+            for (Map<String, Object> config : mapConfigs) {
+                addSubjectConfigurations(JetStreamSubjectConfiguration.fromMap(config));
+            }
+        }
+        return yamlMap(map);
     }
 
     /**
@@ -54,9 +86,7 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
      * @return the builder
      */
     public JetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        this.payloadDeserializer = payloadDeserializer;
-        this.payloadDeserializerClass = null;
-        return this;
+        return super.payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -65,19 +95,7 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
      * @return the builder
      */
     public JetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializer = null;
-        this.payloadDeserializerClass = payloadDeserializerClass;
-        return this;
-    }
-
-    public JetStreamSourceBuilder<OutputT> messageQueueCapacity(int messageQueueCapacity) {
-        this.messageQueueCapacity = messageQueueCapacity < 1 ? Constants.DEFAULT_ELEMENT_QUEUE_CAPACITY : messageQueueCapacity;
-        return this;
-    }
-
-    public JetStreamSourceBuilder<OutputT> configuration(Configuration configuration) {
-        this.configuration = configuration;
-        return this;
+        return super.payloadDeserializerClass(payloadDeserializerClass);
     }
 
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {
@@ -94,7 +112,7 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
                 if (subjectConfiguration != null) {
-                    configById.put(subjectConfiguration.configId, subjectConfiguration);
+                    configById.put(subjectConfiguration.id, subjectConfiguration);
                 }
             }
         }
@@ -105,7 +123,7 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
                 if (subjectConfiguration != null) {
-                    configById.put(subjectConfiguration.configId, subjectConfiguration);
+                    configById.put(subjectConfiguration.id, subjectConfiguration);
                 }
             }
         }
@@ -113,24 +131,10 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
     }
 
     public JetStreamSource<OutputT> build() {
-        if (payloadDeserializer == null) {
-            if (payloadDeserializerClass == null) {
-                throw new IllegalStateException("Valid payload deserializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadDeserializer = (PayloadDeserializer<OutputT>) Class.forName(payloadDeserializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-        baseBuild(false);
+        beforeBuild();
 
         if (configById.isEmpty()) {
-            throw new IllegalStateException("At least 1 managed subject configuration is required");
+            throw new IllegalArgumentException("At least 1 managed subject configuration is required");
         }
 
         // check all the consume options of all the subject configs to
@@ -141,22 +145,10 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
                 boundedness = msc.boundedness;
             }
             else if (boundedness != msc.boundedness) {
-                throw new IllegalStateException("All boundedness must be the same.");
+                throw new IllegalArgumentException("All boundedness must be the same.");
             }
         }
 
-        if (configuration == null) {
-            configuration = new Configuration();
-        }
-        if (!configuration.contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
-            configuration.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, messageQueueCapacity);
-        }
-
-        return new JetStreamSource<>(
-            payloadDeserializer,
-            boundedness,
-            configById,
-            createConnectionFactory(),
-            configuration);
+        return new JetStreamSource<>(boundedness, configById, payloadDeserializer, connectionFactory);
     }
 }

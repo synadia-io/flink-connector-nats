@@ -13,15 +13,11 @@ import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
  * Flink Source to consume data from one or more NATS subjects
@@ -31,36 +27,20 @@ public class JetStreamSource<OutputT> implements
     Source<OutputT, JetStreamSplit, Collection<JetStreamSplit>>,
     ResultTypeQueryable<OutputT>
 {
-    protected final String id;
-    protected final PayloadDeserializer<OutputT> payloadDeserializer;
-    protected final Boundedness boundedness;
-    protected final Map<String, JetStreamSubjectConfiguration> configById;
-    protected final ConnectionFactory connectionFactory;
-    protected final Configuration configuration;
+    public final Boundedness boundedness;
+    public final Map<String, JetStreamSubjectConfiguration> configById;
+    public final PayloadDeserializer<OutputT> payloadDeserializer;
+    public final ConnectionFactory connectionFactory;
 
-    @Override
-    public String toString() {
-        return "JetStreamSource{" +
-            "id=" + id + '\'' +
-            ", payloadDeserializer=" + payloadDeserializer.getClass().getSimpleName() +
-            ", configById=" + configById +
-            ", connectionFactory=" + connectionFactory +
-            ", configuration=" + configuration +
-            '}';
-    }
-
-    public JetStreamSource(PayloadDeserializer<OutputT> payloadDeserializer,
-                           Boundedness boundedness,
-                           Map<String, JetStreamSubjectConfiguration> configById,
-                           ConnectionFactory connectionFactory,
-                           Configuration configuration)
+    JetStreamSource(Boundedness boundedness,
+                    Map<String, JetStreamSubjectConfiguration> configById,
+                    PayloadDeserializer<OutputT> payloadDeserializer,
+                    ConnectionFactory connectionFactory)
     {
-        id = generateId();
-        this.payloadDeserializer = payloadDeserializer;
         this.boundedness = boundedness;
-        this.configById = configById;
+        this.configById = Collections.unmodifiableMap(configById);
+        this.payloadDeserializer = payloadDeserializer;
         this.connectionFactory = connectionFactory;
-        this.configuration = configuration;
     }
 
     @Override
@@ -84,7 +64,7 @@ public class JetStreamSource<OutputT> implements
         SplitEnumeratorContext<JetStreamSplit> enumContext,
         Collection<JetStreamSplit> checkpoint)
     {
-        return new NatsSourceEnumerator<>(id, enumContext, checkpoint);
+        return new NatsSourceEnumerator<>(enumContext, checkpoint);
     }
 
     @Override
@@ -99,11 +79,20 @@ public class JetStreamSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, JetStreamSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new JetStreamSourceReader<>(id, boundedness, connectionFactory, payloadDeserializer, readerContext);
+        return new JetStreamSourceReader<>(boundedness, payloadDeserializer, connectionFactory, readerContext);
     }
 
     @Override
     public TypeInformation<OutputT> getProducedType() {
         return payloadDeserializer.getProducedType();
+    }
+
+    @Override
+    public String toString() {
+        return "JetStreamSource{" +
+            "payloadDeserializer=" + getClassName(payloadDeserializer) +
+            ", configById=" + configById +
+            ", connectionFactory=" + connectionFactory +
+            '}';
     }
 }

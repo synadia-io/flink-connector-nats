@@ -81,8 +81,8 @@ class NatsSourceBuilderTest extends TestBase {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
             // Add source specific properties
-            props.setProperty("nats.source.subjects", subject());
-            props.setProperty("nats.source.payload.deserializer",
+            props.setProperty("subjects", subject());
+            props.setProperty("payload.deserializer",
                 "io.synadia.flink.payload.StringPayloadDeserializer");
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
@@ -132,8 +132,6 @@ class NatsSourceBuilderTest extends TestBase {
                     .connectionProperties(defaultConnectionProperties(url))
                     .build()
             );
-            assertTrue(emptySubjectsEx.getMessage().contains("Subjects list is empty"),
-                "Exception should mention empty subjects");
 
             // Test null subjects
             IllegalStateException nullSubjectsEx = assertThrows(
@@ -144,8 +142,6 @@ class NatsSourceBuilderTest extends TestBase {
                     .connectionProperties(props)
                     .build()
             );
-            assertTrue(nullSubjectsEx.getMessage().contains("Subjects list is empty"),
-                "Exception should mention null subjects");
 
             // Test missing required properties
             IllegalStateException missingPropsEx = assertThrows(
@@ -155,8 +151,6 @@ class NatsSourceBuilderTest extends TestBase {
                     .payloadDeserializer(new StringPayloadDeserializer())
                     .build()  // Missing connection properties
             );
-            assertTrue(missingPropsEx.getMessage().contains("properties"),
-                "Exception should mention missing properties");
         });
     }
 

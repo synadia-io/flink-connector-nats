@@ -1,7 +1,7 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.examples.jetstream;
+package io.synadia.flink.examples;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
@@ -18,8 +18,6 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,9 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class JetStreamExample extends JetStreamExampleBase {
-    private static final Logger LOG = LoggerFactory.getLogger(JetStreamExample.class);
+import static io.synadia.flink.examples.JetStreamExampleHelper.*;
 
+public class JetStreamExample {
     // This job name is used by flink for management, including the naming
     // of threads, which might appear in logging.
     public static final String JOB_NAME = "jse";
@@ -61,12 +59,15 @@ public class JetStreamExample extends JetStreamExampleBase {
     public static final int MAX_MESSAGES_TO_READ = 0;
 
     public static void main(String[] args) throws Exception {
-        // Make a connection to use for the sink listener to prepare the stream for the sink
-        // When a message is put to the sink, the sink publishes to
-        // PROPS has key "io.nats.client.url" in it.
-        // See ExampleUtils.connect(...) for props usage.
-        Connection nc = ExampleUtils.connect(PROPS);
-        ExampleUtils.createOrReplaceStream(nc, SINK_STORAGE_TYPE, SINK_STREAM_NAME, SINK_SUBJECT);
+        // ==========================================================================================
+        // Setup
+        // ==========================================================================================
+        // Make a connection to use for setting up streams
+        // 1. We need data that the source will consume
+        // 2. We need a stream/subject for the sink to publish to
+        Connection nc = ExampleUtils.connect(CONNECTION_PROPS);
+        setupSinkStream(nc);
+        setupDataStreams(nc);
 
         // ==========================================================================================
         // Create a JetStream source
@@ -91,6 +92,7 @@ public class JetStreamExample extends JetStreamExampleBase {
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
             .ack(ACK)
             .buildWithSubject(SOURCE_A_SUBJECT);
+        System.out.println("JetStreamSubjectConfiguration" + subjectConfigurationA.toJson());
 
         // ------------------------------------------------------------------------------------------
         // A list of JetStreamSubjectConfiguration, multiple subjects for one stream.
@@ -103,6 +105,9 @@ public class JetStreamExample extends JetStreamExampleBase {
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
             .ack(ACK)
             .buildWithSubjects(SOURCE_B_SUBJECTS);
+        for (JetStreamSubjectConfiguration jssc : subjectConfigurationsB) {
+            System.out.println("JetStreamSubjectConfiguration" + jssc.toJson());
+        }
 
         // ------------------------------------------------------------------------------------------
         // The JetStreamSource
@@ -114,12 +119,11 @@ public class JetStreamExample extends JetStreamExampleBase {
         // When we published to these streams the data is in the form "data--<subject>--<num>"
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
-            .connectionProperties(PROPS)
+            .connectionProperties(CONNECTION_PROPS)
             .payloadDeserializer(new StringPayloadDeserializer())
             .addSubjectConfigurations(subjectConfigurationA)
             .addSubjectConfigurations(subjectConfigurationsB)
             .build();
-        LOG.info(source.toString());
 
         // ------------------------------------------------------------------------------------------
         // Create a JetStream sink
@@ -139,11 +143,11 @@ public class JetStreamExample extends JetStreamExampleBase {
         // This may or not be a real use-case, it's here for example.
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionProperties(PROPS)
+            .connectionProperties(CONNECTION_PROPS)
             .payloadSerializer(new StringPayloadSerializer())
             .subjects(SINK_SUBJECT)
             .build();
-        LOG.info(sink.toString());
+        System.out.println(sink.toString());
 
         // ------------------------------------------------------------------------------------------
         // Setup and start flink
@@ -224,6 +228,6 @@ public class JetStreamExample extends JetStreamExampleBase {
             .append(" (")
             .append(manualTotal)
             .append(")");
-        LOG.info(sb.toString());
+        System.out.println(sb);
     }
 }

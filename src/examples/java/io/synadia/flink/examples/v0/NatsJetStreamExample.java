@@ -12,8 +12,6 @@ import io.synadia.flink.utils.PropertiesUtils;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -24,19 +22,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-public class SourceToSinkJsExample {
+public class NatsJetStreamExample {
+
     public static void main(String[] args) throws Exception {
         // Load configuration from application.properties
-        Properties props = PropertiesUtils.loadPropertiesFromFile("src/examples/resources/application.properties");
+        Properties connectionProperties = PropertiesUtils
+            .loadPropertiesFromFile("src/examples/resources/connection.properties");
 
-        // Define static names loaded from properties
-        String sourceSubject = props.getProperty("source.JsSubject");
-        String sinkSubject = props.getProperty("sink.JsSubject");
-        String streamName = props.getProperty("source.stream");
-        String consumerName = props.getProperty("source.consumer");
+        String sourceSubject = "v0-subject";
+        String streamName = "v0-stream";
+        String consumerName = "v0-consumer";
+        String sinkSubject = "v0-sink";
 
         // Connect to NATS server
-        Connection nc = connect(props);
+        Connection nc = connect(connectionProperties);
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
@@ -44,7 +43,9 @@ public class SourceToSinkJsExample {
         createStream(jsm, streamName, sourceSubject);
 
         // Publish test messages to the source subject
-        publish(js, sourceSubject, 10);
+        for (int i = 0; i < 10; i++) {
+            js.publish(sourceSubject, ("Message " + i).getBytes());
+        }
 
         // Create a consumer for the JetStream source
         createConsumer(jsm, streamName, sourceSubject, consumerName);
@@ -53,7 +54,6 @@ public class SourceToSinkJsExample {
         final List<Message> syncList = Collections.synchronizedList(new ArrayList<>());
 
         // Configure the NATS JetStream Source
-        Properties connectionProperties = props;
         StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
         NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
                 .subjects(sourceSubject)
@@ -83,9 +83,6 @@ public class SourceToSinkJsExample {
                 .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                 .build();
         ds.sinkTo(sink);
-
-        // Configure Flink restart strategy
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
 
         // Execute Flink pipeline asynchronously
         env.executeAsync("JetStream Source-to-Sink Example");
@@ -144,14 +141,5 @@ public class SourceToSinkJsExample {
                 .build();
         jsm.addOrUpdateConsumer(streamName, consumerConfig);
         System.out.println("Consumer created: " + consumerName);
-    }
-
-    /**
-     * Publish a fixed number of test messages to the specified JetStream subject.
-     */
-    private static void publish(JetStream js, String subject, int count) throws Exception {
-        for (int i = 0; i < count; i++) {
-            js.publish(subject, ("Message " + i).getBytes());
-        }
     }
 }

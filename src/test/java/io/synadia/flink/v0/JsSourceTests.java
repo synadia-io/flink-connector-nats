@@ -16,8 +16,6 @@ import io.synadia.flink.sink.NatsSinkBuilder;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -102,7 +100,6 @@ public class JsSourceTests extends TestBase {
             ds.map(String::toUpperCase).sinkTo(sink);
 
             // Step 7: Set Flink restart strategy and execute the job asynchronously
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("TestJsSourceBounded");
 
             // Step 8: Wait for processing to complete
