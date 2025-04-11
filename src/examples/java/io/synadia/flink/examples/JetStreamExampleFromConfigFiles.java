@@ -73,7 +73,7 @@ public class JetStreamExampleFromConfigFiles {
         // Make a connection to use for setting up streams
         // 1. We need data that the source will consume
         // 2. We need a stream/subject for the sink to publish to
-        Connection nc = ExampleUtils.connect(CONNECTION_PROPS);
+        Connection nc = ExampleUtils.connect(ExampleUtils.CONNECTION_PROPS_FILE);
         setupSinkStream(nc);
         setupDataStreams(nc);
 
@@ -84,7 +84,7 @@ public class JetStreamExampleFromConfigFiles {
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source;
         JetStreamSourceBuilder<String> builder = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(CONNECTION_PROPS);
+            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE);
         if (USE_JSON_NOT_YAML) {
             source = builder.sourceJson(INPUT_FILE_JSON).build();
             System.out.println("Source as configured via JSON\n" + source.toJson());
@@ -112,7 +112,7 @@ public class JetStreamExampleFromConfigFiles {
         // This may or not be a real use-case, it's here for example.
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionPropertiesFile(CONNECTION_PROPS)
+            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
             .payloadSerializer(new StringPayloadSerializer())
             .subjects(SINK_SUBJECT)
             .build();

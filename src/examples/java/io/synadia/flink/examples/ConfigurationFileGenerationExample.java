@@ -3,6 +3,7 @@
 
 package io.synadia.flink.examples;
 
+import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.source.JetStreamSource;
 import io.synadia.flink.source.JetStreamSourceBuilder;
@@ -54,7 +55,7 @@ public abstract class ConfigurationFileGenerationExample {
             .buildWithSubjects(SOURCE_B_SUBJECTS);
 
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(CONNECTION_PROPS)
+            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
             .payloadDeserializer(new StringPayloadDeserializer())
             .addSubjectConfigurations(subjectConfigurationA)
             .addSubjectConfigurations(subjectConfigurationsB)
