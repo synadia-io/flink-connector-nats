@@ -162,7 +162,7 @@ class ConnectionFactoryTest extends TestBase {
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
-            props.setProperty(Constants.CONNECT_JITTER, "1000");
+            props.setProperty(PropertyConstants.CONNECT_JITTER, "1000");
             ConnectionFactory originalFactory = new ConnectionFactory(props);
 
             // Create multiple deserialized instances
@@ -170,7 +170,7 @@ class ConnectionFactoryTest extends TestBase {
             assertNotNull(deserialized);
 
             props = deserialized.getConnectionProperties();
-            assertEquals("1000", props.getProperty(Constants.CONNECT_JITTER));
+            assertEquals("1000", props.getProperty(PropertyConstants.CONNECT_JITTER));
 
             // Verify each instance can create valid connections
             for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {

@@ -10,22 +10,14 @@
       "stream_name": "StreamC",
       "subject": "SubjectC1",
       "consume_options": {
-        "threshold_percent": 25,
-        "bytes": 0,
-        "messages": 100,
-        "expires_in": 30000,
-        "idle_heartbeat": 15000
+        "messages": 100
       }
     },
     {
       "stream_name": "StreamC",
       "subject": "SubjectC2",
       "consume_options": {
-        "threshold_percent": 25,
-        "bytes": 0,
-        "messages": 100,
-        "expires_in": 30000,
-        "idle_heartbeat": 15000
+        "messages": 100
       }
     }
   ]

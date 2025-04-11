@@ -49,6 +49,10 @@ public class NatsSource<OutputT> implements
         return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
+    public List<String> getSubjects() {
+        return subjects;
+    }
+
     @Override
     public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
         SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception

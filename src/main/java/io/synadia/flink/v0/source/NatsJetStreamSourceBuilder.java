@@ -5,7 +5,8 @@ package io.synadia.flink.v0.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.BuilderBase;
-import io.synadia.flink.utils.Constants;
+import io.synadia.flink.utils.PropertiesUtils;
+import io.synadia.flink.utils.PropertyConstants;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
@@ -13,12 +14,15 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
+import static io.nats.client.support.ApiConstants.STREAM_NAME;
+
 public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsJetStreamSourceBuilder<OutputT>> {
+    public static final String CONSUMER_NAME = "consumer_name";
 
     long DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS = 1000;
-    int DEFAULT_MAX_FETCH_RECORDS = 100;
     long DEFAULT_FETCH_TIMEOUT_MS = 1000;
     long DEFAULT_AUTO_ACK_INTERVAL_MS = 5000;
+    int DEFAULT_MAX_FETCH_RECORDS = 100;
 
     private String consumerName;
     private String streamName;
@@ -36,12 +40,21 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
 
     /**
      * Set source properties from a properties object
-     * See the readme and {@link Constants} for property keys
+     * See the readme and {@link PropertyConstants} for property keys
      * @param properties the properties object
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        return super.properties(properties);
+        setBaseProperties(k -> PropertiesUtils.getStringProperty(properties, k));
+        String name = properties.getProperty(STREAM_NAME);
+        if (name != null) {
+            streamName(name);
+        }
+        name = properties.getProperty(CONSUMER_NAME);
+        if (name != null) {
+            consumerName(name);
+        }
+        return this;
     }
 
     /**
@@ -49,8 +62,8 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
      * @param subjects the subjects
      * @return the builder
      */
-    public NatsJetStreamSourceBuilder<OutputT> subjects(String... subjects) {
-        return super.subjects(subjects);
+    public NatsJetStreamSourceBuilder<OutputT> subject(String... subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -58,8 +71,8 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
      * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsJetStreamSourceBuilder<OutputT> subjects(List<String> subjects) {
-        return super.subjects(subjects);
+    public NatsJetStreamSourceBuilder<OutputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -68,7 +81,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        return super.payloadDeserializer(payloadDeserializer);
+        return super._payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -77,7 +90,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        return super.payloadDeserializerClass(payloadDeserializerClass);
+        return super._payloadDeserializerClass(payloadDeserializerClass);
     }
 
     @Override

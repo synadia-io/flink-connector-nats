@@ -5,10 +5,9 @@ package io.synadia.flink.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.BuilderBase;
-import io.synadia.flink.utils.Constants;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * Builder to construct {@link NatsSource}.
@@ -38,13 +37,35 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
     }
 
     /**
-     * Set source properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set source configuration from a properties file
+     * @param propertiesFilePath the location of the file
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        return super.properties(properties);
+    public NatsSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
+        return this;
+    }
+
+    /**
+     * Set source configuration from a json file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
+
+    /**
+     * Set source configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
+        return this;
     }
 
     /**
@@ -52,8 +73,8 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @param subjects the subjects
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> subjects(String... subjects) {
-        return super.subjects(subjects);
+    public NatsSourceBuilder<OutputT> subject(String... subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -61,8 +82,8 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> subjects(List<String> subjects) {
-        return super.subjects(subjects);
+    public NatsSourceBuilder<OutputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -71,7 +92,7 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        return super.payloadDeserializer(payloadDeserializer);
+        return super._payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -80,7 +101,7 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        return super.payloadDeserializerClass(payloadDeserializerClass);
+        return super._payloadDeserializerClass(payloadDeserializerClass);
     }
 
     /**

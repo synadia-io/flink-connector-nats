@@ -33,7 +33,10 @@ public abstract class PropertiesUtils {
      * @return the list represented by the key or an empty list if the key is not found
      */
     public static List<String> getPropertyAsList(Properties properties, String key) {
-        String val = getStringProperty(properties, key);
+        return getAsList(getStringProperty(properties, key));
+    }
+
+    public static List<String> getAsList(String val) {
         if (val == null) {
             return Collections.emptyList();
         }

@@ -10,12 +10,10 @@ import io.nats.client.JetStreamManagement;
 import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
 import io.synadia.flink.examples.support.ExampleUtils;
-import io.synadia.flink.utils.PropertiesUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -25,7 +23,6 @@ public class JetStreamExampleHelper {
 
     public static final String CONNECTION_PROPERTIES_FILE = "src/examples/resources/connection.properties";
 
-    public static final Properties CONNECTION_PROPS;
     public static final String SOURCE_A_STREAM = "source-a";
     public static final String SOURCE_B_STREAM = "source-b";
     public static final String SOURCE_A_SUBJECT = "ua";
@@ -44,22 +41,15 @@ public class JetStreamExampleHelper {
     public static final StorageType SINK_STORAGE_TYPE = StorageType.Memory;
 
     static {
-        try {
-            CONNECTION_PROPS = PropertiesUtils.loadPropertiesFromFile(CONNECTION_PROPERTIES_FILE);
-
-            SOURCES_TOTAL_SUBJECT_COUNT = SOURCE_A_MESSAGE_COUNT + SOURCE_B_MESSAGE_COUNTS.length;
-            int total = SOURCE_A_MESSAGE_COUNT;
-            int most = SOURCE_A_MESSAGE_COUNT;
-            for (int count : SOURCE_B_MESSAGE_COUNTS) {
-                total += count;
-                most = Math.max(most, count);
-            }
-            SOURCES_TOTAL_MESSAGES = total;
-            SOURCES_MOST_MESSAGES_ANY_SUBJECT = most;
+        SOURCES_TOTAL_SUBJECT_COUNT = SOURCE_A_MESSAGE_COUNT + SOURCE_B_MESSAGE_COUNTS.length;
+        int total = SOURCE_A_MESSAGE_COUNT;
+        int most = SOURCE_A_MESSAGE_COUNT;
+        for (int count : SOURCE_B_MESSAGE_COUNTS) {
+            total += count;
+            most = Math.max(most, count);
         }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        SOURCES_TOTAL_MESSAGES = total;
+        SOURCES_MOST_MESSAGES_ANY_SUBJECT = most;
     }
 
     public static void setupSinkStream(Connection nc) throws IOException, JetStreamApiException {

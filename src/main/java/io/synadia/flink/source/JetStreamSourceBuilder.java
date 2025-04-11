@@ -3,25 +3,19 @@
 
 package io.synadia.flink.source;
 
-import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.BuilderBase;
-import io.synadia.flink.utils.Constants;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
-import static io.synadia.flink.utils.MiscUtils.getInputStream;
-import static io.synadia.flink.utils.MiscUtils.readAllBytes;
-import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
+import static io.synadia.flink.utils.PropertyConstants.JETSTREAM_SUBJECT_CONFIGURATIONS;
 
 public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
@@ -36,48 +30,37 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
-     * Set source configuration from a properties file
-     * See the readme and {@link Constants} for property keys
-     * @param propertiesFilePath the location of the file
-     * @return the builder
-     */
-    public JetStreamSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
-        return properties(loadPropertiesFromFile(propertiesFilePath));
-    }
-
-    /**
      * Set source configuration from a json file
      * @param jsonFilePath the location of the file
      * @return the builder
-     * @throws IOException if there is an
+     * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
-        JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
+        JsonValue jv = fromJsonFile(jsonFilePath);
         JsonValue jvConfigs = JsonValueUtils.readObject(jv, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (jvConfigs != null && jvConfigs.type == JsonValue.Type.ARRAY) {
             for (JsonValue config : jvConfigs.array) {
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromJsonValue(config));
             }
         }
-        return jsonValue(jv);
+        return this;
     }
 
     /**
      * Set source configuration from a yaml file
      * @param yamlFilePath the location of the file
      * @return the builder
-     * @throws IOException if there is an
+     * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
-        Yaml yaml = new Yaml();
-        Map<String, Object> map = yaml.load(getInputStream(yamlFilePath));
+        Map<String, Object> map = fromYamlFile(yamlFilePath);
         List<Map<String, Object>> mapConfigs = YamlUtils.readArray(map, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (mapConfigs != null) {
             for (Map<String, Object> config : mapConfigs) {
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromMap(config));
             }
         }
-        return yamlMap(map);
+        return this;
     }
 
     /**
@@ -86,7 +69,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @return the builder
      */
     public JetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        return super.payloadDeserializer(payloadDeserializer);
+        return _payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -95,7 +78,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @return the builder
      */
     public JetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        return super.payloadDeserializerClass(payloadDeserializerClass);
+        return _payloadDeserializerClass(payloadDeserializerClass);
     }
 
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {

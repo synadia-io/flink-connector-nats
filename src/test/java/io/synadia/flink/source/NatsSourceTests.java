@@ -47,9 +47,9 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
-                .subjects(sourceSubject1, sourceSubject2)
+                .subject(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties);
+                .connectionPropertiesFile(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -90,9 +90,9 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             ByteArrayPayloadDeserializer deserializer = new ByteArrayPayloadDeserializer();
             NatsSourceBuilder<Byte[]> builder = new NatsSourceBuilder<Byte[]>()
-                .subjects(sourceSubject1, sourceSubject2)
+                .subject(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties);
+                .connectionPropertiesFile(connectionProperties);
 
             NatsSource<Byte[]> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -167,9 +167,9 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             HeaderAwareStringPayloadDeserializer deserializer = new HeaderAwareStringPayloadDeserializer();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
-                .subjects(sourceSubject1, sourceSubject2)
+                .subject(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties);
+                .connectionPropertiesFile(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -177,9 +177,9 @@ public class NatsSourceTests extends TestBase {
 
             final StringPayloadSerializer serializer = new StringPayloadSerializer();
             NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
-                .subjects(sinkSubject)
+                .subject(sinkSubject)
                 .payloadSerializer(serializer);
-            sinkBuilder.connectionProperties(connectionProperties);
+            sinkBuilder.connectionPropertiesFile(connectionProperties);
 
             NatsSink<String> sink = sinkBuilder.build();
 

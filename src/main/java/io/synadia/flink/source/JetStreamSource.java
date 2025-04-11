@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.reader.JetStreamSourceReader;
@@ -10,6 +11,7 @@ import io.synadia.flink.source.split.JetStreamCheckpointSerializer;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitSerializer;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -18,6 +20,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.util.*;
 
 import static io.synadia.flink.utils.MiscUtils.getClassName;
+import static io.synadia.flink.utils.PropertyConstants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
 
 /**
  * Flink Source to consume data from one or more NATS subjects
@@ -94,5 +98,47 @@ public class JetStreamSource<OutputT> implements
             ", configById=" + configById +
             ", connectionFactory=" + connectionFactory +
             '}';
+    }
+
+    public String toJson() {
+        JsonValueUtils.ArrayBuilder ba = JsonValueUtils.arrayBuilder();
+        for (String id : configById.keySet()) {
+            ba.add(configById.get(id).toJsonValue());
+        }
+        JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
+        bm.put(PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        bm.put(JETSTREAM_SUBJECT_CONFIGURATIONS, ba.jv);
+        return bm.jv.toJson();
+    }
+
+    public String toYaml() {
+        StringBuilder sb = YamlUtils.beginYaml();
+        YamlUtils.addField(sb, 0, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        YamlUtils.addField(sb, 0, JETSTREAM_SUBJECT_CONFIGURATIONS);
+        for (String id : configById.keySet()) {
+            sb.append(configById.get(id).toYaml(1));
+        }
+        return sb.toString();
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof JetStreamSource)) return false;
+
+        JetStreamSource<?> that = (JetStreamSource<?>) o;
+        return boundedness == that.boundedness
+            && configById.equals(that.configById)
+            && payloadDeserializer.getClass().equals(that.payloadDeserializer.getClass())
+            && Objects.equals(connectionFactory, that.connectionFactory);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(boundedness);
+        result = 31 * result + configById.hashCode();
+        result = 31 * result + Objects.hashCode(payloadDeserializer.getClass());
+        result = 31 * result + Objects.hashCode(connectionFactory);
+        return result;
     }
 }

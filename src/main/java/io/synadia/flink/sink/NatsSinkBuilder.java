@@ -5,10 +5,9 @@ package io.synadia.flink.sink;
 
 import io.synadia.flink.payload.PayloadSerializer;
 import io.synadia.flink.utils.BuilderBase;
-import io.synadia.flink.utils.Constants;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * Builder to construct {@link NatsSink}.
@@ -42,8 +41,8 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @param subjects the subjects
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> subjects(String... subjects) {
-        return super.subjects(subjects);
+    public NatsSinkBuilder<InputT> subject(String... subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -51,8 +50,8 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> subjects(List<String> subjects) {
-        return super.subjects(subjects);
+    public NatsSinkBuilder<InputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -61,7 +60,7 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @return the builder
      */
     public NatsSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        return super.payloadSerializer(payloadSerializer);
+        return super._payloadSerializer(payloadSerializer);
     }
 
     /**
@@ -70,17 +69,39 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @return the builder
      */
     public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        return super.payloadSerializerClass(payloadSerializerClass);
+        return super._payloadSerializerClass(payloadSerializerClass);
     }
 
     /**
-     * Set sink properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set sink configuration from a properties file
+     * @param propertiesFilePath the location of the file
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
-        return properties(properties);
+    public NatsSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
+        return this;
+    }
+
+    /**
+     * Set sink configuration from a json file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
+
+    /**
+     * Set sink configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
+        return this;
     }
 
     /**

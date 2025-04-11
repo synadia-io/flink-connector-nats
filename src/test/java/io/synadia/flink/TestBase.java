@@ -199,14 +199,14 @@ public class TestBase {
     public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
-            .subjects(subject)
+            .subject(subject)
             .payloadSerializer(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
         }
         else {
-            builder.connectionProperties(connectionProperties);
+            builder.connectionPropertiesFile(connectionProperties);
         }
         return builder.build();
     }
@@ -214,7 +214,7 @@ public class TestBase {
     public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final ByteArrayPayloadSerializer serializer = new ByteArrayPayloadSerializer();
         NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
-            .subjects(subject)
+            .subject(subject)
             .payloadSerializer(serializer);
 
         if (connectionProperties == null) {
@@ -223,7 +223,7 @@ public class TestBase {
             }
         }
         else {
-            builder.connectionProperties(connectionProperties);
+            builder.connectionPropertiesFile(connectionProperties);
         }
         return builder.build();
     }
@@ -238,7 +238,7 @@ public class TestBase {
             builder.connectionPropertiesFile(connectionPropertiesFile);
         }
         else {
-            builder.connectionProperties(connectionProperties);
+            builder.connectionPropertiesFile(connectionProperties);
         }
         return builder.build();
     }
@@ -317,5 +317,23 @@ public class TestBase {
         Object outObject = objectInputStream.readObject();
         objectInputStream.close();
         return outObject;
+    }
+
+    public static String writeToTempFile(String prefix, String ext, String text) throws IOException {
+        File f = File.createTempFile(prefix, ext);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
+            writer.write(text);
+            writer.flush();
+        }
+        return f.getAbsolutePath();
+    }
+
+    public static String writeToTempFile(String prefix, Properties props) throws IOException {
+        File f = File.createTempFile(prefix, ".properties");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
+            props.store(writer, null);
+            writer.flush();
+        }
+        return f.getAbsolutePath();
     }
 }

@@ -13,9 +13,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.support.ApiConstants.CONFIG;
+import static io.nats.client.support.ApiConstants.MSGS;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.utils.PropertyConstants.*;
 
 public class JetStreamSplit implements SourceSplit, JsonSerializable {
     public final AtomicReference<String> lastEmittedMessageReplyTo;

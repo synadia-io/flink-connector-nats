@@ -37,6 +37,10 @@ public class NatsJetStreamSource<OutputT> extends NatsSource<OutputT> {
         return sourceConfiguration.getBoundedness(); // TODO this varies from NatsSource, understand why
     }
 
+    public NatsJetStreamSourceConfiguration getSourceConfiguration() {
+        return sourceConfiguration;
+    }
+
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
         Supplier<SplitReader<Message, NatsSubjectSplit>> splitReaderSupplier =

@@ -56,9 +56,9 @@ public class NatsJetStreamExample {
         // Configure the NATS JetStream Source
         StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
         NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
-                .subjects(sourceSubject)
+                .subject(sourceSubject)
                 .payloadDeserializer(deserializer) // Deserialize messages from source
-                .connectionProperties(connectionProperties)
+                .connectionPropertiesFile(connectionProperties)
                 .streamName(streamName)
                 .consumerName(consumerName)
                 .maxFetchRecords(100)
@@ -78,8 +78,8 @@ public class NatsJetStreamExample {
 
         // Configure the NATS JetStream Sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
-                .subjects(sinkSubject)
-                .connectionProperties(connectionProperties)
+                .subject(sinkSubject)
+                .connectionPropertiesFile(connectionProperties)
                 .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                 .build();
         ds.sinkTo(sink);

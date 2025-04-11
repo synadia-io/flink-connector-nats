@@ -9,12 +9,18 @@ import io.synadia.flink.TestBase;
 import io.synadia.flink.payload.StringPayloadDeserializer;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
+import io.synadia.flink.v0.source.NatsJetStreamSourceConfiguration;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Properties;
 
+import static io.nats.client.support.ApiConstants.STREAM_NAME;
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.v0.source.NatsJetStreamSourceBuilder.CONSUMER_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit test for {@link NatsJetStreamSourceBuilder}. */
@@ -58,9 +64,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(streamConfig);
 
             NatsJetStreamSource<String> source = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("test-consumer")
                 .build();
@@ -93,6 +99,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
         runInJsServer((nc, url) -> {
             String streamName = stream();
             String subject = subject();
+            String consumer = name();
 
             // Create the stream first
             StreamConfiguration streamConfig = StreamConfiguration.builder()
@@ -104,20 +111,21 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(streamConfig);
 
             Properties props = defaultConnectionProperties(url);
-            props.setProperty("subjects", subject);
-            props.setProperty("payload.deserializer",
-                "io.synadia.flink.payload.StringPayloadDeserializer");
-            props.setProperty("stream.name", streamName);
-            props.setProperty("consumer.name", "test-consumer");
+            props.setProperty(SUBJECTS, subject);
+            props.setProperty(PAYLOAD_DESERIALIZER, STRING_PAYLOAD_DESERIALIZER_CLASSNAME);
+            props.setProperty(STREAM_NAME, streamName);
+            props.setProperty(CONSUMER_NAME, consumer);
 
             NatsJetStreamSource<String> source = new NatsJetStreamSourceBuilder<String>()
                 .sourceProperties(props)
-                .connectionProperties(props)
-                .consumerName("test-consumer")
-                .streamName(streamName)
+                .connectionPropertiesFile(props)
                 .build();
-
             assertNotNull(source, "Source built from properties should not be null");
+            assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, source.getBoundedness());
+
+            NatsJetStreamSourceConfiguration config = source.getSourceConfiguration();
+            assertEquals(streamName, config.getStreamName());
+            assertEquals(consumer, config.getConsumerName());
         });
     }
 
@@ -159,9 +167,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(streamConfig);
 
             NatsJetStreamSource<String> source = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("test-consumer")
                 .messageQueueCapacity(1000)
@@ -182,7 +190,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Stream name is a required setting for JetStream sources.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException
+     * - Should throw IllegalArgumentException
      * - Error message should mention missing stream name
      */
     @Test
@@ -191,12 +199,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .consumerName("test-consumer")
                     .build()
             );
@@ -210,21 +218,21 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Consumer name is a required setting for JetStream sources.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException
+     * - Should throw IllegalArgumentException
      * - Error message should mention missing consumer name
      */
     @Test
-    void testBuildValidationWithMissingConsumerName() throws Exception {
+    void testBuildValidationWithMissingDurableConsumerName() throws Exception {
         runInJsServer((nc, url) -> {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .build()
             );
@@ -238,7 +246,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * When auto-acknowledge is enabled, the interval must be positive.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException for zero interval
+     * - Should throw IllegalArgumentException for zero interval
      * - Error message should mention invalid interval
      */
     @Test
@@ -247,12 +255,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .consumerName("test-consumer")
                     .enableAutoAcknowledgeMessage(true)
@@ -269,7 +277,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Max fetch records must be positive when specified.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException for negative value
+     * - Should throw IllegalArgumentException for negative value
      * - Error message should mention invalid records count
      */
     @Test
@@ -278,12 +286,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .consumerName("test-consumer")
                     .maxFetchRecords(-1)  // Invalid record count
@@ -299,7 +307,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Queue capacity must be positive for proper buffer management.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException for zero capacity
+     * - Should throw IllegalArgumentException for zero capacity
      * - Error message should mention invalid queue capacity
      */
     @Test
@@ -308,12 +316,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .consumerName("test-consumer")
                     .messageQueueCapacity(0)  // Invalid capacity
@@ -329,7 +337,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Fetch timeout must be non-negative for message retrieval.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException for negative timeout
+     * - Should throw IllegalArgumentException for negative timeout
      * - Error message should mention invalid fetch timeout
      */
     @Test
@@ -338,12 +346,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .consumerName("test-consumer")
                     .fetchOneMessageTime(Duration.ofMillis(-1))  // Invalid timeout
@@ -360,7 +368,7 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
      * Max fetch time must be non-negative for bounded operations.
      *
      * Expected behavior:
-     * - Should throw IllegalStateException for negative time
+     * - Should throw IllegalArgumentException for negative time
      * - Error message should mention invalid fetch time
      */
     @Test
@@ -369,12 +377,12 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             String subject = subject();
             Properties props = defaultConnectionProperties(url);
 
-            IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsJetStreamSourceBuilder<String>()
-                    .subjects(subject)
+                    .subject(subject)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .streamName("test-stream")
                     .consumerName("test-consumer")
                     .maxFetchTime(Duration.ofMillis(-1))  // Invalid max fetch time
@@ -424,9 +432,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(memoryConfig);
 
             NatsJetStreamSource<String> memorySource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject1)
+                .subject(subject1)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(memoryStreamName)
                 .consumerName("memory-consumer")
                 .build();
@@ -447,9 +455,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
             nc.jetStreamManagement().addStream(fileConfig);
 
             NatsJetStreamSource<String> fileSource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject2)
+                .subject(subject2)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(fileStreamName)
                 .consumerName("file-consumer")
                 .build();
@@ -494,9 +502,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
 
             // Test auto-ack with different intervals
             NatsJetStreamSource<String> autoAckSource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("auto-ack-consumer")
                 .enableAutoAcknowledgeMessage(true)
@@ -507,9 +515,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
 
             // Test manual ack
             NatsJetStreamSource<String> manualAckSource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("manual-ack-consumer")
                 .enableAutoAcknowledgeMessage(false)
@@ -555,9 +563,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
 
             // Test bounded mode
             NatsJetStreamSource<String> boundedSource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("bounded-consumer")
                 .boundness(Boundedness.BOUNDED)
@@ -568,9 +576,9 @@ class NatsJetStreamSourceBuilderTest extends TestBase {
 
             // Test unbounded mode
             NatsJetStreamSource<String> unboundedSource = new NatsJetStreamSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .streamName(streamName)
                 .consumerName("unbounded-consumer")
                 .boundness(Boundedness.CONTINUOUS_UNBOUNDED)

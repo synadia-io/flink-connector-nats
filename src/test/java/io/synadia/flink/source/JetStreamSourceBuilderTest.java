@@ -4,43 +4,58 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.TestBase;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import static io.nats.client.support.JsonUtils.printFormatted;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit test for {@link JetStreamSourceBuilder}. */
 class JetStreamSourceBuilderTest extends TestBase {
-   @Test
-    void testConstruction() throws Exception {
 
-      JetStreamSource<String> jsonSource = new JetStreamSourceBuilder<String>()
-          .connectionPropertiesFile("src/test/resources/connection.properties")
-          .sourceJson("src/test/resources/sourceA.json")
-          .build();
+    public static final String CONNECTION_PROPERTIES_FILE = "src/test/resources/connection.properties";
 
-      JetStreamSource<String> yamlSource = new JetStreamSourceBuilder<String>()
-          .connectionPropertiesFile("src/test/resources/connection.properties")
-          .sourceYaml("src/test/resources/sourceA.yaml")
-          .build();
+    @ParameterizedTest
+    @ValueSource(strings = {"sourceA", "sourceBC"})
+    void testConstruction(String which) throws Exception {
+        String jsonSourceFile = "src/test/resources/" + which + ".json";
+        String yamlSourceFile = "src/test/resources/" + which + ".yaml";
+        JetStreamSource<String> jsonSource = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(CONNECTION_PROPERTIES_FILE)
+            .sourceJson(jsonSourceFile)
+            .build();
 
-      assertEquals(jsonSource.boundedness, yamlSource.boundedness);
-      assertEquals(jsonSource.configById, yamlSource.configById);
-      assertEquals(jsonSource.payloadDeserializer.getClass(), yamlSource.payloadDeserializer.getClass());
-      assertEquals(jsonSource.connectionFactory, yamlSource.connectionFactory);
+        JetStreamSource<String> yamlSource = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(CONNECTION_PROPERTIES_FILE)
+            .sourceYaml(yamlSourceFile)
+            .build();
 
-      jsonSource = new JetStreamSourceBuilder<String>()
-          .connectionPropertiesFile("src/test/resources/connection.properties")
-          .sourceJson("src/test/resources/sourceBC.json")
-          .build();
+        printFormatted(yamlSource.toJson());
+        System.out.println(yamlSource.toYaml());
 
-      yamlSource = new JetStreamSourceBuilder<String>()
-          .connectionPropertiesFile("src/test/resources/connection.properties")
-          .sourceYaml("src/test/resources/sourceBC.yaml")
-          .build();
+        String jsonFile = writeToTempFile("JetStreamSource", ".json)", yamlSource.toJson());
+        String yamlFile = writeToTempFile("JetStreamSource", ".yaml)", yamlSource.toYaml());
 
-      assertEquals(jsonSource.boundedness, yamlSource.boundedness);
-      assertEquals(jsonSource.configById, yamlSource.configById);
-      assertEquals(jsonSource.payloadDeserializer.getClass(), yamlSource.payloadDeserializer.getClass());
-      assertEquals(jsonSource.connectionFactory, yamlSource.connectionFactory);
+        JetStreamSource<String> jsonSource2 = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(CONNECTION_PROPERTIES_FILE)
+            .sourceJson(jsonFile)
+            .build();
+
+        JetStreamSource<String> yamlSource2 = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(CONNECTION_PROPERTIES_FILE)
+            .sourceYaml(yamlFile)
+            .build();
+
+        validate(jsonSource, yamlSource);
+        validate(jsonSource, jsonSource2);
+        validate(jsonSource, yamlSource2);
+    }
+
+    private static void validate(JetStreamSource<String> expected, JetStreamSource<String> actual) {
+        assertEquals(expected.boundedness, actual.boundedness);
+        assertEquals(expected.configById, actual.configById);
+        assertEquals(expected.payloadDeserializer.getClass(), actual.payloadDeserializer.getClass());
+        assertEquals(expected.connectionFactory, actual.connectionFactory);
+        assertEquals(expected, actual);
     }
 }

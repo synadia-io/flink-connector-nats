@@ -2,21 +2,26 @@ package io.synadia.flink.examples;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import io.synadia.flink.source.NatsSource;
 import io.synadia.flink.source.NatsSourceBuilder;
-import io.synadia.flink.utils.PropertiesUtils;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.support.ExampleUtils.connect;
+import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_SERIALIZER_CLASSNAME;
 
 public class CoreSubjectExample2 {
     public static final String EXAMPLE_NAME = "Example2";
@@ -24,21 +29,13 @@ public class CoreSubjectExample2 {
     public static final int NUM_SOURCE_SUBJECTS = 8;
     public static final int PARALLELISM = 5; // if 0 or less, parallelism will not be set
     public static final int RUN_TIME = 3000; // millis
-    public static final long PUBLISH_DELAY = 250; // miils
+    public static final long PUBLISH_DELAY = 250; // millis
     public static final int PUBLISH_MESSAGE_COUNT_JITTER = 3; // will publish 1 to n messages per subject each publish loop
 
     public static void main(String[] args) throws Exception {
-        // load properties from a file for example application.properties
-        Properties connectionProps = PropertiesUtils
-            .loadPropertiesFromFile("src/examples/resources/connection.properties");
-        Properties sourceProps = PropertiesUtils
-            .loadPropertiesFromFile("src/examples/resources/core-source.properties");
-        Properties sinkProps = PropertiesUtils
-            .loadPropertiesFromFile("src/examples/resources/core-sink.properties");
-
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
-        Connection nc = connect(connectionProps);
+        Connection nc = connect(ExampleUtils.CONNECTION_PROPS_FILE);
 
         // start publishing to where the source will get
         // the source will have missed some messages by the time it gets running
@@ -58,24 +55,23 @@ public class CoreSubjectExample2 {
             String publishedSubject = Publisher.extractSubject(data);
             AtomicInteger count = receivedMap.computeIfAbsent(publishedSubject, k -> new AtomicInteger());
             count.incrementAndGet();
-            // LOG.info("Listening to `{}` got message `{}`", m.getSubject(), data); // comment back in so see every message the sink publishes
         });
         String sinkSubject = "sink-target";
         dispatcher.subscribe(sinkSubject);
 
         // create source
         NatsSource<String> source = new NatsSourceBuilder<String>()
-            .sourceProperties(sourceProps)
-            .connectionProperties(connectionProps)
-            .subjects(sourceSubjects) // subjects come last because the builder uses the last input
+            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
+            .subject(sourceSubjects)
             .build();
         System.out.println(source);
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
-            .sinkProperties(sinkProps)
-            .connectionProperties(connectionProps)
-            .subjects(sinkSubject) // subject comes last because the builder uses the last input
+            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .payloadSerializerClass(STRING_PAYLOAD_SERIALIZER_CLASSNAME)
+            .subject(sinkSubject)
             .build();
         System.out.println(sink);
 

@@ -3,17 +3,23 @@
 
 package io.synadia.flink.utils;
 
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.payload.PayloadSerializer;
+import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 
-import static io.synadia.flink.utils.Constants.*;
-import static io.synadia.flink.utils.MiscUtils.createInstanceOf;
-import static io.synadia.flink.utils.MiscUtils.getClassName;
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.synadia.flink.utils.MiscUtils.*;
+import static io.synadia.flink.utils.PropertiesUtils.getAsList;
+import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
+import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_SERIALIZER;
 
 public abstract class BuilderBase<SerialT, BuilderT> {
     protected Properties connectionProperties;
@@ -45,7 +51,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      * @param connectionProperties the properties
      * @return the builder
      */
-    public BuilderT connectionProperties(Properties connectionProperties) {
+    public BuilderT connectionPropertiesFile(Properties connectionProperties) {
         this.connectionProperties = connectionProperties;
         this.connectionPropertiesFile = null;
         return getThis();
@@ -62,12 +68,12 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return getThis();
     }
 
-    protected BuilderT subjects(String... subjects) {
+    protected BuilderT _subjects(String... subjects) {
         this.subjects = subjects == null || subjects.length == 0 ? null : Arrays.asList(subjects);
         return getThis();
     }
 
-    protected BuilderT subjects(List<String> subjects) {
+    protected BuilderT _subjects(List<String> subjects) {
         if (subjects == null || subjects.isEmpty()) {
             this.subjects = null;
         }
@@ -77,80 +83,59 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return getThis();
     }
 
-    protected BuilderT payloadDeserializer(PayloadDeserializer<SerialT> payloadDeserializer) {
-        return payloadDeserializerClass(getClassName(payloadDeserializer));
+    protected BuilderT _payloadDeserializer(PayloadDeserializer<SerialT> payloadDeserializer) {
+        return _payloadDeserializerClass(getClassName(payloadDeserializer));
     }
 
-    protected BuilderT payloadDeserializerClass(String payloadDeserializerClass) {
+    protected BuilderT _payloadDeserializerClass(String payloadDeserializerClass) {
         this.payloadDeserializerClass = payloadDeserializerClass;
         return getThis();
     }
 
-    protected BuilderT payloadSerializer(PayloadSerializer<SerialT> payloadSerializer) {
-        return payloadSerializerClass(getClassName(payloadSerializer));
+    protected BuilderT _payloadSerializer(PayloadSerializer<SerialT> payloadSerializer) {
+        return _payloadSerializerClass(getClassName(payloadSerializer));
     }
 
-    public BuilderT payloadSerializerClass(String payloadSerializerClass) {
+    public BuilderT _payloadSerializerClass(String payloadSerializerClass) {
         this.payloadSerializerClass = payloadSerializerClass;
         return getThis();
     }
 
-    protected BuilderT properties(Properties properties) {
+    protected void setBaseProperties(Function<String, String> propertyFunction) {
         if (expectsSubjects) {
-            subjects = PropertiesUtils.getPropertyAsList(properties, SUBJECTS);
-            if (!subjects.isEmpty()) {
-                subjects(subjects);
-            }
+            _subjects(getAsList(propertyFunction.apply(SUBJECTS)));
         }
 
         if (expectsSerializerNotDeserializer) {
-            String classname = PropertiesUtils.getStringProperty(properties, PAYLOAD_SERIALIZER);
+            String classname = propertyFunction.apply(PAYLOAD_SERIALIZER);
             if (classname != null) {
-                payloadSerializerClass(classname);
+                _payloadSerializerClass(classname);
             }
         }
         else {
-            String classname = PropertiesUtils.getStringProperty(properties, PAYLOAD_DESERIALIZER);
+            String classname = propertyFunction.apply(PAYLOAD_DESERIALIZER);
             if (classname != null) {
-                payloadDeserializerClass(classname);
+                _payloadDeserializerClass(classname);
             }
         }
-
-        return getThis();
     }
 
-    protected BuilderT jsonValue(JsonValue jv) {
-        if (expectsSerializerNotDeserializer) {
-            String classname = JsonValueUtils.readString(jv, PAYLOAD_SERIALIZER, null);
-            if (classname != null) {
-                payloadDeserializerClass(classname);
-            }
-        }
-        else {
-            String classname = JsonValueUtils.readString(jv, PAYLOAD_DESERIALIZER, null);
-            if (classname != null) {
-                payloadDeserializerClass(classname);
-            }
-        }
-
-        return getThis();
+    protected Properties fromPropertiesFile(String propertiesFilePath) throws IOException {
+        Properties properties = loadPropertiesFromFile(propertiesFilePath);
+        setBaseProperties(k -> PropertiesUtils.getStringProperty(properties, k));
+        return properties;
     }
 
-    protected BuilderT yamlMap(Map<String, Object> map) {
-        if (expectsSerializerNotDeserializer) {
-            String classname = YamlUtils.readString(map, PAYLOAD_SERIALIZER, null);
-            if (classname != null) {
-                payloadDeserializerClass(classname);
-            }
-        }
-        else {
-            String classname = YamlUtils.readString(map, PAYLOAD_DESERIALIZER, null);
-            if (classname != null) {
-                payloadDeserializerClass(classname);
-            }
-        }
+    protected JsonValue fromJsonFile(String jsonFilePath) throws IOException {
+        JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
+        setBaseProperties(k -> JsonValueUtils.readString(jv, k, null));
+        return jv;
+    }
 
-        return getThis();
+    protected Map<String, Object> fromYamlFile(String yamlFilePath) throws IOException {
+        Map<String, Object> map = new Yaml().load(getInputStream(yamlFilePath));
+        setBaseProperties(k -> YamlUtils.readString(map, k, null));
+        return map;
     }
 
     protected void beforeBuild() {
@@ -189,7 +174,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             : new ConnectionFactory(connectionProperties);
     }
 
-    protected void createPayloadSerializerInstance() {
+    private void createPayloadSerializerInstance() {
         if (payloadSerializerClass == null) {
             throw new IllegalArgumentException("Valid payload serializer class must be provided.");
         }
@@ -203,7 +188,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         }
     }
 
-    protected void createPayloadDeserializerInstance() {
+    private void createPayloadDeserializerInstance() {
         if (payloadDeserializerClass == null) {
             throw new IllegalArgumentException("Valid payload deserializer class must be provided.");
         }

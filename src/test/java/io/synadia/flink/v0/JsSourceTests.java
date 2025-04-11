@@ -72,9 +72,9 @@ public class JsSourceTests extends TestBase {
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder =
                     new NatsJetStreamSourceBuilder<String>()
-                            .subjects(sourceSubject)
+                            .subject(sourceSubject)
                             .payloadDeserializer(deserializer)
-                            .connectionProperties(connectionProperties)
+                            .connectionPropertiesFile(connectionProperties)
                             .streamName(streamName)
                             .consumerName(consumerName)
                             .maxFetchRecords(100)
@@ -93,8 +93,8 @@ public class JsSourceTests extends TestBase {
 
             // Step 6: Configure a NATS Sink to write processed data
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subjects(sinkSubject)
-                    .connectionProperties(connectionProperties)
+                    .subject(sinkSubject)
+                    .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();
             ds.map(String::toUpperCase).sinkTo(sink);
@@ -134,9 +134,9 @@ public class JsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
-                .subjects(sourceSubject)
+                .subject(sourceSubject)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties)
+                .connectionPropertiesFile(connectionProperties)
                 .consumerName(consumerName)
                 .streamName(streamName)
                 .maxFetchRecords(100)
@@ -155,8 +155,8 @@ public class JsSourceTests extends TestBase {
 
             // Sink: Write to a different subject
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subjects(sinkSubject)
-                    .connectionProperties(connectionProperties)
+                    .subject(sinkSubject)
+                    .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();
             ds.map(String::toUpperCase).sinkTo(sink);

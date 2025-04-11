@@ -18,12 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
+import static io.nats.client.BaseConsumeOptions.*;
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValue.EMPTY_MAP;
-import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.checksum;
+import static io.synadia.flink.utils.PropertyConstants.*;
 
 /**
  * It takes more than a subject to consume.
@@ -39,7 +40,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
     public final boolean ack;
-    public final SerializableConsumeOptions consumeOptions;
+    public final SerializableConsumeOptions serializableConsumeOptions;
 
     public final Boundedness boundedness;
     public final DeliverPolicy deliverPolicy;
@@ -51,7 +52,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
         ack = b.ack;
-        consumeOptions = b.consumeOptions;
+        serializableConsumeOptions = b.serializableConsumeOptions;
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
         deliverPolicy = startSequence != ConsumerConfiguration.LONG_UNSET
@@ -66,7 +67,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             startTime,
             maxMessagesToRead,
             ack,
-            consumeOptions == null ? null : consumeOptions.getConsumeOptions().toJson()
+            serializableConsumeOptions == null ? null : serializableConsumeOptions.getConsumeOptions().toJson()
         );
     }
 
@@ -77,12 +78,71 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, START_SEQ, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
-        if (consumeOptions != null) {
-            JsonUtils.addField(sb, CONSUME_OPTIONS, consumeOptions.getConsumeOptions().toJsonValue());
+        if (serializableConsumeOptions != null) {
+            ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
+            JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
+            if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
+                bm.put(MESSAGES, co.getBatchSize());
+            }
+            if (co.getBatchBytes() > 0) {
+                bm.put(BYTES, co.getBatchBytes());
+            }
+            if (co.getExpiresInMillis() != DEFAULT_EXPIRES_IN_MILLIS) {
+                bm.put(EXPIRES_IN, co.getExpiresInMillis());
+            }
+            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
+                bm.put(THRESHOLD_PERCENT, co.getThresholdPercent());
+            }
+            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
+                bm.put(THRESHOLD_PERCENT, co.getThresholdPercent());
+            }
+            if (co.getGroup() != null) {
+                bm.put(GROUP, co.getGroup());
+            }
+            if (co.getMinPending() > 0) {
+                bm.put(MIN_PENDING, co.getMinPending());
+            }
+            if (co.getMinPending() > 0) {
+                bm.put(MIN_ACK_PENDING, co.getMinAckPending());
+            }
+            if (co.raiseStatusWarnings()) {
+                bm.put(RAISE_STATUS_WARNINGS, true);
+            }
+            JsonUtils.addField(sb, CONSUME_OPTIONS, bm.jv);
         }
         JsonUtils.addField(sb, MAX_MSGS, maxMessagesToRead);
         JsonUtils.addFldWhenTrue(sb, ACK, ack);
         return endJson(sb).toString();
+    }
+
+    public String toYaml(int indentLevel) {
+        StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
+        indentLevel++;
+        YamlUtils.addField(sb, indentLevel, SUBJECT, subject);
+        YamlUtils.addField(sb, indentLevel, START_SEQ, startSequence);
+        YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
+        if (serializableConsumeOptions != null) {
+            ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
+            YamlUtils.addField(sb, indentLevel, CONSUME_OPTIONS);
+            int coIndent = indentLevel + 1;
+            if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
+                YamlUtils.addFieldGtZero(sb, coIndent, MESSAGES, co.getBatchSize());
+            }
+            YamlUtils.addFieldGtZero(sb, coIndent, BYTES, co.getBatchBytes());
+            if (co.getExpiresInMillis() != DEFAULT_EXPIRES_IN_MILLIS) {
+                YamlUtils.addField(sb, coIndent, EXPIRES_IN, co.getExpiresInMillis());
+            }
+            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
+                YamlUtils.addField(sb, coIndent, THRESHOLD_PERCENT, co.getThresholdPercent());
+            }
+            YamlUtils.addField(sb, coIndent, GROUP, co.getGroup());
+            YamlUtils.addField(sb, coIndent, MIN_PENDING, co.getMinPending());
+            YamlUtils.addField(sb, coIndent, MIN_ACK_PENDING, co.getMinAckPending());
+            YamlUtils.addFldWhenTrue(sb, coIndent, RAISE_STATUS_WARNINGS, co.raiseStatusWarnings());
+        }
+        YamlUtils.addField(sb, indentLevel, MAX_MSGS, maxMessagesToRead);
+        YamlUtils.addFldWhenTrue(sb, indentLevel, ACK, ack);
+        return sb.toString();
     }
 
     @Override
@@ -139,19 +199,19 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         Map<String, Object> mapCo = YamlUtils.readMap(map, CONSUME_OPTIONS);
         if (mapCo != null) {
             ConsumeOptions.Builder cob = ConsumeOptions.builder()
-                .expiresIn(YamlUtils.readLong(mapCo, ApiConstants.EXPIRES_IN, MIN_EXPIRES_MILLS))
-                .thresholdPercent(YamlUtils.readInteger(mapCo, ApiConstants.THRESHOLD_PERCENT, -1))
-                .raiseStatusWarnings(YamlUtils.readBoolean(mapCo, ApiConstants.RAISE_STATUS_WARNINGS, false))
-                .group(YamlUtils.readStringEmptyAsNull(mapCo, ApiConstants.GROUP))
-                .minPending(YamlUtils.readLong(mapCo, ApiConstants.MIN_PENDING, -1))
-                .minAckPending(YamlUtils.readLong(mapCo, ApiConstants.MIN_ACK_PENDING, -1));
+                .expiresIn(YamlUtils.readLong(mapCo, EXPIRES_IN, DEFAULT_EXPIRES_IN_MILLIS))
+                .thresholdPercent(YamlUtils.readInteger(mapCo, THRESHOLD_PERCENT, -1))
+                .raiseStatusWarnings(YamlUtils.readBoolean(mapCo, RAISE_STATUS_WARNINGS, false))
+                .group(YamlUtils.readStringEmptyAsNull(mapCo, GROUP))
+                .minPending(YamlUtils.readLong(mapCo, MIN_PENDING, -1))
+                .minAckPending(YamlUtils.readLong(mapCo, MIN_ACK_PENDING, -1));
 
-            int i = YamlUtils.readInteger(mapCo, ApiConstants.MESSAGES, -1);
+            int i = YamlUtils.readInteger(mapCo, MESSAGES, -1);
             if (i != -1) {
                 cob.batchSize(i);
             }
             else {
-                i = YamlUtils.readInteger(mapCo, ApiConstants.BYTES, -1);
+                i = YamlUtils.readInteger(mapCo, BYTES, -1);
                 if (i != -1) {
                     cob.batchBytes(i);
                 }
@@ -167,7 +227,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private String streamName;
         private Long startSequence = ConsumerConfiguration.LONG_UNSET;
         private ZonedDateTime startTime;
-        private SerializableConsumeOptions consumeOptions;
+        private SerializableConsumeOptions serializableConsumeOptions;
         private long maxMessagesToRead = -1;
         private boolean ack = false;
 
@@ -213,7 +273,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return The Builder
          */
         public Builder consumeOptions(ConsumeOptions consumeOptions) {
-            this.consumeOptions = consumeOptions == null
+            this.serializableConsumeOptions = consumeOptions == null
                 ? null
                 : new SerializableConsumeOptions(consumeOptions);
             return this;

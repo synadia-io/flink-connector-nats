@@ -77,17 +77,17 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         }
         // 1. Get the split
         // 2. The split could be finished but more messages came into the queue. These will just be ignored.
-        JetStreamSourceReaderSplit srSplit = splitMap.get(sm.splitId);
-        if (!srSplit.isFinished()) {
+        JetStreamSourceReaderSplit readerSplit = splitMap.get(sm.splitId);
+        if (!readerSplit.isFinished()) {
             // 1. collect the message
             // 2. mark the message as emitted - this increments the count
             // 3. if bounded check to see if
             output.collect(payloadDeserializer.getObject(sm.message));
-            long emittedCount = srSplit.markEmitted(sm.message);
-            if (bounded && emittedCount >= srSplit.getMaxMessagesToRead()) {
+            long emittedCount = readerSplit.markEmitted(sm.message);
+            if (bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
                 // this split has fulfilled it's bound. Not all splits reader necessarily have yet
                 // so only say END_OF_INPUT if all are done
-                srSplit.done();
+                readerSplit.done();
                 if (--activeSplits < 1) {
                     availableFuture.complete(null);
                     return InputStatus.END_OF_INPUT;
@@ -123,8 +123,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                         ? createConsumer(split, sc)
                         : createOrderedConsumer(split, sc);
 
-
-                    SerializableConsumeOptions sco = split.subjectConfig.consumeOptions;
+                    SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
                     MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
                     MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
@@ -188,7 +187,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.ack()) {
+            if (snapshot != null && srSplit.split.subjectConfig.ack) {
                 // Manual ack since we don't have the message, just the reply_to
                 // but we know that this \/ is what an ack is
                 // Also we execute as a task so as not to slow down the reader

@@ -6,7 +6,6 @@ package io.synadia.flink.source.reader;
 import io.nats.client.BaseConsumerContext;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
-import io.synadia.flink.source.JetStreamSubjectConfiguration;
 import io.synadia.flink.source.split.JetStreamSplit;
 
 import java.util.Map;
@@ -58,27 +57,7 @@ public class JetStreamSourceReaderSplit {
         }
     }
 
-    public long getLastEmittedStreamSequence() {
-        return split.lastEmittedStreamSequence.get();
-    }
-
-    public long getEmittedCount() {
-        return split.emittedCount.get();
-    }
-
     public boolean isFinished() {
         return split.finished.get();
-    }
-
-    public JetStreamSubjectConfiguration getSubjectConfig() {
-        return split.subjectConfig;
-    }
-
-    public boolean ack() {
-        return split.subjectConfig.ack;
-    }
-
-    public long getMaxMessagesToRead() {
-        return split.subjectConfig.maxMessagesToRead;
     }
 }

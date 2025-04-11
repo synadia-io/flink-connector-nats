@@ -10,10 +10,82 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
+
 public abstract class YamlUtils {
 
-    public interface YamlValueSupplier<Object> {
-        Object get(Map<String, Object> v);
+    static final String PAD = "                    ";
+
+    static String getPad(int indentLevel) {
+        return indentLevel == 0 ? "" : PAD.substring(0, indentLevel * 2);
+    }
+
+    public static StringBuilder beginYaml() {
+        return new StringBuilder("---\n");
+    }
+
+    public static StringBuilder beginChild(int indentLevel, String key, String value) {
+        return new StringBuilder()
+            .append(getPad(indentLevel))
+            .append("- ")
+            .append(key)
+            .append(": ")
+            .append(value)
+            .append("\n");
+    }
+
+    private static void _addField(StringBuilder sb, int indentLevel, String key, String value) {
+        sb.append(getPad(indentLevel))
+            .append(key)
+            .append(": ")
+            .append(value)
+            .append("\n");
+    }
+
+    public static void addField(StringBuilder sb, int indentLevel, String key) {
+        _addField(sb, indentLevel, key, "");
+    }
+
+    public static void addField(StringBuilder sb, int indentLevel, String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            _addField(sb, indentLevel, key, value);
+        }
+    }
+
+    public static void addField(StringBuilder sb, int indentLevel, String key, Integer value) {
+        if (value != null && value >= 0) {
+            _addField(sb, indentLevel, key, value.toString());
+        }
+    }
+
+    public static void addField(StringBuilder sb, int indentLevel, String key, Long value) {
+        if (value != null && value >= 0) {
+            _addField(sb, indentLevel, key, value.toString());
+        }
+    }
+
+    public static void addFieldGtZero(StringBuilder sb, int indentLevel, String key, Integer value) {
+        if (value != null && value > 0) {
+            _addField(sb, indentLevel, key, value.toString());
+        }
+    }
+
+    public static void addFieldGtZero(StringBuilder sb, int indentLevel, String key, Long value) {
+        if (value != null && value > 0) {
+            _addField(sb, indentLevel, key, value.toString());
+        }
+    }
+
+    public static void addField(StringBuilder sb, int indentLevel, String key, ZonedDateTime zonedDateTime) {
+        if (zonedDateTime != null && !DEFAULT_TIME.equals(zonedDateTime)) {
+            _addField(sb, indentLevel, key, "'" + DateTimeUtils.toRfc3339(zonedDateTime) + "'");
+        }
+    }
+
+    public static void addFldWhenTrue(StringBuilder sb, int indentLevel, String key, boolean value) {
+        if (value) {
+            _addField(sb, indentLevel, key, "true");
+        }
     }
 
     public static Object readObject(Map<String, Object> map, String key) {

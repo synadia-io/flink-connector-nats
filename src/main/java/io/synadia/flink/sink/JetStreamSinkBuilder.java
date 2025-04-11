@@ -5,10 +5,9 @@ package io.synadia.flink.sink;
 
 import io.synadia.flink.payload.PayloadSerializer;
 import io.synadia.flink.utils.BuilderBase;
-import io.synadia.flink.utils.Constants;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * Builder to construct {@link JetStreamSink}.
@@ -44,7 +43,7 @@ public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamS
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> subjects(String... subjects) {
-        return super.subjects(subjects);
+        return _subjects(subjects);
     }
 
     /**
@@ -53,7 +52,7 @@ public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamS
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> subjects(List<String> subjects) {
-        return super.subjects(subjects);
+        return _subjects(subjects);
     }
 
     /**
@@ -62,7 +61,7 @@ public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamS
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        return super.payloadSerializer(payloadSerializer);
+        return _payloadSerializer(payloadSerializer);
     }
 
     /**
@@ -71,17 +70,39 @@ public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamS
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        return super.payloadSerializerClass(payloadSerializerClass);
+        return _payloadSerializerClass(payloadSerializerClass);
     }
 
     /**
-     * Set sink properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set sink configuration from a properties file
+     * @param propertiesFilePath the location of the file
      * @return the builder
      */
-    public JetStreamSinkBuilder<InputT> sinkProperties(Properties properties) {
-        return properties(properties);
+    public JetStreamSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
+        return this;
+    }
+
+    /**
+     * Set sink configuration from a json file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public JetStreamSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
+
+    /**
+     * Set sink configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public JetStreamSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
+        return this;
     }
 
     /**

@@ -40,7 +40,7 @@ public class ConnectionFactory implements Serializable {
             props = PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
         }
 
-        long jitter = PropertiesUtils.getLongProperty(props, Constants.CONNECT_JITTER, 0);
+        long jitter = PropertiesUtils.getLongProperty(props, PropertyConstants.CONNECT_JITTER, 0);
         if (jitter > 0) {
             try {
                 long sleep = ThreadLocalRandom.current().nextLong(jitter) + 1;
@@ -66,16 +66,16 @@ public class ConnectionFactory implements Serializable {
 
     private static JetStreamOptions getJetStreamOptions(Properties props) {
         JetStreamOptions.Builder b = JetStreamOptions.builder();
-        long rtMillis = PropertiesUtils.getLongProperty(props, Constants.JSO_REQUEST_TIMEOUT, 0);
+        long rtMillis = PropertiesUtils.getLongProperty(props, PropertyConstants.JSO_REQUEST_TIMEOUT, 0);
         if (rtMillis > 0) {
             b.requestTimeout(Duration.ofMillis(rtMillis));
         }
-        String temp = PropertiesUtils.getStringProperty(props, Constants.JSO_PREFIX);
+        String temp = PropertiesUtils.getStringProperty(props, PropertyConstants.JSO_PREFIX);
         if (temp != null) {
             b.prefix(temp);
         }
         else {
-            temp = PropertiesUtils.getStringProperty(props, Constants.JSO_DOMAIN);
+            temp = PropertiesUtils.getStringProperty(props, PropertyConstants.JSO_DOMAIN);
             if (temp != null) {
                 b.domain(temp);
             }

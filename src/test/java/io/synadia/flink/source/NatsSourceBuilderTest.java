@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit test for {@link NatsSourceBuilder}. */
@@ -38,9 +41,9 @@ class NatsSourceBuilderTest extends TestBase {
             String subject = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject)
+                .subject(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Built source should not be null");
@@ -51,22 +54,18 @@ class NatsSourceBuilderTest extends TestBase {
      * Tests the builder's ability to configure a source using Properties object.
      * Demonstrates how to configure the source using properties file approach,
      * which is useful for externalized configuration.
-     *
      * Properties tested:
      * 1. Connection settings (URL, credentials, etc.)
      * 2. Source-specific settings (subjects, deserializer)
-     *
      * Example properties file:
      * ```properties
      * # Connection settings
      * nats.connection.url=nats://localhost:4222
      * nats.connection.max.reconnects=5
-     *
      * # Source settings
      * nats.source.subjects=orders.>,payments.>
      * nats.source.payload.deserializer=io.synadia.flink.payload.StringPayloadDeserializer
      * ```
-     *
      * Usage:
      * ```java
      * Properties props = loadProperties("config.properties");
@@ -81,16 +80,20 @@ class NatsSourceBuilderTest extends TestBase {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
             // Add source specific properties
-            props.setProperty("subjects", subject());
-            props.setProperty("payload.deserializer",
-                "io.synadia.flink.payload.StringPayloadDeserializer");
+            String subject = subject();
+            props.setProperty(SUBJECTS, subject);
+            props.setProperty(PAYLOAD_DESERIALIZER, STRING_PAYLOAD_DESERIALIZER_CLASSNAME);
+
+            String propsFile = writeToTempFile("tsp", props);
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .sourceProperties(props)  // This includes both source and connection properties
-                .connectionProperties(props)  // Required for connection settings
+                .connectionPropertiesFile(props)
+                .sourceProperties(propsFile)
                 .build();
 
-            assertNotNull(source, "Source built from properties should not be null");
+            assertNotNull(source);
+            assertEquals(1, source.subjects.size());
+            assertEquals(subject, source.subjects.get(0));
         });
     }
 
@@ -125,29 +128,29 @@ class NatsSourceBuilderTest extends TestBase {
             Properties props = defaultConnectionProperties(url);
 
             // Test empty subjects
-            IllegalStateException emptySubjectsEx = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException emptySubjectsEx = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(defaultConnectionProperties(url))
+                    .connectionPropertiesFile(defaultConnectionProperties(url))
                     .build()
             );
 
             // Test null subjects
-            IllegalStateException nullSubjectsEx = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException nullSubjectsEx = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
-                    .subjects((String[])null)
+                    .subject((String[])null)
                     .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionProperties(props)
+                    .connectionPropertiesFile(props)
                     .build()
             );
 
             // Test missing required properties
-            IllegalStateException missingPropsEx = assertThrows(
-                IllegalStateException.class,
+            IllegalArgumentException missingPropsEx = assertThrows(
+                IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
-                    .subjects(subject())
+                    .subject(subject())
                     .payloadDeserializer(new StringPayloadDeserializer())
                     .build()  // Missing connection properties
             );
@@ -185,11 +188,11 @@ class NatsSourceBuilderTest extends TestBase {
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>();
 
             // Test that each method returns the same builder instance
-            assertSame(builder, builder.subjects(subject),
+            assertSame(builder, builder.subject(subject),
                 "subjects() should return same builder instance");
             assertSame(builder, builder.payloadDeserializer(new StringPayloadDeserializer()),
                 "payloadDeserializer() should return same builder instance");
-            assertSame(builder, builder.connectionProperties(props),
+            assertSame(builder, builder.connectionPropertiesFile(props),
                 "connectionProperties() should return same builder instance");
 
             // Test that chained configuration works
@@ -227,9 +230,9 @@ class NatsSourceBuilderTest extends TestBase {
             String subject = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject)
-                .payloadDeserializerClass("io.synadia.flink.payload.StringPayloadDeserializer")
-                .connectionProperties(defaultConnectionProperties(url))
+                .subject(subject)
+                .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Source with deserializer class should not be null");
@@ -270,9 +273,9 @@ class NatsSourceBuilderTest extends TestBase {
             String subject3 = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject1, subject2, subject3)
+                .subject(subject1, subject2, subject3)
                 .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Source with multiple subjects should not be null");
