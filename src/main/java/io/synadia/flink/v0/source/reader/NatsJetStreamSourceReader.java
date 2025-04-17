@@ -15,30 +15,23 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
 public class NatsJetStreamSourceReader<OutputT>
     extends SourceReaderBase<Message, OutputT, NatsSubjectSplit, NatsSubjectSplitState>
 {
-    private static final Logger LOG = LoggerFactory.getLogger(NatsJetStreamSourceReader.class);
-
-    private final String id;
     private final AtomicReference<Throwable> cursorCommitThrowable;
     final SortedMap<Long, Map<String, List<Message>>> cursorsToCommit;
     private final ConcurrentMap<String, List<Message>> cursorsOfFinishedSplits;
     private final NatsJetStreamSourceConfiguration sourceConfiguration;
 
-    public NatsJetStreamSourceReader(String sourceId,
-                                     NatsJetStreamSourceFetcherManager fetcherManager,
+    public NatsJetStreamSourceReader(NatsJetStreamSourceFetcherManager fetcherManager,
                                      NatsJetStreamSourceConfiguration sourceConfiguration,
                                      PayloadDeserializer<OutputT> payloadDeserializer,
                                      SourceReaderContext readerContext
@@ -46,9 +39,8 @@ public class NatsJetStreamSourceReader<OutputT>
         super(fetcherManager,
             new NatsJetStreamRecordEmitter<>(payloadDeserializer),
             sourceConfiguration.getConfiguration(), readerContext);
-        id = generatePrefixedId(sourceId);
         this.sourceConfiguration = sourceConfiguration;
-        checkNotNull(readerContext);
+        checkNotNull(readerContext); // it's not used but is supposed to be provided
         this.cursorsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.cursorsOfFinishedSplits = new ConcurrentHashMap<>();
         this.cursorCommitThrowable = new AtomicReference<>();
@@ -56,7 +48,6 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public void start() {
-        LOG.debug("{} | start", id);
         super.start();
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -79,18 +70,15 @@ public class NatsJetStreamSourceReader<OutputT>
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        LOG.debug("{} | Committing cursors for checkpoint {}", id, checkpointId);
         //TODO convert string to Subject Class
         Map<String, List<Message>> cursors = cursorsToCommit.get(checkpointId);
         try {
             ((NatsJetStreamSourceFetcherManager) splitFetcherManager).acknowledgeMessages(cursors);
-            LOG.debug("{} | Successfully acknowledge cursors for checkpoint {}", id, checkpointId);
 
             // Clean up the cursors.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
             cursorsToCommit.headMap(checkpointId + 1).clear();
         } catch (Exception e) {
-            LOG.error("{} | Failed to acknowledge cursors for checkpoint {}", id, checkpointId, e);
             cursorCommitThrowable.compareAndSet(null, e);
         }
     }
@@ -170,7 +158,6 @@ public class NatsJetStreamSourceReader<OutputT>
             // Clean up the finish splits.
             cursorsOfFinishedSplits.keySet().removeAll(cursors.keySet());
         } catch (Exception e) {
-            LOG.error("Fail in auto cursor commit.", e);
             cursorCommitThrowable.compareAndSet(null, e);
         }
     }

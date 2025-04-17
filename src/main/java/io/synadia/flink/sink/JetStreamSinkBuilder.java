@@ -4,11 +4,10 @@
 package io.synadia.flink.sink;
 
 import io.synadia.flink.payload.PayloadSerializer;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.utils.BuilderBase;
 
-import java.util.Properties;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Builder to construct {@link JetStreamSink}.
@@ -27,17 +26,33 @@ import java.util.Properties;
  * @see NatsSink
  * @param <InputT> type of the records written
  */
-public class JetStreamSinkBuilder<InputT> extends SinkOrSourceBuilderBase<JetStreamSinkBuilder<InputT>> {
-    private PayloadSerializer<InputT> payloadSerializer;
-    private String payloadSerializerClass;
+public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamSinkBuilder<InputT>> {
+
+    public JetStreamSinkBuilder() {
+        super(true, true);
+    }
 
     @Override
     protected JetStreamSinkBuilder<InputT> getThis() {
         return this;
     }
 
-    public JetStreamSinkBuilder() {
-        super(Constants.SINK_PREFIX);
+    /**
+     * Set one or more subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public JetStreamSinkBuilder<InputT> subjects(String... subjects) {
+        return _subjects(subjects);
+    }
+
+    /**
+     * Set the subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public JetStreamSinkBuilder<InputT> subjects(List<String> subjects) {
+        return _subjects(subjects);
     }
 
     /**
@@ -46,9 +61,7 @@ public class JetStreamSinkBuilder<InputT> extends SinkOrSourceBuilderBase<JetStr
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        this.payloadSerializer = payloadSerializer;
-        this.payloadSerializerClass = null;
-        return this;
+        return _payloadSerializer(payloadSerializer);
     }
 
     /**
@@ -57,25 +70,38 @@ public class JetStreamSinkBuilder<InputT> extends SinkOrSourceBuilderBase<JetStr
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        this.payloadSerializer = null;
-        this.payloadSerializerClass = payloadSerializerClass;
+        return _payloadSerializerClass(payloadSerializerClass);
+    }
+
+    /**
+     * Set sink configuration from a properties file
+     * @param propertiesFilePath the location of the file
+     * @return the builder
+     */
+    public JetStreamSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
         return this;
     }
 
     /**
-     * Set sink properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set sink configuration from a json file
+     * @param jsonFilePath the location of the file
      * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
      */
-    public JetStreamSinkBuilder<InputT> sinkProperties(Properties properties) {
-        baseProperties(properties);
+    public JetStreamSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
 
-        String s = PropertiesUtils.getStringProperty(properties, Constants.PAYLOAD_SERIALIZER, prefixes);
-        if (s != null) {
-            payloadSerializerClass(s);
-        }
-
+    /**
+     * Set sink configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public JetStreamSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
         return this;
     }
 
@@ -84,22 +110,7 @@ public class JetStreamSinkBuilder<InputT> extends SinkOrSourceBuilderBase<JetStr
      * @return the sink
      */
     public JetStreamSink<InputT> build() {
-        if (payloadSerializer == null) {
-            if (payloadSerializerClass == null) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadSerializer = (PayloadSerializer<InputT>) Class.forName(payloadSerializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        baseBuild(true);
-        return new JetStreamSink<>(subjects, payloadSerializer, createConnectionFactory());
+        beforeBuild();
+        return new JetStreamSink<>(subjects, payloadSerializer, connectionFactory);
     }
 }

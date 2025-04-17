@@ -3,12 +3,7 @@
 
 package io.synadia.flink.source.split;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class JetStreamSplitState {
-
-    private static final Logger LOG = LoggerFactory.getLogger(JetStreamSplitState.class);
 
     private final JetStreamSplit split;
 
@@ -17,7 +12,6 @@ public class JetStreamSplitState {
     }
 
     public JetStreamSplit toManagedSplit() {
-        LOG.debug("toManagedSplit");
         return split;
     }
 

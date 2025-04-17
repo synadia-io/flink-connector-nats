@@ -6,10 +6,8 @@ package io.synadia.flink.payload;
 import java.io.Serializable;
 
 public interface PayloadSerializer<InputT> extends Serializable {
-
     /**
      * Get bytes from the input object so they can be published in a message
-     *
      * @param input the input object
      * @return the bytes
      */

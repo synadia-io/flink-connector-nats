@@ -1,0 +1,12 @@
+{
+  "payload_deserializer": "io.synadia.flink.payload.StringPayloadDeserializer",
+  "jetstream_subject_configurations": [
+    {
+      "stream_name": "StreamA",
+      "subject": "SubjectA",
+      "start_seq": 42,
+      "max_msgs": 100,
+      "ack": true
+    }
+  ]
+}

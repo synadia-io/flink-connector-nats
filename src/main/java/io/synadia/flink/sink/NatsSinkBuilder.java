@@ -4,11 +4,10 @@
 package io.synadia.flink.sink;
 
 import io.synadia.flink.payload.PayloadSerializer;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.utils.BuilderBase;
 
-import java.util.Properties;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Builder to construct {@link NatsSink}.
@@ -27,17 +26,32 @@ import java.util.Properties;
  * @see NatsSink
  * @param <InputT> type of the records written
  */
-public class NatsSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsSinkBuilder<InputT>> {
-    private PayloadSerializer<InputT> payloadSerializer;
-    private String payloadSerializerClass;
+public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder<InputT>> {
+    public NatsSinkBuilder() {
+        super(true, true);
+    }
 
     @Override
     protected NatsSinkBuilder<InputT> getThis() {
         return this;
     }
 
-    public NatsSinkBuilder() {
-        super(Constants.SINK_PREFIX);
+    /**
+     * Set one or more subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> subject(String... subjects) {
+        return super._subjects(subjects);
+    }
+
+    /**
+     * Set the subjects for the sink. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -46,9 +60,7 @@ public class NatsSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsSinkBui
      * @return the builder
      */
     public NatsSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        this.payloadSerializer = payloadSerializer;
-        this.payloadSerializerClass = null;
-        return this;
+        return super._payloadSerializer(payloadSerializer);
     }
 
     /**
@@ -57,25 +69,38 @@ public class NatsSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsSinkBui
      * @return the builder
      */
     public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        this.payloadSerializer = null;
-        this.payloadSerializerClass = payloadSerializerClass;
+        return super._payloadSerializerClass(payloadSerializerClass);
+    }
+
+    /**
+     * Set sink configuration from a properties file
+     * @param propertiesFilePath the location of the file
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
         return this;
     }
 
     /**
-     * Set sink properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set sink configuration from a json file
+     * @param jsonFilePath the location of the file
      * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
-        baseProperties(properties);
+    public NatsSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
 
-        String s = PropertiesUtils.getStringProperty(properties, Constants.PAYLOAD_SERIALIZER, prefixes);
-        if (s != null) {
-            payloadSerializerClass(s);
-        }
-
+    /**
+     * Set sink configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
         return this;
     }
 
@@ -84,22 +109,7 @@ public class NatsSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsSinkBui
      * @return the sink
      */
     public NatsSink<InputT> build() {
-        if (payloadSerializer == null) {
-            if (payloadSerializerClass == null) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadSerializer = (PayloadSerializer<InputT>) Class.forName(payloadSerializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        baseBuild(true);
-        return new NatsSink<>(subjects, payloadSerializer, createConnectionFactory());
+        beforeBuild();
+        return new NatsSink<>(subjects, payloadSerializer, connectionFactory);
     }
 }

@@ -4,7 +4,6 @@
 package io.synadia.flink.v0.source.emitter;
 
 import io.nats.client.Message;
-import io.synadia.flink.payload.MessageRecord;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.NatsSubjectSplitState;
 import org.apache.flink.api.connector.source.SourceOutput;
@@ -26,7 +25,7 @@ public class NatsJetStreamRecordEmitter<OutputT>
             throws Exception {
 
         // Deserialize the message and send it to output.
-        output.collect(payloadDeserializer.getObject(new MessageRecord(element)));
+        output.collect(payloadDeserializer.getObject(element));
         splitState.getSplit().getCurrentMessages().add(element);
     }
 }

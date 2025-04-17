@@ -34,6 +34,10 @@ public class NatsSink<InputT> implements Sink<InputT> {
         this.connectionFactory = connectionFactory;
     }
 
+    public List<String> getSubjects() {
+        return subjects;
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     public SinkWriter<InputT> createWriter(InitContext context) throws IOException {

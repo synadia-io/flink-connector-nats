@@ -16,33 +16,24 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
-
 public class NatsSubjectSplitReader
         implements SplitReader<Message, NatsSubjectSplit> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NatsSubjectSplitReader.class);
-
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
-    private final String id;
     private final ConnectionFactory connectionFactory;
     private final NatsJetStreamSourceConfiguration sourceConfiguration;
     private JetStreamSubscription jetStreamSubscription;
     private NatsSubjectSplit registeredSplit;
     private ConnectionContext _context; // lazy init from the factory
 
-    public NatsSubjectSplitReader(String sourceId,
-            ConnectionFactory connectionFactory,
-            NatsJetStreamSourceConfiguration sourceConfiguration) {
-        id = generatePrefixedId(sourceId);
+    public NatsSubjectSplitReader(ConnectionFactory connectionFactory,
+                                  NatsJetStreamSourceConfiguration sourceConfiguration) {
         this.connectionFactory = connectionFactory;
         this.sourceConfiguration = sourceConfiguration;
     }
@@ -72,15 +63,12 @@ public class NatsSubjectSplitReader
         catch(Exception e) {
             throw new IOException(e); //Finish reading message from split if consumer is deleted for any reason.
         }
-        LOG.debug("{} | {} | Finished polling message {}", id, splitId, 1);
 
         return builder.build();
     }
 
     @Override
     public void handleSplitsChanges(SplitsChange<NatsSubjectSplit> splitsChanges) {
-        LOG.debug("{} | handleSplitsChanges {}", id, splitsChanges);
-
         // Get all the partition assignments and stopping offsets.
         if (!(splitsChanges instanceof SplitsAddition)) {
             throw new UnsupportedOperationException(
@@ -90,7 +78,7 @@ public class NatsSubjectSplitReader
         }
 
         if (registeredSplit != null) {
-            throw new IllegalStateException("This split reader have assigned split.");
+            throw new IllegalArgumentException("This split reader have assigned split.");
         }
 
         List<NatsSubjectSplit> newSplits = splitsChanges.splits();
@@ -102,7 +90,6 @@ public class NatsSubjectSplitReader
             throw new FlinkRuntimeException(e);
         }
 
-        LOG.info("Register split {} consumer for current reader.", registeredSplit);
     }
 
     //TODO Check and implement expected behavior for NATS
@@ -111,7 +98,6 @@ public class NatsSubjectSplitReader
             Collection<NatsSubjectSplit> splitsToPause,
             Collection<NatsSubjectSplit> splitsToResume)
     {
-        LOG.debug("pauseOrResumeSplits {} | {}", splitsToPause, splitsToResume);
 //        // This shouldn't happen but just in case...
 //        Preconditions.checkState(
 //                splitsToPause.size() + splitsToResume.size() <= 1,

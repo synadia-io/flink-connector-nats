@@ -6,7 +6,7 @@
 
 Connect NATS to Flink with Java
 
-**Current Release**: 2.0.0-beta4 &nbsp; **Current Snapshot**: 2.1.0-beta1-SNAPSHOT
+**Current Release**: 2.0.0-beta4 &nbsp; **Current Snapshot**: 2.1.0-rc1-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
@@ -18,11 +18,19 @@ Connect NATS to Flink with Java
 ## Table of Contents
 * [Java Version](#java-version)
 * [Builders](#builders) 
-* [NatsSource](#natssource)
-* [NatsSink](#natssink)
-* [Connection Properties](#connection-properties)
-* [Serializers / Deserializers](#serializers--deserializers)
+* [Nats Message Processing](#nats-message-processing)
+* [Sources](#sources)
+  * [NatsSource](#natssource)
+  * [JetStreamSource](#jetstreamsource)
+* [Sinks](#sinks)
+  * [NatsSink](#natssink)
+  * [JetStreamSink](#jetstreamsink)
+* [Source and Sink Configuration](#source-and-sink-configuration)
+  * [Connection Properties](#connection-properties)
+  * [Serializers / Deserializers](#serializers--deserializers)
 * [Getting the Library](#getting-the-library)
+  * [Gradle](#gradle)
+  * [Maven](#maven)
 * [License](#license)
  
 ## Java Version
@@ -51,7 +59,7 @@ More details can be found in the [Connection Properties](#connection-properties)
 3\. You can provide a lot of configuration directly from a Properties object since for Flink, configuration files are the norm.
 But if a configuration property can be set from a property _and_ can be set directly with a fluent builder,
 the last one called will be used. For example
-* There is a propery `payload.serializer` where you can specify the `payloadSerializerClass`
+* There is a property `payload.serializer` where you can specify the `payloadSerializerClass`
 but if you call `sourceProperties(...)` with properties that has that key, 
 and then you call `payloadSerializerClass(...)` the value set directly will be used.
 
@@ -59,31 +67,7 @@ and then you call `payloadSerializerClass(...)` the value set directly will be u
 * If you `setSubjectConfigurations(...)` you replace whatever was in place before with the new configuration(s).
 * If you `addSubjectConfigurations(...)` you append the new configuration(s) to whatever was already set or added. 
 
-## NatsSource
-NatsSource is a source that listens to one or more core NATS subjects. 
-In order to construct a NatsSource, you must use the NatsSourceBuilder.
-
-* The NatsSourceBuilder is generic. It's generic type, `<OutputT>` is the type of object that will be created from a 
-  message's subject, headers and payload data byte[]
-* The builder has these methods:
-    ```
-    subjects(String... subjects)
-    subjects(List<String> subjects)
-    connectionProperties(Properties connectionProperties)
-    connectionPropertiesFile(String connectionPropertiesFile)
-    minConnectionJitter(long minConnectionJitter)
-    maxConnectionJitter(long maxConnectionJitter)
-    payloadDeserializer(PayloadDeserializer<InputT> payloadDeserializer)
-    payloadDeserializerClass(String payloadDeserializerClass)
-    sourceProperties(Properties properties)
-    ```
-* Again as a reminder, when using the builder, the last call value is used, they are not additive.
-  * Calling multiple variations or instances of `subjects`
-  * Calling `connectionProperties` or `connectionPropertiesFile`
-  * Calling `payloadSerializer` or `payloadSerializerClass`
-  * Calling `sourceProperties`
-
-* You can supply source settings with code
+5\. You can supply source settings with code, for example...
   ```java
   NatsSource<String> source = new NatsSourceBuilder<String>()
       .subjects("subject1", "subject1")
@@ -93,37 +77,29 @@ In order to construct a NatsSource, you must use the NatsSourceBuilder.
       .payloadDeserializer("io.synadia.payload.StringPayloadDeserializer")
       .build();
   ```
-  
-* You can also supply source properties from a file.
+
+6\.You can also supply source properties from a file.
 
   ```java
   Properties props = Utils.loadPropertiesFromFile("/path/to/source.properties");
   NatsSource<String> source = new NatsSourceBuilder<String>()
       .sourceProperties(props)
-      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .connectionPropertiesFile("/path/to/connection.properties")
       .build();
   ```
 
-* The source supports these property keys
-  ```properties
-  source.subjects
-  source.payload.deserializer
-  source.startup.jitter.min
-  source.startup.jitter.max
-  ```
-
-* It's okay to use the combine the source properties and the connection properties. 
-Each builder method only looks at the keys that are for it. 
+7\. You combine the use the same properties file for multiple purposes. 
+Each builder method only looks at the keys that are relevant. So different files:
 
   ```java
   Properties props = Utils.loadPropertiesFromFile("/path/to/sourceAndConnection.properties");
   NatsSource<String> source = new NatsSourceBuilder<String>()
       .sourceProperties(props)
-      .connectionProperties(props)
+      .connectionPropertiesFile("/path/to/connection.properties")
       .build();
   ```
 
-  -or-
+or the same file
 
   ```java
   Properties props = Utils.loadPropertiesFromFile("/path/to/sourceAndConnection.properties");
@@ -131,6 +107,92 @@ Each builder method only looks at the keys that are for it.
       .sourceProperties(props)
       .connectionPropertiesFile("/path/to/sourceAndConnection.properties")
       .build();
+  ```
+
+## Nats Message Processing
+
+This project sources get messages from NATS and offers emits them in a form that can be received by a sink.
+The sinks get strings or bytes from the sources and converts them to bytes that can be used to form a _Message_ to be published.
+This is done via deserializers and serializers.
+
+### Payload Deserializer
+
+A Payload Deserializer is used by the sources to take a `Message` and convert it to the output type that source is configured for. It must implement `PayloadDeserializer`.
+```java
+public interface PayloadDeserializer<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
+    /**
+     * Convert a Message into an instance of the output type.
+     * @return the output object
+     */
+    OutputT getObject(Message message);
+}
+```
+
+There are two deserializers provided with this project.
+* `StringPayloadDeserializer` takes a `Messsage` and converts the message data byte array to a String
+* `ByteArrayPayloadDeserializer` takes a `Messsage` and converts the message data byte array (`byte[]`) and converts it to the object form (`Byte[]`)
+
+If you need to look at message headers or are interested in the subject and pass that information along as well as the data, 
+then it's up to you to build your own deserializers. Use the existing implementations as example to build your own, they are fairly trivial.
+
+
+### Payload Serializer
+
+A Payload Serializer is used by the sinks to take data of the input type and convert it to a byte array to be published as the data in a message. It must implement `PayloadSerializer`.
+```java
+public interface PayloadSerializer<InputT> extends Serializable {
+  /**
+   * Get bytes from the input object so they can be published in a message
+   * @param input the input object
+   * @return the bytes
+   */
+  byte[] getBytes(InputT input);
+}
+```
+
+There are two serializers provided with this project.
+* `StringPayloadSerializer` takes a takes a String and converts it to a byte array
+* `ByteArrayPayloadSerializer` A ByteArrayPayloadSerializer takes a byte array in object form (`Byte[]`) and converts it to a byte array (`byte[]`).
+
+As you can see, these are parallel to the deserializers. In Flink, the source output type must match the sink input type for them to be compatible. 
+
+## Sources
+
+There are two types of Flink source implementations available. They both use a provided payload deserializer to convert messages to the form the sink accepts.
+1. NatsSource subscribes one or more core NATS subjects.
+1. JetStreamSource subscribes one or more JetStream subjects.
+
+### NatsSource
+In order to construct a NatsSource, you must use the NatsSourceBuilder.
+
+* The NatsSourceBuilder is generic. It's generic type, `<OutputT>` is the type of object that will be created from a 
+  message's subject, headers and payload data byte[]
+* The builder has these methods:
+    ```
+    minConnectionJitter(long minConnectionJitter)
+    maxConnectionJitter(long maxConnectionJitter)
+    connectionProperties(Properties connectionProperties)
+    connectionPropertiesFile(String connectionPropertiesFile)
+    subjects(String... subjects)
+    subjects(List<String> subjects)
+    payloadDeserializer(PayloadDeserializer<InputT> payloadDeserializer)
+    payloadDeserializerClass(String payloadDeserializerClass)
+    sourceProperties(Properties properties)
+    ```
+  
+The 
+* Again as a reminder, when using the builder, the last call value is used, they are not additive.
+  * Calling multiple variations or instances of `subjects`
+  * Calling `connectionProperties` or `connectionPropertiesFile`
+  * Calling `payloadSerializer` or `payloadSerializerClass`
+  * Calling `sourceProperties` versus anything  
+
+* The source supports these property keys
+  ```properties
+  source.subjects
+  source.payload.deserializer
+  source.connection.jitter.min
+  source.connection.jitter.max
   ```
 
 ## NatsSink
@@ -165,7 +227,7 @@ In order to construct a sink, you must use the builder.
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>()
       .subjects("subject1", "subject2")
-      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .connectionPropertiesFile("/path/to/connection.properties")
       .minConnectionJitter(1000)
       .maxConnectionJitter(5000)
       .payloadSerializerClass("io.synadia.payload.StringPayloadSerializer")
@@ -178,7 +240,7 @@ In order to construct a sink, you must use the builder.
   Properties props = Utils.loadPropertiesFromFile("/path/to/sink.properties");
   NatsSink<String> sink = new NatsSinkBuilder<String>()
       .sinkProperties(props)
-      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .connectionPropertiesFile("/path/to/connection.properties")
       .build();
   ```
 
@@ -186,8 +248,8 @@ In order to construct a sink, you must use the builder.
   ```properties
   sink.subjects
   sink.payload.serializer
-  sink.startup.jitter.min
-  sink.startup.jitter.max
+  sink.connection.jitter.min
+  sink.connection.jitter.max
   ```
 
 * It's okay to use the combine the sink properties and the connection properties
@@ -209,7 +271,9 @@ In order to construct a sink, you must use the builder.
       .build();
   ```
 
-## Connection Properties
+## Source and Sink Configuration
+
+### Connection Properties
 
 There are two ways to get the connection properties into the sink or source:
 
@@ -222,7 +286,7 @@ otherwise it will not be found and the sink or source won't be able to connect.
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>()
       ...
-      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
+      .connectionPropertiesFile("/path/to/connection.properties")
       ...        
       .build();
   ```
@@ -257,24 +321,20 @@ io.nats.client.trustStore=/path/to/truststore.jks
 io.nats.client.url=tls://myhost:4222
 ```
 
-## Serializers / Deserializers
+### Serializers / Deserializers
 
-There are 3 ways to get a de/serializer into your source/sink.
+There are 3 ways to configure a serializer / deserializer into your source/sink.
 
 1\. By giving the fully qualified class name.
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .payloadSerializerClass("io.synadia.flink.payload.StringPayloadSerializer")
-      ...
       .build();
-  ```
 
-  ```java
   NatsSource<String> source = new NatsSourceBuilder<String>
       ...
       .payloadDeserializerClass("io.synadia.flink.payload.StringPayloadDeserializer")
-      ...
       .build();
   ```
 
@@ -284,39 +344,29 @@ There are 3 ways to get a de/serializer into your source/sink.
   NatsSink<String> sink = new NatsSinkBuilder<String>
       ...
       .payloadSerializer(serializer)
-      ...
       .build();
-  ```
-
-  ```java
+  
   StringPayloadDeserializer serializer = new StringPayloadDeserializer();
   NatsSource<String> source = new NatsSourceBuilder<String>
       ...
       .payloadDeserializer(serializer)
-      ...
       .build();
   ```
 
 3\. By supplying the fully qualified name as a property 
   ```properties
   sink.payload.serializer=com.mycompany.MySerializer
+  source.payload.deserializer=com.mycompany.MyDeserializer
   ```
+
   ```java
-  Properties props = Utils.loadPropertiesFromFile("/path/to/sink.properties");
+  Properties props = Utils.loadPropertiesFromFile("/path/to/my.properties");
   NatsSink<MySerializerType> sink = new NatsSinkBuilder<MySerializerType>
-      ...
       .sinkProperties(props)
       ...
       .build();
-  ```
-
-  ```properties
-  source.payload.deserializer=com.mycompany.MyDeserializer
-  ```
-  ```java
-  Properties props = Utils.loadPropertiesFromFile("/path/to/source.properties");
+  
   NatsSource<MyDeserializerType> source = new NatsSourceBuilder<MyDeserializerType>
-      ...
       .sourceProperties(props)
       ...
       .build();
@@ -326,13 +376,14 @@ There is nothing significantly different, it is simply a developer's preference.
 * must have a no parameter constructor
 * must be of the proper input or output type for the sink or source
 * must `implements Serializable`, which is usually trivial since there is should not be any state.
-  If any of these conditions are not met, a terminal exception will be thrown.
+
+If any of these conditions are not met, a terminal exception will be thrown.
 
 ## Getting the Library
 
-### Using Gradle
-
 The NATS client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
+
+### Gradle
 
 ```groovy
 dependencies {
@@ -366,9 +417,7 @@ dependencies {
 }
 ```
 
-### Using Maven
-
-The NATS client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
+### Maven
 
 ```xml
 <dependency>

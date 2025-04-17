@@ -6,15 +6,22 @@ package io.synadia.flink.examples.support;
 import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
+import io.synadia.flink.utils.PropertiesUtils;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExampleUtils {
+    public static final String CONNECTION_PROPS_FILE = "src/examples/resources/connection.properties";
+    public static final String SOURCE_PROPS_FILE = "src/examples/resources/core-source.properties";
+    public static final String SINK_PROPS_FILE = "src/examples/resources/core-sink.properties";
 
-    public static Connection connect(Properties props) throws Exception {
+    public static Connection connect(String propsFile) throws IOException, InterruptedException {
+        return connect(PropertiesUtils.loadPropertiesFromFile(propsFile));
+    }
+
+    public static Connection connect(Properties props) throws IOException, InterruptedException {
         Options options = new Options.Builder()
             .properties(props)
             .connectionListener(new ExampleConnectionListener())
@@ -86,16 +93,26 @@ public class ExampleUtils {
         return n < 10 ? "0" + n : "" + n;
     }
 
-    public static String[] toStringArray(String commaDelimited) {
-        return commaDelimited.split(",");
-    }
-
-    public static int[] toIntArray(String commaDelimited) {
-        String[] strings = toStringArray(commaDelimited);
-        int[] ints = new int[strings.length];
-        for (int i = 0; i < strings.length; i++) {
-            ints[i] = Integer.parseInt(strings[i]);
+    public static void reportSinkListener(Map<String, AtomicInteger> receivedMap, int manualTotal) {
+        StringBuilder sb = new StringBuilder("Received | ");
+        int total = 0;
+        List<String> sorted = new ArrayList<>(receivedMap.keySet());
+        sorted.sort(String.CASE_INSENSITIVE_ORDER);
+        for (String sortedSubject : sorted) {
+            int count = receivedMap.get(sortedSubject).get();
+            if (total > 0) {
+                sb.append(", ");
+            }
+            total += count;
+            sb.append(sortedSubject)
+                .append("/")
+                .append(count);
         }
-        return ints;
+        sb.append(" | Total: ")
+            .append(ExampleUtils.format(total))
+            .append(" (")
+            .append(manualTotal)
+            .append(")");
+        System.out.println(sb);
     }
 }

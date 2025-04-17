@@ -16,8 +16,6 @@ import io.synadia.flink.sink.NatsSinkBuilder;
 import io.synadia.flink.v0.source.NatsJetStreamSource;
 import io.synadia.flink.v0.source.NatsJetStreamSourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -74,9 +72,9 @@ public class JsSourceTests extends TestBase {
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder =
                     new NatsJetStreamSourceBuilder<String>()
-                            .subjects(sourceSubject)
+                            .subject(sourceSubject)
                             .payloadDeserializer(deserializer)
-                            .connectionProperties(connectionProperties)
+                            .connectionPropertiesFile(connectionProperties)
                             .streamName(streamName)
                             .consumerName(consumerName)
                             .maxFetchRecords(100)
@@ -95,14 +93,13 @@ public class JsSourceTests extends TestBase {
 
             // Step 6: Configure a NATS Sink to write processed data
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subjects(sinkSubject)
-                    .connectionProperties(connectionProperties)
+                    .subject(sinkSubject)
+                    .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();
             ds.map(String::toUpperCase).sinkTo(sink);
 
             // Step 7: Set Flink restart strategy and execute the job asynchronously
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("TestJsSourceBounded");
 
             // Step 8: Wait for processing to complete
@@ -137,9 +134,9 @@ public class JsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             PayloadDeserializer<String> deserializer = new StringPayloadDeserializer();
             NatsJetStreamSourceBuilder<String> builder = new NatsJetStreamSourceBuilder<String>()
-                .subjects(sourceSubject)
+                .subject(sourceSubject)
                 .payloadDeserializer(deserializer)
-                .connectionProperties(connectionProperties)
+                .connectionPropertiesFile(connectionProperties)
                 .consumerName(consumerName)
                 .streamName(streamName)
                 .maxFetchRecords(100)
@@ -158,8 +155,8 @@ public class JsSourceTests extends TestBase {
 
             // Sink: Write to a different subject
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subjects(sinkSubject)
-                    .connectionProperties(connectionProperties)
+                    .subject(sinkSubject)
+                    .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();
             ds.map(String::toUpperCase).sinkTo(sink);

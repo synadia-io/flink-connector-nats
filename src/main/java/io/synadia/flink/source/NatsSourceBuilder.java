@@ -4,14 +4,10 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.utils.BuilderBase;
 
-import java.util.Properties;
-
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Builder to construct {@link NatsSource}.
@@ -30,12 +26,9 @@ import static io.synadia.flink.utils.Constants.SOURCE_PREFIX;
  * @see NatsSource
  * @param <OutputT> type of the records written
  */
-public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSourceBuilder<OutputT>> {
-    private PayloadDeserializer<OutputT> payloadDeserializer;
-    private String payloadDeserializerClass;
-
+public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceBuilder<OutputT>> {
     public NatsSourceBuilder() {
-        super(SOURCE_PREFIX);
+        super(true, false);
     }
 
     @Override
@@ -44,20 +37,53 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
     }
 
     /**
-     * Set source properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set source configuration from a properties file
+     * @param propertiesFilePath the location of the file
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        baseProperties(properties);
-
-        String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_DESERIALIZER, prefixes);
-        if (s != null) {
-            payloadDeserializerClass(s);
-        }
-
+    public NatsSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
+        fromPropertiesFile(propertiesFilePath);
         return this;
+    }
+
+    /**
+     * Set source configuration from a json file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
+        fromJsonFile(jsonFilePath);
+        return this;
+    }
+
+    /**
+     * Set source configuration from a yaml file
+     * @param yamlFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
+        fromYamlFile(yamlFilePath);
+        return this;
+    }
+
+    /**
+     * Set one or more subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> subject(String... subjects) {
+        return super._subjects(subjects);
+    }
+
+    /**
+     * Set the subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public NatsSourceBuilder<OutputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -66,9 +92,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        this.payloadDeserializer = payloadDeserializer;
-        this.payloadDeserializerClass = null;
-        return this;
+        return super._payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -77,9 +101,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializer = null;
-        this.payloadDeserializerClass = payloadDeserializerClass;
-        return this;
+        return super._payloadDeserializerClass(payloadDeserializerClass);
     }
 
     /**
@@ -87,27 +109,7 @@ public class NatsSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsSour
      * @return the source
      */
     public NatsSource<OutputT> build() {
-        if (payloadDeserializer == null) {
-            if (payloadDeserializerClass == null) {
-                throw new IllegalStateException("Valid payload deserializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadDeserializer = (PayloadDeserializer<OutputT>) Class.forName(payloadDeserializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        // Validate subjects
-        if (subjects == null || subjects.isEmpty()) {
-            throw new IllegalStateException("Subjects list is empty. At least one subject must be provided.");
-        }
-
-        baseBuild(true);
-        return new NatsSource<>(payloadDeserializer, createConnectionFactory(), subjects);
+        beforeBuild();
+        return new NatsSource<>(payloadDeserializer, connectionFactory, subjects);
     }
 }

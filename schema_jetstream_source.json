@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "payload_deserializer": {
+      "type": "string",
+      "description": "fully qualified class name"
+    },
+    "jetstream_subject_configurations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stream_name", "subject"],
+        "properties": {
+          "stream_name": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "start_seq": {
+            "type": "number",
+            "description": "unsigned long, cannot have both start sequence and start time."
+          },
+          "start_time": {
+            "type": "string",
+            "description": "unsigned long, cannot have both start sequence and start time."
+          },
+          "max_msgs": {
+            "type": "integer",
+            "description": "the maximum number of messages to read, creates a BOUNDED source if set"
+          },
+          "ack": {
+            "type": "boolean"
+          },
+          "consume_options": {
+            "type": "object",
+            "required": [
+              "threshold_percent",
+              "bytes",
+              "messages",
+              "expires_in",
+              "idle_heartbeat"
+            ],
+            "properties": {
+              "threshold_percent": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "messages": {
+                "type": "integer"
+              },
+              "expires_in": {
+                "type": "integer"
+              },
+              "idle_heartbeat": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "payload_deserializer",
+    "jetstream_subject_configurations"
+  ]
+}

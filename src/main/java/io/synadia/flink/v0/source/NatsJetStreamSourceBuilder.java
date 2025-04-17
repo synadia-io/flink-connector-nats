@@ -4,56 +4,75 @@
 package io.synadia.flink.v0.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.utils.Constants;
+import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.utils.PropertyConstants;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Properties;
 
-import static io.synadia.flink.utils.Constants.*;
+import static io.nats.client.support.ApiConstants.STREAM_NAME;
 
-public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<NatsJetStreamSourceBuilder<OutputT>> {
+public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsJetStreamSourceBuilder<OutputT>> {
+    public static final String CONSUMER_NAME = "consumer_name";
 
-    private PayloadDeserializer<OutputT> payloadDeserializer;
-    private String payloadDeserializerClass;
+    long DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS = 1000;
+    long DEFAULT_FETCH_TIMEOUT_MS = 1000;
+    long DEFAULT_AUTO_ACK_INTERVAL_MS = 5000;
+    int DEFAULT_MAX_FETCH_RECORDS = 100;
+
     private String consumerName;
     private String streamName;
-    private int messageQueueCapacity;
+    private int messageQueueCapacity = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
     private boolean enableAutoAcknowledgeMessage;
-    private Duration fetchOneMessageTimeout;
-    private Duration fetchTimeout;
-    private int maxFetchRecords;
-    private Duration autoAckInterval;
-    private Boundedness boundedness;
+    private Duration fetchOneMessageTimeout = Duration.ofMillis(DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS);
+    private Duration fetchTimeout = Duration.ofMillis(DEFAULT_FETCH_TIMEOUT_MS);
+    private int maxFetchRecords = DEFAULT_MAX_FETCH_RECORDS;
+    private Duration autoAckInterval = Duration.ofMillis(DEFAULT_AUTO_ACK_INTERVAL_MS);
+    private Boundedness boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
 
     public NatsJetStreamSourceBuilder() {
-        super(SOURCE_PREFIX);
-        messageQueueCapacity = DEFAULT_ELEMENT_QUEUE_CAPACITY;
-        enableAutoAcknowledgeMessage = DEFAULT_ENABLE_AUTO_ACK;
-        fetchOneMessageTimeout = Duration.ofMillis(DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS);
-        fetchTimeout = Duration.ofMillis(DEFAULT_FETCH_TIMEOUT_MS);
-        maxFetchRecords = DEFAULT_MAX_FETCH_RECORDS;
-        autoAckInterval = Duration.ofMillis(DEFAULT_AUTO_ACK_INTERVAL_MS);
-        boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
+        super(true, false);
     }
 
     /**
      * Set source properties from a properties object
-     * See the readme and {@link Constants} for property keys
+     * See the readme and {@link PropertyConstants} for property keys
      * @param properties the properties object
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        baseProperties(properties);
-
-        String s = PropertiesUtils.getStringProperty(properties, PAYLOAD_DESERIALIZER, prefixes);
-        if (s != null) {
-            payloadDeserializerClass(s);
+        setBaseProperties(k -> PropertiesUtils.getStringProperty(properties, k));
+        String name = properties.getProperty(STREAM_NAME);
+        if (name != null) {
+            streamName(name);
         }
-
+        name = properties.getProperty(CONSUMER_NAME);
+        if (name != null) {
+            consumerName(name);
+        }
         return this;
+    }
+
+    /**
+     * Set one or more subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public NatsJetStreamSourceBuilder<OutputT> subject(String... subjects) {
+        return super._subjects(subjects);
+    }
+
+    /**
+     * Set the subjects for the source. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
+     * @return the builder
+     */
+    public NatsJetStreamSourceBuilder<OutputT> subject(List<String> subjects) {
+        return super._subjects(subjects);
     }
 
     /**
@@ -62,9 +81,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        this.payloadDeserializer = payloadDeserializer;
-        this.payloadDeserializerClass = null;
-        return this;
+        return super._payloadDeserializer(payloadDeserializer);
     }
 
     /**
@@ -73,9 +90,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializer = null;
-        this.payloadDeserializerClass = payloadDeserializerClass;
-        return this;
+        return super._payloadDeserializerClass(payloadDeserializerClass);
     }
 
     @Override
@@ -136,59 +151,44 @@ public class NatsJetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase
     public NatsJetStreamSource<OutputT> build() {
         // Validate consumer name
         if (consumerName == null || consumerName.isEmpty()) {
-            throw new IllegalStateException("Consumer name must be provided.");
+            throw new IllegalArgumentException("Consumer name must be provided.");
         }
 
         // Validate stream name
         if (streamName == null || streamName.isEmpty()) {
-            throw new IllegalStateException("Stream name must be provided.");
+            throw new IllegalArgumentException("Stream name must be provided.");
         }
 
         // Validate auto ack interval when enabled
         if (enableAutoAcknowledgeMessage &&
             (autoAckInterval == null || autoAckInterval.isZero() || autoAckInterval.isNegative())) {
-            throw new IllegalStateException("Auto acknowledge interval must be positive when auto acknowledge is enabled");
+            throw new IllegalArgumentException("Auto acknowledge interval must be positive when auto acknowledge is enabled");
         }
 
         // Validate max fetch records
         if (maxFetchRecords <= 0) {
-            throw new IllegalStateException("Maximum fetch records must be positive");
+            throw new IllegalArgumentException("Maximum fetch records must be positive");
         }
 
         // Validate message queue capacity
         if (messageQueueCapacity <= 0) {
-            throw new IllegalStateException("Message queue capacity must be positive");
+            throw new IllegalArgumentException("Message queue capacity must be positive");
         }
 
         // Add validation for fetch timeouts
         if (fetchOneMessageTimeout == null || fetchOneMessageTimeout.isNegative()) {
-            throw new IllegalStateException("Fetch timeout must be non-negative");
+            throw new IllegalArgumentException("Fetch timeout must be non-negative");
         }
 
         if (fetchTimeout == null || fetchTimeout.isNegative()) {
-            throw new IllegalStateException("Max fetch time must be non-negative");
+            throw new IllegalArgumentException("Max fetch time must be non-negative");
         }
 
-        // Validate payload deserializer
-        if (payloadDeserializer == null) {
-            if (payloadDeserializerClass == null) {
-                throw new IllegalStateException("Valid payload deserializer class must be provided.");
-            }
+        beforeBuild();
 
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadDeserializer = (PayloadDeserializer<OutputT>) Class.forName(payloadDeserializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        baseBuild(true);
-
-        return new NatsJetStreamSource<>(payloadDeserializer,
-            createConnectionFactory(),
+        return new NatsJetStreamSource<>(
+            payloadDeserializer,
+            connectionFactory,
             subjects,
             new NatsJetStreamSourceConfiguration(streamName,
                 consumerName,

@@ -9,7 +9,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.nats.client.impl.AckType;
-import io.synadia.flink.payload.MessageRecord;
+import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
@@ -25,13 +25,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
+import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
-    private final String id;
     private final boolean bounded;
     private final ConnectionFactory connectionFactory;
     private final PayloadDeserializer<OutputT> payloadDeserializer;
@@ -43,16 +42,17 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private int activeSplits;
     private Connection connection;
 
-    public JetStreamSourceReader(String sourceId,
-                                 Boundedness boundedness,
-                                 ConnectionFactory connectionFactory,
+    public JetStreamSourceReader(Boundedness boundedness,
                                  PayloadDeserializer<OutputT> payloadDeserializer,
-                                 SourceReaderContext readerContext) {
-        id = generatePrefixedId(sourceId);
+                                 ConnectionFactory connectionFactory,
+                                 SourceReaderContext readerContext
+    ) {
         this.bounded = boundedness == Boundedness.BOUNDED;
-        this.connectionFactory = connectionFactory;
         this.payloadDeserializer = payloadDeserializer;
+        this.connectionFactory = connectionFactory;
+
         checkNotNull(readerContext); // it's not used but is supposed to be provided
+
         splitMap = new HashMap<>();
         queue = new FutureCompletingBlockingQueue<>();
         availableFuture = CompletableFuture.completedFuture(null);
@@ -77,17 +77,17 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         }
         // 1. Get the split
         // 2. The split could be finished but more messages came into the queue. These will just be ignored.
-        JetStreamSourceReaderSplit srSplit = splitMap.get(sm.splitId);
-        if (!srSplit.isFinished()) {
+        JetStreamSourceReaderSplit readerSplit = splitMap.get(sm.splitId);
+        if (!readerSplit.isFinished()) {
             // 1. collect the message
             // 2. mark the message as emitted - this increments the count
             // 3. if bounded check to see if
-            output.collect(payloadDeserializer.getObject(new MessageRecord(sm.message)));
-            long emittedCount = srSplit.markEmitted(sm.message);
-            if (bounded && emittedCount >= srSplit.getMaxMessagesToRead()) {
+            output.collect(payloadDeserializer.getObject(sm.message));
+            long emittedCount = readerSplit.markEmitted(sm.message);
+            if (bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
                 // this split has fulfilled it's bound. Not all splits reader necessarily have yet
                 // so only say END_OF_INPUT if all are done
-                srSplit.done();
+                readerSplit.done();
                 if (--activeSplits < 1) {
                     availableFuture.complete(null);
                     return InputStatus.END_OF_INPUT;
@@ -123,7 +123,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                         ? createConsumer(split, sc)
                         : createOrderedConsumer(split, sc);
 
-                    ConsumeOptions consumeOptions = split.subjectConfig.consumeOptions.getConsumeOptions();
+                    SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
+                    ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
                     MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
                     MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
 
@@ -186,7 +187,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.ack()) {
+            if (snapshot != null && srSplit.split.subjectConfig.ack) {
                 // Manual ack since we don't have the message, just the reply_to
                 // but we know that this \/ is what an ack is
                 // Also we execute as a task so as not to slow down the reader
