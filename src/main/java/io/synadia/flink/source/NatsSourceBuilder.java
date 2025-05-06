@@ -42,29 +42,29 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @return the builder
      */
     public NatsSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
-        fromPropertiesFile(propertiesFilePath);
+        setBaseFromPropertiesFile(propertiesFilePath);
         return this;
     }
 
     /**
-     * Set source configuration from a json file
+     * Set source configuration from a JSON file
      * @param jsonFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
-        fromJsonFile(jsonFilePath);
+        setBaseFromJsonFile(jsonFilePath);
         return this;
     }
 
     /**
-     * Set source configuration from a yaml file
+     * Set source configuration from a YAML file
      * @param yamlFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
-        fromYamlFile(yamlFilePath);
+        setBaseFromYamlFile(yamlFilePath);
         return this;
     }
 
@@ -73,7 +73,7 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @param subjects the subjects
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> subject(String... subjects) {
+    public NatsSourceBuilder<OutputT> subjects(String... subjects) {
         return super._subjects(subjects);
     }
 
@@ -82,7 +82,7 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> subject(List<String> subjects) {
+    public NatsSourceBuilder<OutputT> subjects(List<String> subjects) {
         return super._subjects(subjects);
     }
 

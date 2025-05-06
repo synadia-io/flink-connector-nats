@@ -41,7 +41,7 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @param subjects the subjects
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> subject(String... subjects) {
+    public NatsSinkBuilder<InputT> subjects(String... subjects) {
         return super._subjects(subjects);
     }
 
@@ -50,7 +50,7 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> subject(List<String> subjects) {
+    public NatsSinkBuilder<InputT> subjects(List<String> subjects) {
         return super._subjects(subjects);
     }
 
@@ -78,29 +78,29 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @return the builder
      */
     public NatsSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
-        fromPropertiesFile(propertiesFilePath);
+        setBaseFromPropertiesFile(propertiesFilePath);
         return this;
     }
 
     /**
-     * Set sink configuration from a json file
+     * Set sink configuration from a JSON file
      * @param jsonFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
-        fromJsonFile(jsonFilePath);
+        setBaseFromJsonFile(jsonFilePath);
         return this;
     }
 
     /**
-     * Set sink configuration from a yaml file
+     * Set sink configuration from a YAML file
      * @param yamlFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
-        fromYamlFile(yamlFilePath);
+        setBaseFromYamlFile(yamlFilePath);
         return this;
     }
 

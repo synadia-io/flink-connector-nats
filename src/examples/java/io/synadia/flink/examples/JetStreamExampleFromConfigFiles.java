@@ -7,7 +7,6 @@ import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
-import io.synadia.flink.payload.StringPayloadSerializer;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.source.JetStreamSource;
@@ -23,6 +22,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.JetStreamExampleHelper.*;
 
+/**
+ * This is the same workflow as JetStreamExample, but it creates the source and sink
+ * object using a JSON or YAML file instead of being coded.
+ * Run the JetStreamExample first, and it will generate the config files, overwriting
+ * the ones packaged in the examples' resource directory. See the constants in
+ * JetStreamExample for file locations.
+ */
 public class JetStreamExampleFromConfigFiles {
     // ==========================================================================================
     // Example Configuration: Use these settings to change how the example runs
@@ -88,14 +94,14 @@ public class JetStreamExampleFromConfigFiles {
         // Build the source by setting up the connection properties, and the json or yaml for the source
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source;
-        JetStreamSourceBuilder<String> builder = new JetStreamSourceBuilder<String>()
+        JetStreamSourceBuilder<String> sourceBuilder = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         if (USE_JSON_NOT_YAML) {
-            source = builder.sourceJson(SOURCE_CONFIG_FILE_JSON).build();
+            source = sourceBuilder.sourceJson(JetStreamExample.SOURCE_CONFIG_FILE_JSON).build();
             System.out.println("Source as configured via JSON\n" + source.toJson());
         }
         else {
-            source = builder.sourceYaml(SOURCE_CONFIG_FILE_YAML).build();
+            source = sourceBuilder.sourceYaml(JetStreamExample.SOURCE_CONFIG_FILE_YAML).build();
             System.out.println("Source as configured via Yaml\n" + source.toYaml());
         }
 
@@ -111,12 +117,17 @@ public class JetStreamExampleFromConfigFiles {
         // all those sources get "sinked" to the same JetStream subject
         // This may or may not be a real use-case, it's here for example.
         // ------------------------------------------------------------------------------------------
-        JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadSerializer(new StringPayloadSerializer())
-            .subjects(SINK_SUBJECT)
-            .build();
-        System.out.println(sink.toString());
+        JetStreamSink<String> sink;
+        JetStreamSinkBuilder<String> sinkBuilder = new JetStreamSinkBuilder<String>()
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
+        if (USE_JSON_NOT_YAML) {
+            sink = sinkBuilder.sinkJson(JetStreamExample.SINK_CONFIG_FILE_JSON).build();
+            System.out.println("Sink as configured via JSON\n" + sink.toJson());
+        }
+        else {
+            sink = sinkBuilder.sinkYaml(JetStreamExample.SINK_CONFIG_FILE_YAML).build();
+            System.out.println("Sink as configured via Yaml\n" + sink.toYaml());
+        }
 
         // ==========================================================================================
         // Setup and start flink

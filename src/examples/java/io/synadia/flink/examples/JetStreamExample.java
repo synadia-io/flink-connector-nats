@@ -52,6 +52,15 @@ public class JetStreamExample {
     // ------------------------------------------------------------------------------------------
     public static final int QUIET_PERIOD = 3000;
 
+    // ------------------------------------------------------------------------------------------
+    // Locations where to write config files based on how the example gets configured.
+    // These files can be used in the JetStreamExampleFromConfigFiles example.
+    // ------------------------------------------------------------------------------------------
+    public static final String SOURCE_CONFIG_FILE_JSON = "src/examples/resources/js-source-config.json";
+    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/js-source-config.yaml";
+    public static final String SINK_CONFIG_FILE_JSON = "src/examples/resources/js-sink-config.json";
+    public static final String SINK_CONFIG_FILE_YAML = "src/examples/resources/js-sink-config.yaml";
+
     // ==========================================================================================
     // JetStreamSource Configuration: Use these settings to change how the source is configured
     // ==========================================================================================
@@ -186,7 +195,13 @@ public class JetStreamExample {
             .payloadSerializer(new StringPayloadSerializer())
             .subjects(SINK_SUBJECT)
             .build();
-        System.out.println(sink.toString());
+
+        // ------------------------------------------------------------------------------------------
+        // Here we write the sink config out to a file in different formats.
+        // The files can be used in the JetStreamExampleFromConfigFiles example.
+        // ------------------------------------------------------------------------------------------
+        writeToFile(SINK_CONFIG_FILE_JSON, sink.toJson());
+        writeToFile(SINK_CONFIG_FILE_YAML, sink.toYaml());
 
         // ==========================================================================================
         // Setup and start flink

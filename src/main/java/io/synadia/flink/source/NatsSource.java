@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.JsonUtils;
 import io.synadia.flink.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.source.reader.NatsSourceReader;
@@ -10,6 +11,7 @@ import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -19,7 +21,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
  * Flink Source to consume data from one or more NATS subjects
@@ -51,6 +58,20 @@ public class NatsSource<OutputT> implements
 
     public List<String> getSubjects() {
         return subjects;
+    }
+
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        return endJson(sb).toString();
+    }
+
+    public String toYaml() {
+        StringBuilder sb = YamlUtils.beginYaml();
+        YamlUtils.addField(sb, 0, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
+        return sb.toString();
     }
 
     @Override

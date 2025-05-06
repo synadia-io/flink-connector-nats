@@ -63,7 +63,7 @@ public class CoreSubjectExample2 {
         NatsSource<String> source = new NatsSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
-            .subject(sourceSubjects)
+            .subjects(sourceSubjects)
             .build();
         System.out.println(source);
 
@@ -71,7 +71,7 @@ public class CoreSubjectExample2 {
         NatsSink<String> sink = new NatsSinkBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadSerializerClass(STRING_PAYLOAD_SERIALIZER_CLASSNAME)
-            .subject(sinkSubject)
+            .subjects(sinkSubject)
             .build();
         System.out.println(sink);
 

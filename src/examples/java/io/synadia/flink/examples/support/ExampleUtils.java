@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExampleUtils {
     public static final String EXAMPLES_CONNECTION_PROPERTIES_FILE = "src/examples/resources/connection.properties";
-    public static final String SOURCE_PROPS_FILE = "src/examples/resources/core-source.properties";
-    public static final String SINK_PROPS_FILE = "src/examples/resources/core-sink.properties";
+    public static final String SOURCE_PROPS_FILE = "src/examples/resources/core-source-config.properties";
+    public static final String SINK_PROPS_FILE = "src/examples/resources/core-sink-config.properties";
 
     public static Connection connect(String propsFile) throws IOException, InterruptedException {
         return connect(PropertiesUtils.loadPropertiesFromFile(propsFile));

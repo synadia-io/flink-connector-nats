@@ -79,29 +79,29 @@ public class JetStreamSinkBuilder<InputT> extends BuilderBase<InputT, JetStreamS
      * @return the builder
      */
     public JetStreamSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
-        fromPropertiesFile(propertiesFilePath);
+        setBaseFromPropertiesFile(propertiesFilePath);
         return this;
     }
 
     /**
-     * Set sink configuration from a json file
+     * Set sink configuration from a JSON file
      * @param jsonFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
-        fromJsonFile(jsonFilePath);
+        setBaseFromJsonFile(jsonFilePath);
         return this;
     }
 
     /**
-     * Set sink configuration from a yaml file
+     * Set sink configuration from a YAML file
      * @param yamlFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
-        fromYamlFile(yamlFilePath);
+        setBaseFromYamlFile(yamlFilePath);
         return this;
     }
 

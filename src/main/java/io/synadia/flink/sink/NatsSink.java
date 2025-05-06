@@ -3,8 +3,10 @@
 
 package io.synadia.flink.sink;
 
+import io.nats.client.support.JsonUtils;
 import io.synadia.flink.payload.PayloadSerializer;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -12,7 +14,12 @@ import org.apache.flink.api.connector.sink2.WriterInitContext;
 import java.io.IOException;
 import java.util.List;
 
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.PAYLOAD_SERIALIZER;
+import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
  * Flink Sink to publish data to one or more NATS subjects
@@ -32,6 +39,20 @@ public class NatsSink<InputT> implements Sink<InputT> {
         this.subjects = subjects;
         this.payloadSerializer = payloadSerializer;
         this.connectionFactory = connectionFactory;
+    }
+
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, PAYLOAD_SERIALIZER, getClassName(payloadSerializer));
+        JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        return endJson(sb).toString();
+    }
+
+    public String toYaml() {
+        StringBuilder sb = YamlUtils.beginYaml();
+        YamlUtils.addField(sb, 0, PAYLOAD_SERIALIZER, getClassName(payloadSerializer));
+        YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
+        return sb.toString();
     }
 
     public List<String> getSubjects() {

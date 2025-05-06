@@ -6,7 +6,6 @@ package io.synadia.flink.v0.source;
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
@@ -14,7 +13,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
-import static io.nats.client.support.ApiConstants.STREAM_NAME;
+import static io.synadia.flink.utils.Constants.STREAM_NAME;
 
 public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsJetStreamSourceBuilder<OutputT>> {
     public static final String CONSUMER_NAME = "consumer_name";
@@ -45,7 +44,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
      * @return the builder
      */
     public NatsJetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        setBaseProperties(k -> PropertiesUtils.getStringProperty(properties, k));
+        setBaseFromProperties(properties);
         String name = properties.getProperty(STREAM_NAME);
         if (name != null) {
             streamName(name);

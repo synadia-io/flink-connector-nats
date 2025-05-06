@@ -80,7 +80,7 @@ public class NatsJetStreamExample {
 
         // Configure the NATS JetStream Sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
-                .subject(sinkSubject)
+                .subjects(sinkSubject)
                 .connectionPropertiesFile(connectionProperties)
                 .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                 .build();

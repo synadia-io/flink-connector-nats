@@ -12,13 +12,9 @@ import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
 
-import static io.nats.client.support.ApiConstants.SUBJECTS;
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.Constants.PAYLOAD_SERIALIZER;
+import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.*;
-import static io.synadia.flink.utils.PropertiesUtils.getAsList;
 import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
 
 public abstract class BuilderBase<SerialT, BuilderT> {
@@ -101,40 +97,80 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return getThis();
     }
 
-    protected void setBaseProperties(Function<String, String> propertyFunction) {
+    protected interface PropertyAdapter {
+        List<String> getList(String key);
+        String getString(String key);
+    }
+
+    protected void setBaseProperties(PropertyAdapter adapter) {
         if (expectsSubjects) {
-            _subjects(getAsList(propertyFunction.apply(SUBJECTS)));
+            _subjects(adapter.getList(SUBJECTS));
         }
 
         if (expectsSerializerNotDeserializer) {
-            String classname = propertyFunction.apply(PAYLOAD_SERIALIZER);
+            String classname = adapter.getString(PAYLOAD_SERIALIZER);
             if (classname != null) {
                 _payloadSerializerClass(classname);
             }
         }
         else {
-            String classname = propertyFunction.apply(PAYLOAD_DESERIALIZER);
+            String classname = adapter.getString(PAYLOAD_DESERIALIZER);
             if (classname != null) {
                 _payloadDeserializerClass(classname);
             }
         }
     }
 
-    protected Properties fromPropertiesFile(String propertiesFilePath) throws IOException {
+    @SuppressWarnings("UnusedReturnValue")
+    protected Properties setBaseFromPropertiesFile(String propertiesFilePath) throws IOException {
         Properties properties = loadPropertiesFromFile(propertiesFilePath);
-        setBaseProperties(k -> PropertiesUtils.getStringProperty(properties, k));
+        setBaseFromProperties(properties);
         return properties;
     }
 
-    protected JsonValue fromJsonFile(String jsonFilePath) throws IOException {
+    protected void setBaseFromProperties(Properties properties) {
+        setBaseProperties(new PropertyAdapter() {
+            @Override
+            public List<String> getList(String key) {
+                return PropertiesUtils.getAsList(PropertiesUtils.getStringProperty(properties, key));
+            }
+
+            @Override
+            public String getString(String key) {
+                return PropertiesUtils.getStringProperty(properties, key);
+            }
+        });
+    }
+
+    protected JsonValue setBaseFromJsonFile(String jsonFilePath) throws IOException {
         JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
-        setBaseProperties(k -> JsonValueUtils.readString(jv, k, null));
+        setBaseProperties(new PropertyAdapter() {
+            @Override
+            public List<String> getList(String key) {
+                return JsonValueUtils.readStringList(jv, key);
+            }
+
+            @Override
+            public String getString(String key) {
+                return JsonValueUtils.readString(jv, key, null);
+            }
+        });
         return jv;
     }
 
-    protected Map<String, Object> fromYamlFile(String yamlFilePath) throws IOException {
+    protected Map<String, Object> setBaseFromYamlFile(String yamlFilePath) throws IOException {
         Map<String, Object> map = new Yaml().load(getInputStream(yamlFilePath));
-        setBaseProperties(k -> YamlUtils.readString(map, k, null));
+        setBaseProperties(new PropertyAdapter() {
+            @Override
+            public List<String> getList(String key) {
+                return YamlUtils.readStringList(map, key);
+            }
+
+            @Override
+            public String getString(String key) {
+                return YamlUtils.readString(map, key, null);
+            }
+        });
         return map;
     }
 

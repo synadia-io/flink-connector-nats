@@ -19,6 +19,7 @@ public interface Constants {
     String PAYLOAD_DESERIALIZER = "payload_deserializer";
     String PAYLOAD_SERIALIZER = "payload_serializer";
     String JETSTREAM_SUBJECT_CONFIGURATIONS = "jetstream_subject_configurations";
+    String SUBJECTS = "subjects"; // Used in core source and both core and js sink
 
     // ===================================================================================
     // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants

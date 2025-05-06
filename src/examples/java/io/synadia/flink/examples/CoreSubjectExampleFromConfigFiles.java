@@ -8,7 +8,6 @@ import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import io.synadia.flink.source.NatsSource;
 import io.synadia.flink.source.NatsSourceBuilder;
-import io.synadia.flink.utils.Constants;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -16,41 +15,51 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.List;
 
-import static io.synadia.flink.examples.support.ExampleUtils.writeToFile;
-
-public class CoreSubjectExample {
+/**
+ * This is the same workflow as CoreSubjectExample, but it creates the source and sink
+ * object using a JSON or YAML file instead of being coded.
+ * Run the CoreSubjectExample first, and it will generate the config files, overwriting
+ * the ones packaged in the examples' resource directory. See the constants in
+ * CoreSubjectExample for file locations.
+ */
+public class CoreSubjectExampleFromConfigFiles {
     public static final String EXAMPLE_NAME = "Example";
 
-    public static final String SOURCE_CONFIG_FILE_JSON = "src/examples/resources/core-source-config.json";
-    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/core-source-config.yaml";
-    public static final String SINK_CONFIG_FILE_JSON = "src/examples/resources/core-sink-config.json";
-    public static final String SINK_CONFIG_FILE_YAML = "src/examples/resources/core-sink-config.yaml";
+    // ------------------------------------------------------------------------------------------
+    // Set this flag to tell the program to use the JSON or YAML file for input.
+    // true means use the JSON. false means use the YAML
+    // The input file is determined by the constants in JetStreamExampleHelper.java
+    // either SOURCE_CONFIG_FILE_JSON or SOURCE_CONFIG_FILE_YAML
+    // ------------------------------------------------------------------------------------------
+    public static final boolean USE_JSON_NOT_YAML = false;
 
     public static void main(String[] args) throws Exception {
 
         // Create the source.
-        NatsSource<String> source = new NatsSourceBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadDeserializerClass(Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
-            .subjects("source1", "source2")
-            .build();
-
-        // ------------------------------------------------------------------------------------------
-        // Here we write the source config out to a file in different formats.
-        // The files can be used in the JetStreamExampleFromConfigFiles example.
-        // ------------------------------------------------------------------------------------------
-        writeToFile(SOURCE_CONFIG_FILE_JSON, source.toJson());
-        writeToFile(SOURCE_CONFIG_FILE_YAML, source.toYaml());
+        NatsSource<String> source;
+        NatsSourceBuilder<String> sourceBuilder = new NatsSourceBuilder<String>()
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
+        if (USE_JSON_NOT_YAML) {
+            source = sourceBuilder.sourceJson(CoreSubjectExample.SOURCE_CONFIG_FILE_JSON).build();
+            System.out.println("Source as configured via JSON\n" + source.toJson());
+        }
+        else {
+            source = sourceBuilder.sourceYaml(CoreSubjectExample.SOURCE_CONFIG_FILE_YAML).build();
+            System.out.println("Source as configured via Yaml\n" + source.toYaml());
+        }
 
         // Create the sink.
-        NatsSink<String> sink = new NatsSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadSerializerClass(Constants.STRING_PAYLOAD_SERIALIZER_CLASSNAME)
-            .subjects("sink1", "sink2")
-            .build();
-        System.out.println(sink);
-        writeToFile(SINK_CONFIG_FILE_JSON, sink.toJson());
-        writeToFile(SINK_CONFIG_FILE_YAML, sink.toYaml());
+        NatsSink<String> sink;
+        NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
+        if (USE_JSON_NOT_YAML) {
+            sink = sinkBuilder.sinkJson(JetStreamExample.SINK_CONFIG_FILE_JSON).build();
+            System.out.println("Sink as configured via JSON\n" + sink.toJson());
+        }
+        else {
+            sink = sinkBuilder.sinkYaml(JetStreamExample.SINK_CONFIG_FILE_YAML).build();
+            System.out.println("Sink as configured via Yaml\n" + sink.toYaml());
+        }
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it

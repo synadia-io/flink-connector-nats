@@ -36,7 +36,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
-        JsonValue jv = fromJsonFile(jsonFilePath);
+        JsonValue jv = setBaseFromJsonFile(jsonFilePath);
         JsonValue jvConfigs = JsonValueUtils.readObject(jv, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (jvConfigs != null && jvConfigs.type == JsonValue.Type.ARRAY) {
             for (JsonValue config : jvConfigs.array) {
@@ -53,7 +53,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @throws IOException if there is a problem loading or reading the file
      */
     public JetStreamSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
-        Map<String, Object> map = fromYamlFile(yamlFilePath);
+        Map<String, Object> map = setBaseFromYamlFile(yamlFilePath);
         List<Map<String, Object>> mapConfigs = YamlUtils.readArray(map, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (mapConfigs != null) {
             for (Map<String, Object> config : mapConfigs) {
