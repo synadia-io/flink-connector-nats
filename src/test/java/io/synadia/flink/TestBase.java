@@ -200,7 +200,7 @@ public class TestBase {
     public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final StringPayloadSerializer serializer = new StringPayloadSerializer();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
-            .subject(subject)
+            .subjects(subject)
             .payloadSerializer(serializer);
 
         if (connectionProperties == null) {
@@ -215,7 +215,7 @@ public class TestBase {
     public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
         final ByteArrayPayloadSerializer serializer = new ByteArrayPayloadSerializer();
         NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
-            .subject(subject)
+            .subjects(subject)
             .payloadSerializer(serializer);
 
         if (connectionProperties == null) {

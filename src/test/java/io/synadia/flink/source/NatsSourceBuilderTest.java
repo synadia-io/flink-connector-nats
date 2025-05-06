@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
-import static io.nats.client.support.ApiConstants.SUBJECTS;
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.Constants.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit test for {@link NatsSourceBuilder}. */
@@ -41,7 +39,7 @@ class NatsSourceBuilderTest extends TestBase {
             String subject = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subject(subject)
+                .subjects(subject)
                 .payloadDeserializer(new StringPayloadDeserializer())
                 .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();
@@ -140,7 +138,7 @@ class NatsSourceBuilderTest extends TestBase {
             IllegalArgumentException nullSubjectsEx = assertThrows(
                 IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
-                    .subject((String[])null)
+                    .subjects((String[])null)
                     .payloadDeserializer(new StringPayloadDeserializer())
                     .connectionPropertiesFile(props)
                     .build()
@@ -150,7 +148,7 @@ class NatsSourceBuilderTest extends TestBase {
             IllegalArgumentException missingPropsEx = assertThrows(
                 IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
-                    .subject(subject())
+                    .subjects(subject())
                     .payloadDeserializer(new StringPayloadDeserializer())
                     .build()  // Missing connection properties
             );
@@ -188,7 +186,7 @@ class NatsSourceBuilderTest extends TestBase {
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>();
 
             // Test that each method returns the same builder instance
-            assertSame(builder, builder.subject(subject),
+            assertSame(builder, builder.subjects(subject),
                 "subjects() should return same builder instance");
             assertSame(builder, builder.payloadDeserializer(new StringPayloadDeserializer()),
                 "payloadDeserializer() should return same builder instance");
@@ -230,7 +228,7 @@ class NatsSourceBuilderTest extends TestBase {
             String subject = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subject(subject)
+                .subjects(subject)
                 .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
                 .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();
@@ -273,7 +271,7 @@ class NatsSourceBuilderTest extends TestBase {
             String subject3 = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subject(subject1, subject2, subject3)
+                .subjects(subject1, subject2, subject3)
                 .payloadDeserializer(new StringPayloadDeserializer())
                 .connectionPropertiesFile(defaultConnectionProperties(url))
                 .build();

@@ -1,0 +1,7 @@
+{
+  "payload_deserializer": "io.synadia.flink.payload.StringPayloadDeserializer",
+  "subjects": [
+    "source1",
+    "source2"
+  ]
+}

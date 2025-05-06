@@ -1,0 +1,7 @@
+{
+  "payload_serializer": "io.synadia.flink.payload.StringPayloadSerializer",
+  "subjects": [
+    "sink1",
+    "sink2"
+  ]
+}

@@ -93,7 +93,7 @@ public class JsSourceTests extends TestBase {
 
             // Step 6: Configure a NATS Sink to write processed data
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subject(sinkSubject)
+                    .subjects(sinkSubject)
                     .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();
@@ -155,7 +155,7 @@ public class JsSourceTests extends TestBase {
 
             // Sink: Write to a different subject
             NatsSink<String> sink = new NatsSinkBuilder<String>()
-                    .subject(sinkSubject)
+                    .subjects(sinkSubject)
                     .connectionPropertiesFile(connectionProperties)
                     .payloadSerializer(new StringPayloadSerializer()) // Serialize messages for sink
                     .build();

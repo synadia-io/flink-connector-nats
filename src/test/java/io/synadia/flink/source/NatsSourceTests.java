@@ -47,7 +47,7 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
-                .subject(sourceSubject1, sourceSubject2)
+                .subjects(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
                 .connectionPropertiesFile(connectionProperties);
 
@@ -90,7 +90,7 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             ByteArrayPayloadDeserializer deserializer = new ByteArrayPayloadDeserializer();
             NatsSourceBuilder<Byte[]> builder = new NatsSourceBuilder<Byte[]>()
-                .subject(sourceSubject1, sourceSubject2)
+                .subjects(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
                 .connectionPropertiesFile(connectionProperties);
 
@@ -167,7 +167,7 @@ public class NatsSourceTests extends TestBase {
             Properties connectionProperties = defaultConnectionProperties(url);
             HeaderAwareStringPayloadDeserializer deserializer = new HeaderAwareStringPayloadDeserializer();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
-                .subject(sourceSubject1, sourceSubject2)
+                .subjects(sourceSubject1, sourceSubject2)
                 .payloadDeserializer(deserializer)
                 .connectionPropertiesFile(connectionProperties);
 
@@ -177,7 +177,7 @@ public class NatsSourceTests extends TestBase {
 
             final StringPayloadSerializer serializer = new StringPayloadSerializer();
             NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
-                .subject(sinkSubject)
+                .subjects(sinkSubject)
                 .payloadSerializer(serializer);
             sinkBuilder.connectionPropertiesFile(connectionProperties);
 
