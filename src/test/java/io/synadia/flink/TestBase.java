@@ -30,6 +30,7 @@ import java.util.logging.Level;
 import static io.synadia.flink.utils.MiscUtils.random;
 
 public class TestBase {
+    public static final String TEST_CONNECTION_PROPERTIES_FILE = "src/test/resources/connection.properties";
     public static final String PLAIN_ASCII = "hello world ascii";
     public static final List<String> UTF8_TEST_STRINGS = new ArrayList<>();
     public static final List<String> WORD_COUNT_JSONS = new ArrayList<>();
@@ -319,12 +320,20 @@ public class TestBase {
         return outObject;
     }
 
-    public static String writeToTempFile(String prefix, String ext, String text) throws IOException {
-        File f = File.createTempFile(prefix, ext);
+    public static void writeToFile(String path, String text) throws IOException {
+        writeToFile(new File(path), text);
+    }
+
+    public static void writeToFile(File f, String text) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
             writer.write(text);
             writer.flush();
         }
+    }
+
+    public static String writeToTempFile(String prefix, String ext, String text) throws IOException {
+        File f = File.createTempFile(prefix, ext);
+        writeToFile(f, text);
         return f.getAbsolutePath();
     }
 

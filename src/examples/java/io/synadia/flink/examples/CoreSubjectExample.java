@@ -23,20 +23,20 @@ public class CoreSubjectExample {
         // create source
         NatsSource<String> source = new NatsSourceBuilder<String>()
             .sourceProperties(ExampleUtils.SOURCE_PROPS_FILE)
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .build();
         System.out.println(source);
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
             .sinkProperties(ExampleUtils.SINK_PROPS_FILE)
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .build();
         System.out.println(sink);
 
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
-        Connection nc = ExampleUtils.connect(ExampleUtils.CONNECTION_PROPS_FILE);
+        Connection nc = ExampleUtils.connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
 
         // start publishing to where the source will get
         // the source will have missed some messages by the time it gets running

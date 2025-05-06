@@ -41,14 +41,19 @@ public class JetStreamExampleFromConfigFiles {
     public static final int REPORT_FREQUENCY = 20000;
 
     // ------------------------------------------------------------------------------------------
-    // set the quiet period longer if you have acks 10000 vs 3000 for instance
+    // The quiet period is how long to wait when not receiving messages to end the program.
+    // Set the quiet period longer if you have acks 10000 vs. 3000 for instance.
     // Try 3000 or 10000
     // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 10000;
+    public static final int QUIET_PERIOD = 3000;
 
-    public static final String INPUT_FILE_JSON = "C:\\temp\\JetStreamSourceConfig.json";
-    public static final String INPUT_FILE_YAML = "C:\\temp\\JetStreamSourceConfig.yaml";
-    public static final boolean USE_JSON_NOT_YAML = false; // true for json, false for yaml
+    // ------------------------------------------------------------------------------------------
+    // Set this flag to tell the program to use the JSON or YAML file for input.
+    // true means use the JSON. false means use the YAML
+    // The input file is determined by the constants in JetStreamExampleHelper.java
+    // either SOURCE_CONFIG_FILE_JSON or SOURCE_CONFIG_FILE_YAML
+    // ------------------------------------------------------------------------------------------
+    public static final boolean USE_JSON_NOT_YAML = false;
 
     // ==========================================================================================
     // Flink Configuration: Use these settings to change how Flink runs
@@ -73,7 +78,7 @@ public class JetStreamExampleFromConfigFiles {
         // Make a connection to use for setting up streams
         // 1. We need data that the source will consume
         // 2. We need a stream/subject for the sink to publish to
-        Connection nc = ExampleUtils.connect(ExampleUtils.CONNECTION_PROPS_FILE);
+        Connection nc = ExampleUtils.connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         setupSinkStream(nc);
         setupDataStreams(nc);
 
@@ -84,13 +89,13 @@ public class JetStreamExampleFromConfigFiles {
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source;
         JetStreamSourceBuilder<String> builder = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE);
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         if (USE_JSON_NOT_YAML) {
-            source = builder.sourceJson(INPUT_FILE_JSON).build();
+            source = builder.sourceJson(SOURCE_CONFIG_FILE_JSON).build();
             System.out.println("Source as configured via JSON\n" + source.toJson());
         }
         else {
-            source = builder.sourceYaml(INPUT_FILE_YAML).build();
+            source = builder.sourceYaml(SOURCE_CONFIG_FILE_YAML).build();
             System.out.println("Source as configured via Yaml\n" + source.toYaml());
         }
 
@@ -98,21 +103,16 @@ public class JetStreamExampleFromConfigFiles {
         // Create a JetStream sink
         // ==========================================================================================
         // A JetStream sink publishes to a JetStream subject
-        // !Technically! you can publish to a JetStream subject with a NATS core publish
-        // but that can overwhelm the server very quickly because we can publish so fast
-        // The version of JetStreamSink as of this writing only uses synchronized publishing
-        // but future versions will be more robust and take advantage of the publishing utilities
-        // in the Orbit project. So right now the configuration is pretty simple.
         // ------------------------------------------------------------------------------------------
-        // When we published to the source streams the data was in the form "data--<subject>--<num>"
+        // When we published to the source streams, the data was in the form "data--<subject>--<num>"
         // The sink takes that payload and publishes it as the message payload to the SINK_SUBJECT
         // ------------------------------------------------------------------------------------------
         // We have one sink for all those source subjects. This means that all messages from
         // all those sources get "sinked" to the same JetStream subject
-        // This may or not be a real use-case, it's here for example.
+        // This may or may not be a real use-case, it's here for example.
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadSerializer(new StringPayloadSerializer())
             .subjects(SINK_SUBJECT)
             .build();

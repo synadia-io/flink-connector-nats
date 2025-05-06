@@ -8,12 +8,14 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.utils.PropertiesUtils;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExampleUtils {
-    public static final String CONNECTION_PROPS_FILE = "src/examples/resources/connection.properties";
+    public static final String EXAMPLES_CONNECTION_PROPERTIES_FILE = "src/examples/resources/connection.properties";
     public static final String SOURCE_PROPS_FILE = "src/examples/resources/core-source.properties";
     public static final String SINK_PROPS_FILE = "src/examples/resources/core-sink.properties";
 
@@ -114,5 +116,12 @@ public class ExampleUtils {
             .append(manualTotal)
             .append(")");
         System.out.println(sb);
+    }
+
+    public static void writeToFile(String filename, String text) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            writer.write(text);
+            writer.flush();
+        }
     }
 }

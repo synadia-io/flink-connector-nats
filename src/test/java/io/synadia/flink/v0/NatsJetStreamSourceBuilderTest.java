@@ -18,8 +18,8 @@ import java.util.Properties;
 
 import static io.nats.client.support.ApiConstants.STREAM_NAME;
 import static io.nats.client.support.ApiConstants.SUBJECTS;
-import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
 import static io.synadia.flink.v0.source.NatsJetStreamSourceBuilder.CONSUMER_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -15,11 +15,11 @@ import java.util.*;
 import java.util.function.Function;
 
 import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.PAYLOAD_SERIALIZER;
 import static io.synadia.flink.utils.MiscUtils.*;
 import static io.synadia.flink.utils.PropertiesUtils.getAsList;
 import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
-import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
-import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_SERIALIZER;
 
 public abstract class BuilderBase<SerialT, BuilderT> {
     protected Properties connectionProperties;

@@ -201,7 +201,7 @@ NatsSink is a sink that listens publishes to one or more core NATS subjects. It 
 It publishes the same exact message body, provided by the payload serializer, to all the subjects. 
 
 In order to construct a sink, you must use the builder.
-* The NatsSinkBuilder is generic. It's generic type, `<InputT>` is the type of object you expect from a source that will become the byte[] payload of a message.
+* The NatsSinkBuilder is generic. Its generic type, `<InputT>` is the type of object you expect from a source that will become the byte[] payload of a message.
 * You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
 * The builder has these methods:
     ```

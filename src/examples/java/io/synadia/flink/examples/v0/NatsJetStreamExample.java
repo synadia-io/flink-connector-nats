@@ -22,12 +22,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
+import static io.synadia.flink.examples.support.ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE;
+
 public class NatsJetStreamExample {
 
     public static void main(String[] args) throws Exception {
         // Load configuration from application.properties
         Properties connectionProperties = PropertiesUtils
-            .loadPropertiesFromFile("src/examples/resources/connection.properties");
+            .loadPropertiesFromFile(EXAMPLES_CONNECTION_PROPERTIES_FILE);
 
         String sourceSubject = "v0-subject";
         String streamName = "v0-stream";

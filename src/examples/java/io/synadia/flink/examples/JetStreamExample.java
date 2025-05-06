@@ -19,12 +19,14 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.JetStreamExampleHelper.*;
+import static io.synadia.flink.examples.support.ExampleUtils.writeToFile;
 
 public class JetStreamExample {
     // ==========================================================================================
@@ -44,8 +46,9 @@ public class JetStreamExample {
     public static final int REPORT_FREQUENCY = 20000;
 
     // ------------------------------------------------------------------------------------------
-    // set the quiet period longer if you have acks 10000 vs 3000 for instance
-    // Try 3000 or 10000
+    // The quiet period is how long to wait when not receiving messages to end the program.
+    // Set the quiet period longer if you are using ack mode. See notes on ACK_MODE below.
+    // Try 3000 or 10000 in ack mode.
     // ------------------------------------------------------------------------------------------
     public static final int QUIET_PERIOD = 3000;
 
@@ -54,18 +57,18 @@ public class JetStreamExample {
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
-    // ACK false means use an ordered consumer with no acking
-    // ACK true means the split(s) will ack (AckPolicy.All) messages at the checkpoint
+    // ACK_MODE mode false means use a consumer with no acking
+    // ACK_MODE true true means the split(s) will ack (AckPolicy.All) messages at the checkpoint
     // Try false or true
     // ------------------------------------------------------------------------------------------
-    public static final boolean ACK = false;
+    public static final boolean ACK_MODE = false;
 
     // ------------------------------------------------------------------------------------------
-    // <= 0 makes the source Boundedness.CONTINUOUS_UNBOUNDED
-    // > 0 makes the source Boundedness.BOUNDED by giving it a maximum number of messages to read
-    // Try 0 or 50000
+    // <= 0 makes the source boundedness "Boundedness.CONTINUOUS_UNBOUNDED"
+    // > 0 makes the source boundedness "Boundedness.BOUNDED" by giving it a maximum number of messages to read
+    // Try -1 or 50000 or if using ack mode, try 10000
     // ------------------------------------------------------------------------------------------
-    public static final int MAX_MESSAGES_TO_READ = 0;
+    public static final int MAX_MESSAGES_TO_READ = -1;
 
     // ==========================================================================================
     // Flink Configuration: Use these settings to change how Flink runs
@@ -90,7 +93,7 @@ public class JetStreamExample {
         // Make a connection to use for setting up streams
         // 1. We need data that the source will consume
         // 2. We need a stream/subject for the sink to publish to
-        Connection nc = ExampleUtils.connect(ExampleUtils.CONNECTION_PROPS_FILE);
+        Connection nc = ExampleUtils.connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         setupSinkStream(nc);
         setupDataStreams(nc);
 
@@ -108,15 +111,16 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         // A single JetStreamSubjectConfiguration, one subject for the stream.
         // ------------------------------------------------------------------------------------------
-        // Configure the stream, it's subjects, and other source behavior
+        // Configure the stream, its subjects, and other source behavior
         // The buildWithSubject method returns an instance of JetStreamSubjectConfiguration.
         // Use this when you have only one subject for a given stream/configuration
         // ------------------------------------------------------------------------------------------
         JetStreamSubjectConfiguration subjectConfigurationA = JetStreamSubjectConfiguration.builder()
             .streamName(SOURCE_A_STREAM)
+            .subject(SOURCE_A_SUBJECT)
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ack(ACK)
-            .buildWithSubject(SOURCE_A_SUBJECT);
+            .ackMode(ACK_MODE)
+            .build();
         System.out.println("JetStreamSubjectConfiguration" + subjectConfigurationA.toJson());
 
         // ------------------------------------------------------------------------------------------
@@ -125,11 +129,19 @@ public class JetStreamExample {
         // The buildWithSubjects method returns a list of JetStreamSubjectConfiguration.
         // Use this when you have multiple subjects for a given stream/configuration
         // ------------------------------------------------------------------------------------------
-        List<JetStreamSubjectConfiguration> subjectConfigurationsB = JetStreamSubjectConfiguration.builder()
+        List<JetStreamSubjectConfiguration> subjectConfigurationsB = new ArrayList<>();
+        subjectConfigurationsB.add(JetStreamSubjectConfiguration.builder()
             .streamName(SOURCE_B_STREAM)
+            .subject(SOURCE_B_SUBJECTS[0])
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ack(ACK)
-            .buildWithSubjects(SOURCE_B_SUBJECTS);
+            .ackMode(ACK_MODE)
+            .build());
+        for (int x = 1; x < SOURCE_B_SUBJECTS.length; x++) {
+            subjectConfigurationsB.add(JetStreamSubjectConfiguration.builder()
+                .copy(subjectConfigurationsB.get(0))
+                .subject(SOURCE_B_SUBJECTS[x])
+                .build());
+        }
         for (JetStreamSubjectConfiguration jssc : subjectConfigurationsB) {
             System.out.println("JetStreamSubjectConfiguration" + jssc.toJson());
         }
@@ -140,35 +152,37 @@ public class JetStreamExample {
         // Build the source by setting up the connection properties, the deserializer
         // and subject configurations, etc.
         // ------------------------------------------------------------------------------------------
-        // A StringPayloadDeserializer takes the Nats Message and output's it's data payload as a String
+        // A StringPayloadDeserializer takes the NATS Message and output's it's data payload as a String
         // When we published to these streams the data is in the form "data--<subject>--<num>"
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadDeserializer(new StringPayloadDeserializer())
             .addSubjectConfigurations(subjectConfigurationA)
             .addSubjectConfigurations(subjectConfigurationsB)
             .build();
 
+        // ------------------------------------------------------------------------------------------
+        // Here we write the source config out to a file in different formats.
+        // The files can be used in the JetStreamExampleFromConfigFiles example.
+        // ------------------------------------------------------------------------------------------
+        writeToFile(SOURCE_CONFIG_FILE_JSON, source.toJson());
+        writeToFile(SOURCE_CONFIG_FILE_YAML, source.toYaml());
+
         // ==========================================================================================
         // Create a JetStream sink
         // ==========================================================================================
         // A JetStream sink publishes to a JetStream subject
-        // !Technically! you can publish to a JetStream subject with a NATS core publish
-        // but that can overwhelm the server very quickly because we can publish so fast
-        // The version of JetStreamSink as of this writing only uses synchronized publishing
-        // but future versions will be more robust and take advantage of the publishing utilities
-        // in the Orbit project. So right now the configuration is pretty simple.
         // ------------------------------------------------------------------------------------------
-        // When we published to the source streams the data was in the form "data--<subject>--<num>"
+        // When we published to the source streams, the data was in the form "data--<subject>--<num>"
         // The sink takes that payload and publishes it as the message payload to the SINK_SUBJECT
         // ------------------------------------------------------------------------------------------
         // We have one sink for all those source subjects. This means that all messages from
         // all those sources get "sinked" to the same JetStream subject
-        // This may or not be a real use-case, it's here for example.
+        // This may or may not be a real use-case, it's here for example.
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadSerializer(new StringPayloadSerializer())
             .subjects(SINK_SUBJECT)
             .build();

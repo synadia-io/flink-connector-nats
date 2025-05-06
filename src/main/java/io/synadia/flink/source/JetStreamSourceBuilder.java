@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.synadia.flink.utils.PropertyConstants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
 
 public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
@@ -30,7 +30,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
-     * Set source configuration from a json file
+     * Set source configuration from a JSON file
      * @param jsonFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
@@ -47,7 +47,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
-     * Set source configuration from a yaml file
+     * Set source configuration from a YAML file
      * @param yamlFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file

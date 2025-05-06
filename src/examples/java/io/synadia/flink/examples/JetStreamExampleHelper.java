@@ -21,7 +21,8 @@ import static io.synadia.flink.examples.support.Publisher.makePayload;
 
 public class JetStreamExampleHelper {
 
-    public static final String CONNECTION_PROPERTIES_FILE = "src/examples/resources/connection.properties";
+    public static final String SOURCE_CONFIG_FILE_JSON = "src/examples/resources/JsSourceConfig.json";
+    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/JsSourceConfig.yaml";
 
     public static final String SOURCE_A_STREAM = "source-a";
     public static final String SOURCE_B_STREAM = "source-b";

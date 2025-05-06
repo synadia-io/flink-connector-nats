@@ -3,8 +3,8 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.BaseConsumeOptions;
 import io.nats.client.ConsumeOptions;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
@@ -13,22 +13,17 @@ import org.apache.flink.api.connector.source.Boundedness;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import static io.nats.client.BaseConsumeOptions.*;
-import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.BaseConsumeOptions.DEFAULT_MESSAGE_COUNT;
+import static io.nats.client.BaseConsumeOptions.DEFAULT_THRESHOLD_PERCENT;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.JsonValue.EMPTY_MAP;
+import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.checksum;
-import static io.synadia.flink.utils.PropertyConstants.*;
 
 /**
  * It takes more than a subject to consume.
- * This tells us the way to start consuming.
  */
 public class JetStreamSubjectConfiguration implements JsonSerializable, Serializable {
     private static final long serialVersionUID = 1L;
@@ -36,26 +31,26 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final String id;
     public final String streamName;
     public final String subject;
-    public final Long startSequence;
+    public final long startSequence;
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
-    public final boolean ack;
+    public final boolean ackMode;
     public final SerializableConsumeOptions serializableConsumeOptions;
 
     public final Boundedness boundedness;
     public final DeliverPolicy deliverPolicy;
 
-    private JetStreamSubjectConfiguration(Builder b, String subject) {
-        this.subject = subject;
+    private JetStreamSubjectConfiguration(Builder b, ConsumeOptions consumeOptions) {
+        serializableConsumeOptions = new SerializableConsumeOptions(consumeOptions);
+        subject = b.subject;
         streamName = b.streamName;
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
-        ack = b.ack;
-        serializableConsumeOptions = b.serializableConsumeOptions;
+        ackMode = b.ackMode;
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
-        deliverPolicy = startSequence != ConsumerConfiguration.LONG_UNSET
+        deliverPolicy = startSequence != -1
             ? DeliverPolicy.ByStartSequence
             : startTime != null
                 ? DeliverPolicy.ByStartTime
@@ -66,8 +61,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             startSequence,
             startTime,
             maxMessagesToRead,
-            ack,
-            serializableConsumeOptions == null ? null : serializableConsumeOptions.getConsumeOptions().toJson()
+            ackMode,
+            serializableConsumeOptions.getConsumeOptions().toJson()
         );
     }
 
@@ -76,42 +71,17 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, STREAM_NAME, streamName);
         JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, START_SEQ, startSequence);
+        JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
-        if (serializableConsumeOptions != null) {
-            ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
-            JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
-            if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
-                bm.put(MESSAGES, co.getBatchSize());
-            }
-            if (co.getBatchBytes() > 0) {
-                bm.put(BYTES, co.getBatchBytes());
-            }
-            if (co.getExpiresInMillis() != DEFAULT_EXPIRES_IN_MILLIS) {
-                bm.put(EXPIRES_IN, co.getExpiresInMillis());
-            }
-            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
-                bm.put(THRESHOLD_PERCENT, co.getThresholdPercent());
-            }
-            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
-                bm.put(THRESHOLD_PERCENT, co.getThresholdPercent());
-            }
-            if (co.getGroup() != null) {
-                bm.put(GROUP, co.getGroup());
-            }
-            if (co.getMinPending() > 0) {
-                bm.put(MIN_PENDING, co.getMinPending());
-            }
-            if (co.getMinPending() > 0) {
-                bm.put(MIN_ACK_PENDING, co.getMinAckPending());
-            }
-            if (co.raiseStatusWarnings()) {
-                bm.put(RAISE_STATUS_WARNINGS, true);
-            }
-            JsonUtils.addField(sb, CONSUME_OPTIONS, bm.jv);
+        JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
+        JsonUtils.addFldWhenTrue(sb, ACK_MODE, ackMode);
+        ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
+        if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
+            JsonUtils.addField(sb, BATCH_SIZE, co.getBatchSize());
         }
-        JsonUtils.addField(sb, MAX_MSGS, maxMessagesToRead);
-        JsonUtils.addFldWhenTrue(sb, ACK, ack);
+        if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
+            JsonUtils.addField(sb, THRESHOLD_PERCENT, co.getThresholdPercent());
+        }
         return endJson(sb).toString();
     }
 
@@ -119,48 +89,27 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
         indentLevel++;
         YamlUtils.addField(sb, indentLevel, SUBJECT, subject);
-        YamlUtils.addField(sb, indentLevel, START_SEQ, startSequence);
+        YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
-        if (serializableConsumeOptions != null) {
-            ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
-            YamlUtils.addField(sb, indentLevel, CONSUME_OPTIONS);
-            int coIndent = indentLevel + 1;
-            if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
-                YamlUtils.addFieldGtZero(sb, coIndent, MESSAGES, co.getBatchSize());
-            }
-            YamlUtils.addFieldGtZero(sb, coIndent, BYTES, co.getBatchBytes());
-            if (co.getExpiresInMillis() != DEFAULT_EXPIRES_IN_MILLIS) {
-                YamlUtils.addField(sb, coIndent, EXPIRES_IN, co.getExpiresInMillis());
-            }
-            if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
-                YamlUtils.addField(sb, coIndent, THRESHOLD_PERCENT, co.getThresholdPercent());
-            }
-            YamlUtils.addField(sb, coIndent, GROUP, co.getGroup());
-            YamlUtils.addField(sb, coIndent, MIN_PENDING, co.getMinPending());
-            YamlUtils.addField(sb, coIndent, MIN_ACK_PENDING, co.getMinAckPending());
-            YamlUtils.addFldWhenTrue(sb, coIndent, RAISE_STATUS_WARNINGS, co.raiseStatusWarnings());
+        YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
+        YamlUtils.addFldWhenTrue(sb, indentLevel, ACK_MODE, ackMode);
+        ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
+        if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
+            YamlUtils.addFieldGtZero(sb, indentLevel, BATCH_SIZE, co.getBatchSize());
         }
-        YamlUtils.addField(sb, indentLevel, MAX_MSGS, maxMessagesToRead);
-        YamlUtils.addFldWhenTrue(sb, indentLevel, ACK, ack);
+        if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
+            YamlUtils.addField(sb, indentLevel, THRESHOLD_PERCENT, co.getThresholdPercent());
+        }
         return sb.toString();
+    }
+
+    public JetStreamSubjectConfiguration copy(String subject) {
+        return builder().copy(this).subject(subject).build();
     }
 
     @Override
     public String toString() {
         return toJson();
-    }
-
-    @Override
-    public final boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof JetStreamSubjectConfiguration)) return false;
-        JetStreamSubjectConfiguration that = (JetStreamSubjectConfiguration) o;
-        return id.equals(that.id); // id is a checksum
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
     }
 
     public static Builder builder() {
@@ -172,67 +121,97 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     }
 
     public static JetStreamSubjectConfiguration fromJsonValue(JsonValue jv) {
-        Builder b = new Builder()
+        return new Builder()
             .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
-            .startSequence(JsonValueUtils.readLong(jv, START_SEQ, ConsumerConfiguration.LONG_UNSET))
+            .subject(JsonValueUtils.readString(jv, SUBJECT))
+            .startSequence(JsonValueUtils.readLong(jv, START_SEQUENCE, -1))
             .startTime(JsonValueUtils.readDate(jv, START_TIME))
-            .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MSGS, -1))
-            .ack(JsonValueUtils.readBoolean(jv, ACK, false));
-
-        JsonValue jvCo = JsonValueUtils.readObject(jv, CONSUME_OPTIONS);
-        if (jvCo != null && jvCo != EMPTY_MAP) {
-            b.consumeOptions(ConsumeOptions.builder().jsonValue(jvCo).build());
-        }
-
-        String subject = JsonValueUtils.readString(jv, SUBJECT);
-        return new JetStreamSubjectConfiguration(b, subject);
+            .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
+            .batchSize(JsonValueUtils.readInteger(jv, BATCH_SIZE, -1))
+            .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
+            .ackMode(JsonValueUtils.readBoolean(jv, ACK_MODE, false))
+            .build();
     }
 
     public static JetStreamSubjectConfiguration fromMap(Map<String, Object> map) {
-        Builder b = new Builder()
+        return new Builder()
             .streamName(YamlUtils.readString(map, STREAM_NAME))
-            .startSequence(YamlUtils.readLong(map, START_SEQ, ConsumerConfiguration.LONG_UNSET))
+            .subject(YamlUtils.readString(map, SUBJECT))
+            .startSequence(YamlUtils.readLong(map, START_SEQUENCE, -1))
             .startTime(YamlUtils.readDate(map, START_TIME))
-            .maxMessagesToRead(YamlUtils.readLong(map, MAX_MSGS, -1))
-            .ack(YamlUtils.readBoolean(map, ACK, false));
-
-        Map<String, Object> mapCo = YamlUtils.readMap(map, CONSUME_OPTIONS);
-        if (mapCo != null) {
-            ConsumeOptions.Builder cob = ConsumeOptions.builder()
-                .expiresIn(YamlUtils.readLong(mapCo, EXPIRES_IN, DEFAULT_EXPIRES_IN_MILLIS))
-                .thresholdPercent(YamlUtils.readInteger(mapCo, THRESHOLD_PERCENT, -1))
-                .raiseStatusWarnings(YamlUtils.readBoolean(mapCo, RAISE_STATUS_WARNINGS, false))
-                .group(YamlUtils.readStringEmptyAsNull(mapCo, GROUP))
-                .minPending(YamlUtils.readLong(mapCo, MIN_PENDING, -1))
-                .minAckPending(YamlUtils.readLong(mapCo, MIN_ACK_PENDING, -1));
-
-            int i = YamlUtils.readInteger(mapCo, MESSAGES, -1);
-            if (i != -1) {
-                cob.batchSize(i);
-            }
-            else {
-                i = YamlUtils.readInteger(mapCo, BYTES, -1);
-                if (i != -1) {
-                    cob.batchBytes(i);
-                }
-            }
-            b.consumeOptions(cob.build());
-        }
-
-        String subject = YamlUtils.readString(map, SUBJECT);
-        return new JetStreamSubjectConfiguration(b, subject);
+            .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
+            .batchSize(YamlUtils.readInteger(map, BATCH_SIZE, -1))
+            .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
+            .ackMode(YamlUtils.readBoolean(map, ACK_MODE, false))
+            .build();
     }
 
     public static class Builder {
         private String streamName;
-        private Long startSequence = ConsumerConfiguration.LONG_UNSET;
+        private String subject;
+        private long startSequence = -1;
         private ZonedDateTime startTime;
-        private SerializableConsumeOptions serializableConsumeOptions;
         private long maxMessagesToRead = -1;
-        private boolean ack = false;
+        private boolean ackMode = false;
+        private int batchSize = -1;
+        private int thresholdPercent = -1;
 
+        /**
+         * Copies all the configuration except the subject
+         * @param config the config to use as a basis for the new config
+         * @return The Builder
+         */
+        public Builder copy(JetStreamSubjectConfiguration config) {
+            return streamName(config.streamName)
+                .startSequence(config.startSequence)
+                .startTime(config.startTime)
+                .maxMessagesToRead(config.maxMessagesToRead)
+                .ackMode(config.ackMode)
+                .batchSize(config.serializableConsumeOptions.getConsumeOptions().getBatchSize())
+                .thresholdPercent(config.serializableConsumeOptions.getConsumeOptions().getThresholdPercent());
+        }
+
+        /**
+         * Sets the stream name
+         * @param streamName the stream name
+         * @return The Builder
+         */
         public Builder streamName(String streamName) {
             this.streamName = streamName;
+            return this;
+        }
+
+        /**
+         * Sets the subject
+         * @param subject the subject
+         * @return The Builder
+         */
+        public Builder subject(String subject) {
+            this.subject = subject;
+            return this;
+        }
+
+        /**
+         * Set the initial Consume batch size in messages.
+         * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT} when bytes are not specified.
+         * @param batchSize the batch size in messages.
+         * @return The Builder
+         */
+        public Builder batchSize(int batchSize) {
+            this.batchSize = batchSize;
+            return this;
+        }
+
+        /**
+         * Set the threshold percentage of messages that will trigger issuing pull requests to keep messages flowing.
+         * <p>Must be between 1 and 100 inclusive.
+         * Less than 1 will assume the default of {@value BaseConsumeOptions#DEFAULT_THRESHOLD_PERCENT}.
+         * Greater than 100 will assume 100. </p>
+         * @param thresholdPercent the threshold percent
+         * @return The Builder
+         */
+        public Builder thresholdPercent(int thresholdPercent) {
+            this.thresholdPercent = thresholdPercent;
             return this;
         }
 
@@ -241,9 +220,9 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @param startSequence the start sequence
          * @return The Builder
          */
-        public Builder startSequence(Long startSequence) {
+        public Builder startSequence(long startSequence) {
             if (startSequence < 1) {
-                this.startSequence = ConsumerConfiguration.LONG_UNSET;
+                this.startSequence = -1;
             }
             else if (startTime != null) {
                 throw new IllegalArgumentException("Cannot set both start sequence and start time.");
@@ -260,22 +239,10 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return The Builder
          */
         public Builder startTime(ZonedDateTime startTime) {
-            if (startTime != null && startSequence != ConsumerConfiguration.LONG_UNSET) {
+            if (startTime != null && startSequence != -1) {
                 throw new IllegalArgumentException("Cannot set both start sequence and start time.");
             }
             this.startTime = startTime;
-            return this;
-        }
-
-        /**
-         * Set the consume options for finer control of the simplified consume
-         * @param consumeOptions the consume options
-         * @return The Builder
-         */
-        public Builder consumeOptions(ConsumeOptions consumeOptions) {
-            this.serializableConsumeOptions = consumeOptions == null
-                ? null
-                : new SerializableConsumeOptions(consumeOptions);
             return this;
         }
 
@@ -290,48 +257,52 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         }
 
         /**
-         * Set whether to ack messages. If acking is on,
-         * ack will occur when a checkpoint is complete via ack all
-         * It's not recommend to set ack unless your stream is a workqueue
-         * but even then, be sure of why you are running this against a workqueue
-         * @param ack whether to ack or not
+         * Set that the stream is a work queue and messages must be acked.
+         * Ack will occur when a checkpoint is complete via ack all.
+         * It's not recommended to set ackMode unless your stream is a work queue,
+         * but even then, be sure of why you are running this against a work queue.
          * @return The Builder
          */
-        public Builder ack(boolean ack) {
-            this.ack = ack;
+        public Builder ackMode() {
+            this.ackMode = true;
             return this;
         }
 
-        public JetStreamSubjectConfiguration buildWithSubject(String subject) {
+        /**
+         * Set whether to be in ack mode queue where must be acked.
+         * Ack will occur when a checkpoint is complete via ack all.
+         * This is MUCH slower and is not recommended to set ackMode
+         * unless your stream is a work queue, but even then,
+         * be sure of why you are running this against a work queue.
+         */
+        public Builder ackMode(boolean ackMode) {
+            this.ackMode = ackMode;
+            return this;
+        }
+
+        public JetStreamSubjectConfiguration build() {
             if (MiscUtils.notProvided(subject)) {
                 throw new IllegalArgumentException("Subject is required.");
             }
             if (MiscUtils.notProvided(streamName)) {
                 throw new IllegalArgumentException("Stream name is required.");
             }
-            return new JetStreamSubjectConfiguration(this, subject);
-        }
 
-        public List<JetStreamSubjectConfiguration> buildWithSubjects(String... subjects) {
-            if (subjects == null || subjects.length == 0) {
-                throw new IllegalArgumentException("Subjects are required.");
-            }
-            List<JetStreamSubjectConfiguration> list = new ArrayList<>();
-            for (String subject : subjects) {
-                list.add(buildWithSubject(subject));
-            }
-            return list;
+            ConsumeOptions co = batchSize == -1 && thresholdPercent == -1
+                ? ConsumeOptions.DEFAULT_CONSUME_OPTIONS
+                : ConsumeOptions.builder().batchSize(batchSize).thresholdPercent(thresholdPercent).build();
+            return new JetStreamSubjectConfiguration(this, co);
         }
+    }
 
-        public List<JetStreamSubjectConfiguration> buildWithSubjects(List<String> subjects) {
-            if (subjects == null || subjects.isEmpty()) {
-                throw new IllegalArgumentException("Subjects are required.");
-            }
-            List<JetStreamSubjectConfiguration> list = new ArrayList<>();
-            for (String subject : subjects) {
-                list.add(buildWithSubject(subject));
-            }
-            return list;
-        }
+    @Override
+    public final boolean equals(Object o) {
+        if (!(o instanceof JetStreamSubjectConfiguration)) return false;
+        return id.equals(((JetStreamSubjectConfiguration) o).id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
     }
 }

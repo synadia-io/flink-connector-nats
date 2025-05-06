@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.synadia.flink.examples.support.ExampleUtils.connect;
-import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
-import static io.synadia.flink.utils.PropertyConstants.STRING_PAYLOAD_SERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.Constants.STRING_PAYLOAD_SERIALIZER_CLASSNAME;
 
 public class CoreSubjectExample2 {
     public static final String EXAMPLE_NAME = "Example2";
@@ -35,7 +35,7 @@ public class CoreSubjectExample2 {
     public static void main(String[] args) throws Exception {
         // make a connection to publish and listen with
         // props has io.nats.client.url in it
-        Connection nc = connect(ExampleUtils.CONNECTION_PROPS_FILE);
+        Connection nc = connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
 
         // start publishing to where the source will get
         // the source will have missed some messages by the time it gets running
@@ -61,7 +61,7 @@ public class CoreSubjectExample2 {
 
         // create source
         NatsSource<String> source = new NatsSourceBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
             .subject(sourceSubjects)
             .build();
@@ -69,7 +69,7 @@ public class CoreSubjectExample2 {
 
         // create sink
         NatsSink<String> sink = new NatsSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.CONNECTION_PROPS_FILE)
+            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
             .payloadSerializerClass(STRING_PAYLOAD_SERIALIZER_CLASSNAME)
             .subject(sinkSubject)
             .build();

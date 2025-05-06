@@ -5,8 +5,8 @@ package io.synadia.flink.v0.source;
 
 import io.synadia.flink.payload.PayloadDeserializer;
 import io.synadia.flink.utils.BuilderBase;
+import io.synadia.flink.utils.Constants;
 import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.PropertyConstants;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
@@ -40,7 +40,7 @@ public class NatsJetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, Na
 
     /**
      * Set source properties from a properties object
-     * See the readme and {@link PropertyConstants} for property keys
+     * See the readme and {@link Constants} for property keys
      * @param properties the properties object
      * @return the builder
      */

@@ -19,9 +19,9 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.*;
 
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
-import static io.synadia.flink.utils.PropertyConstants.JETSTREAM_SUBJECT_CONFIGURATIONS;
-import static io.synadia.flink.utils.PropertyConstants.PAYLOAD_DESERIALIZER;
 
 /**
  * Flink Source to consume data from one or more NATS subjects

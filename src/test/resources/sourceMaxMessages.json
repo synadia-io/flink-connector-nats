@@ -4,9 +4,14 @@
     {
       "stream_name": "StreamA",
       "subject": "SubjectA",
-      "start_seq": 42,
-      "max_msgs": 100,
-      "ack": true
+      "max_messages_to_read": 100,
+      "start_sequence": 101
+    },
+    {
+      "stream_name": "StreamB",
+      "subject": "SubjectB",
+      "max_messages_to_read": 50,
+      "start_sequence": 51
     }
   ]
 }

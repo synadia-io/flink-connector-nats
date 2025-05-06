@@ -7,10 +7,12 @@ import io.nats.client.support.DateTimeUtils;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 
 public abstract class YamlUtils {
 
@@ -21,7 +23,7 @@ public abstract class YamlUtils {
     }
 
     public static StringBuilder beginYaml() {
-        return new StringBuilder("---\n");
+        return new StringBuilder("---").append(System.lineSeparator());
     }
 
     public static StringBuilder beginChild(int indentLevel, String key, String value) {
@@ -31,7 +33,7 @@ public abstract class YamlUtils {
             .append(key)
             .append(": ")
             .append(value)
-            .append("\n");
+            .append(System.lineSeparator());
     }
 
     private static void _addField(StringBuilder sb, int indentLevel, String key, String value) {
@@ -39,7 +41,7 @@ public abstract class YamlUtils {
             .append(key)
             .append(": ")
             .append(value)
-            .append("\n");
+            .append(System.lineSeparator());
     }
 
     public static void addField(StringBuilder sb, int indentLevel, String key) {
@@ -88,6 +90,17 @@ public abstract class YamlUtils {
         }
     }
 
+    public static void addStrings(StringBuilder sb, int indentLevel, String key, List<String> values) {
+        sb.append(getPad(indentLevel))
+            .append(key)
+            .append(":")
+            .append(System.lineSeparator());
+        String pad = getPad(indentLevel + 1);
+        for (String value : values) {
+            sb.append(pad).append("- ").append(value).append(System.lineSeparator());
+        }
+    }
+
     public static Object readObject(Map<String, Object> map, String key) {
         return map == null ? null : map.get(key);
     }
@@ -128,8 +141,14 @@ public abstract class YamlUtils {
     }
 
     public static ZonedDateTime readDate(Map<String, Object> map, String key) {
-        String s = readString(map, key);
-        return s == null ? null : DateTimeUtils.parseDateTimeThrowParseError(s);
+        Object o = readObject(map, key);
+        if (o instanceof Date) {
+            return ((Date)o).toInstant().atZone(ZONE_ID_GMT);
+        }
+        if (o instanceof String) {
+            return DateTimeUtils.parseDateTimeThrowParseError(o.toString());
+        }
+        return null;
     }
 
     public static Integer readInteger(Map<String, Object> map, String key) {
@@ -150,5 +169,14 @@ public abstract class YamlUtils {
     public static long readLong(Map<String, Object> map, String key, long dflt) {
         Object o = readObject(map, key);
         return o instanceof Number ? ((Number)o).longValue() : dflt;
+    }
+
+    public static List<String> readStringList(Map<String, Object> map, String key) {
+        Object o = readObject(map, key);
+        if (o instanceof ArrayList) {
+            //noinspection unchecked
+            return (ArrayList<String>)o;
+        }
+        return new ArrayList<>();
     }
 }

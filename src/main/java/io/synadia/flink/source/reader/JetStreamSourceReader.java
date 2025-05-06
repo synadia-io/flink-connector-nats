@@ -119,7 +119,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
                 try {
                     StreamContext sc = connectionFactory.connectContext().js.getStreamContext(split.subjectConfig.streamName);
-                    BaseConsumerContext consumerContext = split.subjectConfig.ack
+                    BaseConsumerContext consumerContext = split.subjectConfig.ackMode
                         ? createConsumer(split, sc)
                         : createOrderedConsumer(split, sc);
 
@@ -187,10 +187,10 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.split.subjectConfig.ack) {
-                // Manual ack since we don't have the message, just the reply_to
-                // but we know that this \/ is what an ack is
-                // Also we execute as a task so as not to slow down the reader
+            if (snapshot != null && srSplit.split.subjectConfig.ackMode) {
+                // Manual ack since we don't have the message.
+                // Use the original message's "reply_to" since this is where the ack info is kept.
+                // Also, we execute as a task so as not to slow down the reader
                 // This is probably not perfect, but the whole acking thing is questionable anyway...
                 scheduler.execute(() -> connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
             }
