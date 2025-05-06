@@ -30,7 +30,7 @@ import static io.synadia.flink.examples.support.ExampleUtils.writeToFile;
 
 public class JetStreamExample {
     // ==========================================================================================
-    // Example Configuration: Use these settings to change how the example runs
+    // General Configuration: Use these settings to change how the example runs
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
@@ -110,11 +110,13 @@ public class JetStreamExample {
         // Create a JetStream source
         // ==========================================================================================
         // JetStreamSubjectConfiguration are the key to building a source.
-        // Each stream must have its own configuration, but don't worry, you'll see that
-        // the source builder can add multiple subject configurations, including
+        // Each subject must have its own configuration.
+        // The source builder can add multiple subject configurations, including
         // both instances and lists of JetStreamSubjectConfiguration.
+        // ------------------------------------------------------------------------------------------
         // The main restriction is that all configurations for a source
-        // must be the same type of Boundedness
+        // must be the same type of Boundedness. Boundedness is determined
+        // from the configuration of maxMessagesToRead
         // ------------------------------------------------------------------------------------------
 
         // ------------------------------------------------------------------------------------------
@@ -161,8 +163,8 @@ public class JetStreamExample {
         // Build the source by setting up the connection properties, the deserializer
         // and subject configurations, etc.
         // ------------------------------------------------------------------------------------------
-        // A StringPayloadDeserializer takes the NATS Message and output's it's data payload as a String
-        // When we published to these streams the data is in the form "data--<subject>--<num>"
+        // A StringPayloadDeserializer takes the NATS Message and outputs its data payload as a String
+        // When we published to these streams, the data is in the form "data--<subject>--<num>"
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
@@ -184,11 +186,8 @@ public class JetStreamExample {
         // A JetStream sink publishes to a JetStream subject
         // ------------------------------------------------------------------------------------------
         // When we published to the source streams, the data was in the form "data--<subject>--<num>"
-        // The sink takes that payload and publishes it as the message payload to the SINK_SUBJECT
-        // ------------------------------------------------------------------------------------------
-        // We have one sink for all those source subjects. This means that all messages from
-        // all those sources get "sinked" to the same JetStream subject
-        // This may or may not be a real use-case, it's here for example.
+        // The sink takes that payload and publishes it as the message payload
+        // to all the sink subjects. For this example, there is only one sink subject, see SINK_SUBJECT
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)

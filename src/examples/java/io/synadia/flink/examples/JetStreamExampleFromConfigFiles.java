@@ -31,14 +31,14 @@ import static io.synadia.flink.examples.JetStreamExampleHelper.*;
  */
 public class JetStreamExampleFromConfigFiles {
     // ==========================================================================================
-    // Example Configuration: Use these settings to change how the example runs
+    // General Configuration: Use these settings to change how the example runs
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
     // This job name is used by flink for management, including the naming
     // of threads, which might appear in logging.
     // ------------------------------------------------------------------------------------------
-    public static final String JOB_NAME = "jse";
+    public static final String JOB_NAME = "jsefcf";
 
     // ------------------------------------------------------------------------------------------
     // 0 or less don't report
@@ -111,11 +111,8 @@ public class JetStreamExampleFromConfigFiles {
         // A JetStream sink publishes to a JetStream subject
         // ------------------------------------------------------------------------------------------
         // When we published to the source streams, the data was in the form "data--<subject>--<num>"
-        // The sink takes that payload and publishes it as the message payload to the SINK_SUBJECT
-        // ------------------------------------------------------------------------------------------
-        // We have one sink for all those source subjects. This means that all messages from
-        // all those sources get "sinked" to the same JetStream subject
-        // This may or may not be a real use-case, it's here for example.
+        // The sink takes that payload and publishes it as the message payload
+        // to all the sink subjects. For this example, there is only one sink subject, see SINK_SUBJECT
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink;
         JetStreamSinkBuilder<String> sinkBuilder = new JetStreamSinkBuilder<String>()
