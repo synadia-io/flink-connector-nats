@@ -3,6 +3,7 @@
 
 package io.synadia.flink.enumerator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -13,6 +14,10 @@ import java.util.*;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEnumerator<SplitT, Collection<SplitT>> {
     private final SplitEnumeratorContext<SplitT> context;
     private final Queue<SplitT> remainingSplits;

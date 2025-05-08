@@ -4,6 +4,7 @@
 package io.synadia.flink.utils;
 
 import io.nats.client.NUID;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.PojoField;
@@ -23,12 +24,14 @@ import java.util.List;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public abstract class MiscUtils {
 
     public static final String SEP = "--";
     public static final String NULL_SEGMENT = "na";
-    public static final String CN_BOUNDED = "bnd";
-    public static final String CN_UNBOUNDED = "unbnd";
 
     /**
      * Current version of the library
@@ -62,21 +65,6 @@ public abstract class MiscUtils {
 
     public static String generatePrefixedId(String prefix) {
         return prefix + "-" + generateId();
-    }
-
-    public static String encodedConsumerName(String prefix, String subject) {
-        StringBuilder sb = new StringBuilder(prefix).append("--");
-        int len = subject.length();
-        for (int x = 0; x < len; x++) {
-            char c = subject.charAt(x);
-            if (c == '.' || c == '>' || c == '*' | c < 33) {
-                sb.append("-");
-            }
-            else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
     }
 
     public static boolean provided(String s) {

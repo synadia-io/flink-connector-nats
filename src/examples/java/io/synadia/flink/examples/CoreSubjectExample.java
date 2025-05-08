@@ -40,15 +40,15 @@ public class CoreSubjectExample {
         // ==========================================================================================
         // A NatSources subscribes to a core subject for messages.
         // ------------------------------------------------------------------------------------------
-        // Build the source by setting up the connection properties, the deserializer
+        // Build the source by setting up the connection properties, the message supplier
         // and subjects.
         // ------------------------------------------------------------------------------------------
-        // A StringPayloadDeserializer takes the NATS Message and outputs its data payload as a String
+        // A Utf8StringSourceConverter takes the NATS Message and outputs its data payload as a String
         // When we published to these streams, the data is in the form "data--<subject>--<num>"
         // ------------------------------------------------------------------------------------------
         NatsSource<String> source = new NatsSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadDeserializerClass(Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
+            .sourceConverterClass(Constants.UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
             .subjects("source1", "source2")
             .build();
 
@@ -74,7 +74,7 @@ public class CoreSubjectExample {
         // ------------------------------------------------------------------------------------------
         NatsSink<String> sink = new NatsSinkBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadSerializerClass(Constants.STRING_PAYLOAD_SERIALIZER_CLASSNAME)
+            .sinkConverterClass(Constants.UTF8_STRING_SINK_CONVERTER_CLASSNAME)
             .subjects("sink1", "sink2")
             .build();
         writeToFile(SINK_CONFIG_FILE_JSON, sink.toJson());

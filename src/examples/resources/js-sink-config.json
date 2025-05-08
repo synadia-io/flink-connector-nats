@@ -1,4 +1,6 @@
 {
-  "payload_serializer":"io.synadia.flink.payload.StringPayloadSerializer",
-  "subjects":["uk"]
+  "sink_converter_class_name": "io.synadia.flink.message.Utf8StringSinkConverter",
+  "subjects": [
+    "uk"
+  ]
 }

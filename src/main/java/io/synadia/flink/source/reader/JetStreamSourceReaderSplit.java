@@ -7,10 +7,15 @@ import io.nats.client.BaseConsumerContext;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
 import io.synadia.flink.source.split.JetStreamSplit;
+import org.apache.flink.annotation.Internal;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class JetStreamSourceReaderSplit {
     public final JetStreamSplit split;
     public final BaseConsumerContext consumerContext;

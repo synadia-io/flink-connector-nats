@@ -7,15 +7,18 @@ import io.nats.client.Connection;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.annotation.Internal;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class ConnectionFactory implements Serializable {
     private final Properties connectionProperties;
     private final String connectionPropertiesFile;
@@ -31,27 +34,15 @@ public class ConnectionFactory implements Serializable {
     }
 
     public Connection connect() throws IOException {
-        return connectContext().connection;
+        return getConnectionContext().connection;
     }
 
-    public ConnectionContext connectContext() throws IOException {
-        Properties props = connectionProperties;
-        if (connectionPropertiesFile != null) {
-            props = PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
-        }
-
-        long jitter = PropertiesUtils.getLongProperty(props, Constants.CONNECT_JITTER, 0);
-        if (jitter > 0) {
-            try {
-                long sleep = ThreadLocalRandom.current().nextLong(jitter) + 1;
-                Thread.sleep(sleep);
-            }
-            catch (InterruptedException e) {
-                throw new FlinkRuntimeException(e);
-            }
-        }
-
+    public ConnectionContext getConnectionContext() throws IOException {
         try {
+            Properties props = connectionProperties;
+            if (connectionPropertiesFile != null) {
+                props = PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
+            }
             Options options = getOptions(props);
             return new ConnectionContext(Nats.connect(options), getJetStreamOptions(props));
         }
@@ -84,15 +75,15 @@ public class ConnectionFactory implements Serializable {
     }
 
     /**
-     * Get the connection properties
-     * @return a copy of the properties object
+     * Get the connection properties or null if it was not provided via configuration
+     * @return a copy of the connection Properties object
      */
     public Properties getConnectionProperties() {
-        return new Properties(connectionProperties);
+        return connectionProperties == null ? null : new Properties(connectionProperties);
     }
 
     /**
-     * Get the connection properties file
+     * Get the connection properties file or null if it was not provided via configuration
      * @return the properties file string
      */
     public String getConnectionPropertiesFile() {

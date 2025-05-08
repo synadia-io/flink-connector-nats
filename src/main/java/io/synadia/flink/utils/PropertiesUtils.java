@@ -3,6 +3,8 @@
 
 package io.synadia.flink.utils;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -12,12 +14,16 @@ import java.util.Properties;
 
 import static io.synadia.flink.utils.MiscUtils.getInputStream;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public abstract class PropertiesUtils {
     /**
-     * Create and load a properties object from a file.
+     * Create and load a Properties object from a file.
      * @param propertiesFilePath a resolvable path to a file from the location the application is running, either relative or absolute
      * @throws IOException if there is an exception opening the properties file
-     * @return the properties object loaded from the file
+     * @return the Properties object loaded from the file
      */
     public static Properties loadPropertiesFromFile(String propertiesFilePath) throws IOException {
         Properties properties = new Properties();

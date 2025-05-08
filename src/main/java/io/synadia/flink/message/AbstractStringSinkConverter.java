@@ -1,46 +1,36 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.payload;
-
-import io.nats.client.Message;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+package io.synadia.flink.message;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
- * A StringPayloadDeserializer uses the message data byte array and converts it to a String.
+ * An AbstractStringSinkConverter takes a String from a
+ * source and creates a SinkMessage by converting
+ * the string to a byte array using the provided Charset
  */
-public class StringPayloadDeserializer implements PayloadDeserializer<String> {
+abstract class AbstractStringSinkConverter implements SinkConverter<String> {
     private static final long serialVersionUID = 1L;
 
     private transient Charset charset;
     private final String charsetName;
 
     /**
-     * Construct a StringPayloadDeserializer with the default character set, UTF-8
-     */
-    public StringPayloadDeserializer() {
-        this(StandardCharsets.UTF_8);
-    }
-
-    /**
-     * Construct a StringPayloadDeserializer with the supplied charset
+     * Construct an AbstractStringSinkConverter with the supplied charset
      * @param charset the charset
      */
-    public StringPayloadDeserializer(Charset charset) {
+    public AbstractStringSinkConverter(Charset charset) {
         this.charset = charset;
         charsetName = charset.name();
     }
 
     /**
-     * Construct a StringPayloadDeserializer with the provided character set.
+     * Construct an AbstractStringSinkConverter with the provided character set.
      * @param  charsetName
      *         The name of the requested charset; may be either
      *         a canonical name or an alias
@@ -52,7 +42,7 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      *          If no support for the named charset is available
      *          in this instance of the Java virtual machine
      */
-    public StringPayloadDeserializer(String charsetName) {
+    public AbstractStringSinkConverter(String charsetName) {
         this(Charset.forName(charsetName));
     }
 
@@ -60,21 +50,12 @@ public class StringPayloadDeserializer implements PayloadDeserializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public String getObject(Message message) {
-        byte[] input = message.getData();
-        if (input == null || input.length == 0) {
-            return "";
-        }
-        return new String(input, charset);
+    public SinkMessage convert(String input) {
+        return new SinkMessage(input.getBytes(charset));
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         charset = Charset.forName(charsetName);
-    }
-
-    @Override
-    public TypeInformation<String> getProducedType() {
-        return BasicTypeInfo.STRING_TYPE_INFO;
     }
 }

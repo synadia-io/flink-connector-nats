@@ -1,43 +1,40 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.payload;
+package io.synadia.flink.message;
+
+import io.nats.client.Message;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
- * A StringPayloadSerializer takes a String and converts it to a byte array.
+ * An AbstractStringSourceConverter uses the message's data byte array
+ * and copies it to a Byte[] object for output to a sink.
+ * It must be subclasses to provide the Charset to use
  */
-public class StringPayloadSerializer implements PayloadSerializer<String> {
+abstract class AbstractStringSourceConverter implements SourceConverter<String> {
     private static final long serialVersionUID = 1L;
 
+    private transient Charset charset;
     private final String charsetName;
 
-    private transient Charset charset;
-
     /**
-     * Construct a StringPayloadSerializer with the default character set, UTF-8
-     */
-    public StringPayloadSerializer() {
-        this(StandardCharsets.UTF_8);
-    }
-
-    /**
-     * Construct a StringPayloadSerializer with the supplied charset
+     * Construct an AbstractStringSourceConverter with the supplied charset
      * @param charset the charset
      */
-    public StringPayloadSerializer(Charset charset) {
+    protected AbstractStringSourceConverter(Charset charset) {
         this.charset = charset;
         charsetName = charset.name();
     }
 
     /**
-     * Construct a StringPayloadSerializer with the provided character set.
+     * Construct an AbstractStringSourceConverter with the provided character set.
      * @param  charsetName
      *         The name of the requested charset; may be either
      *         a canonical name or an alias
@@ -49,7 +46,7 @@ public class StringPayloadSerializer implements PayloadSerializer<String> {
      *          If no support for the named charset is available
      *          in this instance of the Java virtual machine
      */
-    public StringPayloadSerializer(String charsetName) {
+    protected AbstractStringSourceConverter(String charsetName) {
         this(Charset.forName(charsetName));
     }
 
@@ -57,12 +54,24 @@ public class StringPayloadSerializer implements PayloadSerializer<String> {
      * {@inheritDoc}
      */
     @Override
-    public byte[] getBytes(String input) {
-        return input.getBytes(charset);
+    public String convert(Message message) {
+        byte[] input = message.getData();
+        if (input == null || input.length == 0) {
+            return "";
+        }
+        return new String(input, charset);
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         charset = Charset.forName(charsetName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return BasicTypeInfo.STRING_TYPE_INFO;
     }
 }

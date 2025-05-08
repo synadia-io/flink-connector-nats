@@ -5,7 +5,7 @@ package io.synadia.flink.source;
 
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.enumerator.NatsSourceEnumerator;
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.reader.JetStreamSourceReader;
 import io.synadia.flink.source.split.JetStreamCheckpointSerializer;
 import io.synadia.flink.source.split.JetStreamSplit;
@@ -20,7 +20,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.util.*;
 
 import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
@@ -33,17 +33,17 @@ public class JetStreamSource<OutputT> implements
 {
     public final Boundedness boundedness;
     public final Map<String, JetStreamSubjectConfiguration> configById;
-    public final PayloadDeserializer<OutputT> payloadDeserializer;
+    public final SourceConverter<OutputT> sourceConverter;
     public final ConnectionFactory connectionFactory;
 
     JetStreamSource(Boundedness boundedness,
                     Map<String, JetStreamSubjectConfiguration> configById,
-                    PayloadDeserializer<OutputT> payloadDeserializer,
+                    SourceConverter<OutputT> sourceConverter,
                     ConnectionFactory connectionFactory)
     {
         this.boundedness = boundedness;
         this.configById = Collections.unmodifiableMap(configById);
-        this.payloadDeserializer = payloadDeserializer;
+        this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
     }
 
@@ -83,18 +83,18 @@ public class JetStreamSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, JetStreamSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new JetStreamSourceReader<>(boundedness, payloadDeserializer, connectionFactory, readerContext);
+        return new JetStreamSourceReader<>(boundedness, sourceConverter, connectionFactory, readerContext);
     }
 
     @Override
     public TypeInformation<OutputT> getProducedType() {
-        return payloadDeserializer.getProducedType();
+        return sourceConverter.getProducedType();
     }
 
     @Override
     public String toString() {
         return "JetStreamSource{" +
-            "payloadDeserializer=" + getClassName(payloadDeserializer) +
+            "sourceConverter=" + getClassName(sourceConverter) +
             ", configById=" + configById +
             ", connectionFactory=" + connectionFactory +
             '}';
@@ -106,14 +106,14 @@ public class JetStreamSource<OutputT> implements
             ba.add(configById.get(id).toJsonValue());
         }
         JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
-        bm.put(PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        bm.put(SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         bm.put(JETSTREAM_SUBJECT_CONFIGURATIONS, ba.jv);
         return bm.jv.toJson();
     }
 
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
-        YamlUtils.addField(sb, 0, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         YamlUtils.addField(sb, 0, JETSTREAM_SUBJECT_CONFIGURATIONS);
         for (String id : configById.keySet()) {
             sb.append(configById.get(id).toYaml(1));
@@ -129,7 +129,7 @@ public class JetStreamSource<OutputT> implements
         JetStreamSource<?> that = (JetStreamSource<?>) o;
         return boundedness == that.boundedness
             && configById.equals(that.configById)
-            && payloadDeserializer.getClass().equals(that.payloadDeserializer.getClass())
+            && sourceConverter.getClass().equals(that.sourceConverter.getClass())
             && Objects.equals(connectionFactory, that.connectionFactory);
     }
 
@@ -137,7 +137,7 @@ public class JetStreamSource<OutputT> implements
     public int hashCode() {
         int result = Objects.hashCode(boundedness);
         result = 31 * result + configById.hashCode();
-        result = 31 * result + Objects.hashCode(payloadDeserializer.getClass());
+        result = 31 * result + Objects.hashCode(sourceConverter.getClass());
         result = 31 * result + Objects.hashCode(connectionFactory);
         return result;
     }

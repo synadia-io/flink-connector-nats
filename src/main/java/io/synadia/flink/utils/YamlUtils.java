@@ -4,6 +4,7 @@
 package io.synadia.flink.utils;
 
 import io.nats.client.support.DateTimeUtils;
+import org.apache.flink.annotation.Internal;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -14,6 +15,10 @@ import java.util.Map;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public abstract class YamlUtils {
 
     static final String PAD = "                    ";

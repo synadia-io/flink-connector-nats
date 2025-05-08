@@ -13,6 +13,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 
 /**
+ * INTERNAL CLASS SUBJECT TO CHANGE
  * Serializes and deserializes the {@link JetStreamSplit}. This class needs to handle
  * deserializing splits from older versions.
  */

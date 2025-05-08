@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
+ * INTERNAL CLASS SUBJECT TO CHANGE
  * Serializes and deserializes the {@link JetStreamSplit}. This class needs to handle
  * deserializing splits from older versions.
  */

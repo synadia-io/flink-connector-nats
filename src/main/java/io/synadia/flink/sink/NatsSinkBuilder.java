@@ -3,7 +3,7 @@
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.message.SinkConverter;
 import io.synadia.flink.utils.BuilderBase;
 
 import java.io.IOException;
@@ -11,22 +11,13 @@ import java.util.List;
 
 /**
  * Builder to construct {@link NatsSink}.
- *
- * <p>The following example shows the minimum setup to create a NatsSink that writes String values
- * to one or more NATS subjects.
- *
- * <pre>{@code
- * NatsSink<String> sink = NatsSink
- *     .<String>builder
- *     .subjects("subject1", "subject2")
- *     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
- *     .build();
- * }</pre>
- *
- * @see NatsSink
- * @param <InputT> type of the records written
+ * @param <InputT> type expected as input to the sink
  */
 public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder<InputT>> {
+
+    /**
+     * Construct a new NatsSinkBuilder instance
+     */
     public NatsSinkBuilder() {
         super(true, true);
     }
@@ -37,7 +28,7 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
     }
 
     /**
-     * Set one or more subjects for the sink. Replaces all subjects previously set in the builder.
+     * Set one or more subjects. Replaces all subjects previously set in the builder.
      * @param subjects the subjects
      * @return the builder
      */
@@ -46,7 +37,7 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
     }
 
     /**
-     * Set the subjects for the sink. Replaces all subjects previously set in the builder.
+     * Set the subjects. Replaces all subjects previously set in the builder.
      * @param subjects the list of subjects
      * @return the builder
      */
@@ -55,31 +46,21 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
     }
 
     /**
-     * Set the payload serializer for the sink.
-     * @param payloadSerializer the serializer.
+     * Set the sink converter.
+     * @param sinkConverter the supplier.
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        return super._payloadSerializer(payloadSerializer);
+    public NatsSinkBuilder<InputT> sinkConverter(SinkConverter<InputT> sinkConverter) {
+        return super._sinkConverter(sinkConverter);
     }
 
     /**
-     * Set the fully qualified name of the desired class payload serializer for the sink.
-     * @param payloadSerializerClass the serializer class name.
+     * Set the fully qualified name of the desired class sink converter.
+     * @param sinkConverterClass the converter class name.
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        return super._payloadSerializerClass(payloadSerializerClass);
-    }
-
-    /**
-     * Set sink configuration from a properties file
-     * @param propertiesFilePath the location of the file
-     * @return the builder
-     */
-    public NatsSinkBuilder<InputT> sinkProperties(String propertiesFilePath) throws IOException {
-        setBaseFromPropertiesFile(propertiesFilePath);
-        return this;
+    public NatsSinkBuilder<InputT> sinkConverterClass(String sinkConverterClass) {
+        return super._sinkConverterClass(sinkConverterClass);
     }
 
     /**
@@ -88,8 +69,8 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSinkBuilder<InputT> sinkJson(String jsonFilePath) throws IOException {
-        setBaseFromJsonFile(jsonFilePath);
+    public NatsSinkBuilder<InputT> jsonConfigFile(String jsonFilePath) throws IOException {
+        _jsonConfigFile(jsonFilePath);
         return this;
     }
 
@@ -99,17 +80,17 @@ public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSinkBuilder<InputT> sinkYaml(String yamlFilePath) throws IOException {
-        setBaseFromYamlFile(yamlFilePath);
+    public NatsSinkBuilder<InputT> yamlConfigFile(String yamlFilePath) throws IOException {
+        _yamlConfigFile(yamlFilePath);
         return this;
     }
 
     /**
-     * Build a NatsSink. Subject and
-     * @return the sink
+     * Build a NatsSink.
+     * @return the NatsSink
      */
     public NatsSink<InputT> build() {
         beforeBuild();
-        return new NatsSink<>(subjects, payloadSerializer, connectionFactory);
+        return new NatsSink<>(subjects, sinkConverter, connectionFactory);
     }
 }

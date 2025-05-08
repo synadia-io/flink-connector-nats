@@ -7,8 +7,8 @@ import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
-import io.synadia.flink.payload.StringPayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.source.JetStreamSource;
@@ -160,15 +160,15 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         // The JetStreamSource
         // ------------------------------------------------------------------------------------------
-        // Build the source by setting up the connection properties, the deserializer
+        // Build the source by setting up the connection properties, the message supplier
         // and subject configurations, etc.
         // ------------------------------------------------------------------------------------------
-        // A StringPayloadDeserializer takes the NATS Message and outputs its data payload as a String
+        // A Utf8StringSourceConverter takes the NATS Message and outputs its data payload as a String
         // When we published to these streams, the data is in the form "data--<subject>--<num>"
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadDeserializer(new StringPayloadDeserializer())
+            .sourceConverter(new Utf8StringSourceConverter())
             .addSubjectConfigurations(subjectConfigurationA)
             .addSubjectConfigurations(subjectConfigurationsB)
             .build();
@@ -191,7 +191,7 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .payloadSerializer(new StringPayloadSerializer())
+            .sinkConverter(new Utf8StringSinkConverter())
             .subjects(SINK_SUBJECT)
             .build();
 

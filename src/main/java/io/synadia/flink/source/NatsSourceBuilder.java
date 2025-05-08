@@ -3,7 +3,7 @@
 
 package io.synadia.flink.source;
 
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.utils.BuilderBase;
 
 import java.io.IOException;
@@ -11,22 +11,13 @@ import java.util.List;
 
 /**
  * Builder to construct {@link NatsSource}.
- *
- * <p>The following example shows the minimum setup to create a NatsSource that reads String values
- * from one or more NATS subjects.
- *
- * <pre>{@code
- * NatsSource<String> source = NatsSource
- *     .<String>builder
- *     .subjects("subject1", "subject2")
- *     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
- *     .build();
- * }</pre>
- *
- * @see NatsSource
- * @param <OutputT> type of the records written
+ * @param <OutputT> type of the records emitted by the source
  */
 public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceBuilder<OutputT>> {
+
+    /**
+     * Construct a new NatsSourceBuilder instance
+     */
     public NatsSourceBuilder() {
         super(true, false);
     }
@@ -37,23 +28,13 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
     }
 
     /**
-     * Set source configuration from a properties file
-     * @param propertiesFilePath the location of the file
-     * @return the builder
-     */
-    public NatsSourceBuilder<OutputT> sourceProperties(String propertiesFilePath) throws IOException {
-        setBaseFromPropertiesFile(propertiesFilePath);
-        return this;
-    }
-
-    /**
      * Set source configuration from a JSON file
      * @param jsonFilePath the location of the file
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
-        setBaseFromJsonFile(jsonFilePath);
+    public NatsSourceBuilder<OutputT> jsonConfigFile(String jsonFilePath) throws IOException {
+        _jsonConfigFile(jsonFilePath);
         return this;
     }
 
@@ -63,8 +44,8 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
-        setBaseFromYamlFile(yamlFilePath);
+    public NatsSourceBuilder<OutputT> yamlConfigFile(String yamlFilePath) throws IOException {
+        _yamlConfigFile(yamlFilePath);
         return this;
     }
 
@@ -87,21 +68,21 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
     }
 
     /**
-     * Set the payload deserializer for the source.
-     * @param payloadDeserializer the deserializer.
+     * Set the source converter.
+     * @param sourceConverter the source converter.
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        return super._payloadDeserializer(payloadDeserializer);
+    public NatsSourceBuilder<OutputT> sourceConverter(SourceConverter<OutputT> sourceConverter) {
+        return super._sourceConverter(sourceConverter);
     }
 
     /**
-     * Set the fully qualified name of the desired class payload deserializer for the source.
-     * @param payloadDeserializerClass the serializer class name.
+     * Set the fully qualified name of the desired class source converter.
+     * @param sourceConverterClass the converter class name.
      * @return the builder
      */
-    public NatsSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        return super._payloadDeserializerClass(payloadDeserializerClass);
+    public NatsSourceBuilder<OutputT> sourceConverterClass(String sourceConverterClass) {
+        return super._sourceConverterClass(sourceConverterClass);
     }
 
     /**
@@ -110,6 +91,6 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      */
     public NatsSource<OutputT> build() {
         beforeBuild();
-        return new NatsSource<>(payloadDeserializer, connectionFactory, subjects);
+        return new NatsSource<>(sourceConverter, connectionFactory, subjects);
     }
 }

@@ -4,12 +4,13 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.TestBase;
-import io.synadia.flink.payload.StringPayloadDeserializer;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
-import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.utils.Constants.UTF8_STRING_SOURCE_CONVERTER_CLASSNAME;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit test for {@link NatsSourceBuilder}. */
@@ -21,14 +22,14 @@ class NatsSourceBuilderTest extends TestBase {
      *
      * Required settings:
      * 1. At least one subject to subscribe to
-     * 2. A payload deserializer to convert NATS messages
+     * 2. A payload sourceConverter to convert NATS messages
      * 3. Connection properties for NATS server
      *
      * Example usage:
      * ```java
      * NatsSource<String> source = new NatsSourceBuilder<String>()
      *     .subjects("orders.>")  // Subscribe to all messages in 'orders' hierarchy
-     *     .payloadDeserializer(new StringPayloadDeserializer())
+     *     .sourceConverter(new Utf8StringSourceConverter())
      *     .connectionProperties(props)  // props containing "nats.connection.url", etc.
      *     .build();
      * ```
@@ -40,8 +41,8 @@ class NatsSourceBuilderTest extends TestBase {
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
                 .subjects(subject)
-                .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionPropertiesFile(defaultConnectionProperties(url))
+                .sourceConverter(new Utf8StringSourceConverter())
+                .connectionProperties(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Built source should not be null");
@@ -62,7 +63,7 @@ class NatsSourceBuilderTest extends TestBase {
      * nats.connection.max.reconnects=5
      * # Source settings
      * nats.source.subjects=orders.>,payments.>
-     * nats.source.payload.deserializer=io.synadia.flink.payload.StringPayloadDeserializer
+     * nats.source.message.deserializer=io.synadia.flink.message.Utf8StringSourceConverter
      * ```
      * Usage:
      * ```java
@@ -76,22 +77,38 @@ class NatsSourceBuilderTest extends TestBase {
     @Test
     void testSourceProperties_WithValidConfiguration() throws Exception {
         runInServer((nc, url) -> {
-            Properties props = defaultConnectionProperties(url);
-            // Add source specific properties
+            Properties connectionProperties = defaultConnectionProperties(url);
             String subject = subject();
-            props.setProperty(SUBJECTS, subject);
-            props.setProperty(PAYLOAD_DESERIALIZER, STRING_PAYLOAD_DESERIALIZER_CLASSNAME);
-
-            String propsFile = writeToTempFile("tsp", props);
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
-                .connectionPropertiesFile(props)
-                .sourceProperties(propsFile)
+                .connectionProperties(connectionProperties)
+                .subjects(subject)
+                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
                 .build();
-
             assertNotNull(source);
             assertEquals(1, source.subjects.size());
             assertEquals(subject, source.subjects.get(0));
+            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
+
+            String propsFile = writeToTempFile("test", "yaml", source.toYaml());
+            source = new NatsSourceBuilder<String>()
+                .connectionProperties(connectionProperties)
+                .yamlConfigFile(propsFile)
+                .build();
+            assertNotNull(source);
+            assertEquals(1, source.subjects.size());
+            assertEquals(subject, source.subjects.get(0));
+            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
+
+            propsFile = writeToTempFile("test", "json", source.toJson());
+            source = new NatsSourceBuilder<String>()
+                .connectionProperties(connectionProperties)
+                .jsonConfigFile(propsFile)
+                .build();
+            assertNotNull(source);
+            assertEquals(1, source.subjects.size());
+            assertEquals(subject, source.subjects.get(0));
+            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
         });
     }
 
@@ -114,7 +131,7 @@ class NatsSourceBuilderTest extends TestBase {
      * 3. Missing connection properties - Should fail as connection details are required
      *    ```java
      *    .subjects("test")
-     *    .payloadDeserializer(deserializer)
+     *    .sourceConverter(deserializer)
      *    .build()  // Should throw IllegalStateException - missing connection props
      *    ```
      *
@@ -129,8 +146,8 @@ class NatsSourceBuilderTest extends TestBase {
             IllegalArgumentException emptySubjectsEx = assertThrows(
                 IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
-                    .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionPropertiesFile(defaultConnectionProperties(url))
+                    .sourceConverter(new Utf8StringSourceConverter())
+                    .connectionProperties(defaultConnectionProperties(url))
                     .build()
             );
 
@@ -139,8 +156,8 @@ class NatsSourceBuilderTest extends TestBase {
                 IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
                     .subjects((String[])null)
-                    .payloadDeserializer(new StringPayloadDeserializer())
-                    .connectionPropertiesFile(props)
+                    .sourceConverter(new Utf8StringSourceConverter())
+                    .connectionProperties(props)
                     .build()
             );
 
@@ -149,7 +166,7 @@ class NatsSourceBuilderTest extends TestBase {
                 IllegalArgumentException.class,
                 () -> new NatsSourceBuilder<String>()
                     .subjects(subject())
-                    .payloadDeserializer(new StringPayloadDeserializer())
+                    .sourceConverter(new Utf8StringSourceConverter())
                     .build()  // Missing connection properties
             );
         });
@@ -169,7 +186,7 @@ class NatsSourceBuilderTest extends TestBase {
      * NatsSourceBuilder<String> builder = new NatsSourceBuilder<>();
      * NatsSource<String> source = builder
      *     .subjects("orders.>")
-     *     .payloadDeserializer(new StringPayloadDeserializer())
+     *     .sourceConverter(new Utf8StringSourceConverter())
      *     .connectionProperties(props)
      *     .build();
      *
@@ -188,9 +205,9 @@ class NatsSourceBuilderTest extends TestBase {
             // Test that each method returns the same builder instance
             assertSame(builder, builder.subjects(subject),
                 "subjects() should return same builder instance");
-            assertSame(builder, builder.payloadDeserializer(new StringPayloadDeserializer()),
-                "payloadDeserializer() should return same builder instance");
-            assertSame(builder, builder.connectionPropertiesFile(props),
+            assertSame(builder, builder.sourceConverter(new Utf8StringSourceConverter()),
+                "sourceConverter() should return same builder instance");
+            assertSame(builder, builder.connectionProperties(props),
                 "connectionProperties() should return same builder instance");
 
             // Test that chained configuration works
@@ -210,27 +227,27 @@ class NatsSourceBuilderTest extends TestBase {
      * Example configurations:
      * ```java
      * // Using class name string
-     * .payloadDeserializerClass("io.synadia.flink.payload.StringPayloadDeserializer")
+     * .sourceConverterClass("io.synadia.flink.message.Utf8StringSourceConverter")
      *
      * // Or via properties
-     * props.setProperty("nats.source.payload.deserializer",
-     *     "io.synadia.flink.payload.StringPayloadDeserializer");
+     * props.setProperty("nats.source.message.deserializer",
+     *     "io.synadia.flink.message.Utf8StringSourceConverter");
      * ```
      *
-     * The builder should:
+     * the builder should:
      * 1. Load the specified class
-     * 2. Verify it implements PayloadDeserializer
+     * 2. Verify it implements SourceConverter
      * 3. Instantiate it using the default constructor
      */
     @Test
-    void testBuild_WithPayloadDeserializerClass() throws Exception {
+    void testBuild_WithMessageReaderClass() throws Exception {
         runInServer((nc, url) -> {
             String subject = subject();
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
                 .subjects(subject)
-                .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
-                .connectionPropertiesFile(defaultConnectionProperties(url))
+                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
+                .connectionProperties(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Source with deserializer class should not be null");
@@ -272,8 +289,8 @@ class NatsSourceBuilderTest extends TestBase {
 
             NatsSource<String> source = new NatsSourceBuilder<String>()
                 .subjects(subject1, subject2, subject3)
-                .payloadDeserializer(new StringPayloadDeserializer())
-                .connectionPropertiesFile(defaultConnectionProperties(url))
+                .sourceConverter(new Utf8StringSourceConverter())
+                .connectionProperties(defaultConnectionProperties(url))
                 .build();
 
             assertNotNull(source, "Source with multiple subjects should not be null");

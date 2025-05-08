@@ -5,7 +5,7 @@ package io.synadia.flink.source;
 
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -17,9 +17,16 @@ import java.util.Map;
 
 import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
 
+/**
+ * Builder to construct {@link JetStreamSource}.
+ * @param <OutputT> type of the records emitted by the source
+ */
 public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
 
+    /**
+     * Construct a new JetStreamSourceBuilder instance
+     */
     public JetStreamSourceBuilder() {
         super(false, false);
     }
@@ -35,8 +42,8 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public JetStreamSourceBuilder<OutputT> sourceJson(String jsonFilePath) throws IOException {
-        JsonValue jv = setBaseFromJsonFile(jsonFilePath);
+    public JetStreamSourceBuilder<OutputT> jsonConfigFile(String jsonFilePath) throws IOException {
+        JsonValue jv = _jsonConfigFile(jsonFilePath);
         JsonValue jvConfigs = JsonValueUtils.readObject(jv, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (jvConfigs != null && jvConfigs.type == JsonValue.Type.ARRAY) {
             for (JsonValue config : jvConfigs.array) {
@@ -52,8 +59,8 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      * @return the builder
      * @throws IOException if there is a problem loading or reading the file
      */
-    public JetStreamSourceBuilder<OutputT> sourceYaml(String yamlFilePath) throws IOException {
-        Map<String, Object> map = setBaseFromYamlFile(yamlFilePath);
+    public JetStreamSourceBuilder<OutputT> yamlConfigFile(String yamlFilePath) throws IOException {
+        Map<String, Object> map = _yamlConfigFile(yamlFilePath);
         List<Map<String, Object>> mapConfigs = YamlUtils.readArray(map, JETSTREAM_SUBJECT_CONFIGURATIONS);
         if (mapConfigs != null) {
             for (Map<String, Object> config : mapConfigs) {
@@ -64,33 +71,48 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
-     * Set the payload deserializer for the source.
-     * @param payloadDeserializer the deserializer.
+     * Set the source converter.
+     * @param sourceConverter the source converter.
      * @return the builder
      */
-    public JetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        return _payloadDeserializer(payloadDeserializer);
+    public JetStreamSourceBuilder<OutputT> sourceConverter(SourceConverter<OutputT> sourceConverter) {
+        return _sourceConverter(sourceConverter);
     }
 
     /**
-     * Set the fully qualified name of the desired class payload deserializer for the source.
-     * @param payloadDeserializerClass the serializer class name.
+     * Set the fully qualified name of the desired source converter class.
+     * @param sourceConverterClass the converter class name.
      * @return the builder
      */
-    public JetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        return _payloadDeserializerClass(payloadDeserializerClass);
+    public JetStreamSourceBuilder<OutputT> sourceConverterClass(String sourceConverterClass) {
+        return _sourceConverterClass(sourceConverterClass);
     }
 
+    /**
+     * Set one or more subject configurations, replacing any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {
         configById.clear();
         return addSubjectConfigurations(subjectConfigurations);
     }
 
+    /**
+     * Set one or more subject configurations, replacing any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(List<JetStreamSubjectConfiguration> subjectConfigurations) {
         configById.clear();
         return addSubjectConfigurations(subjectConfigurations);
     }
 
+    /**
+     * Add one or more subject configurations to any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> addSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
@@ -102,6 +124,11 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         return this;
     }
 
+    /**
+     * Add one or more subject configurations to any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> addSubjectConfigurations(List<JetStreamSubjectConfiguration> subjectConfigurations) {
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
@@ -113,6 +140,10 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         return this;
     }
 
+    /**
+     * Build a JetStreamSource
+     * @return the JetStreamSource
+     */
     public JetStreamSource<OutputT> build() {
         beforeBuild();
 
@@ -132,6 +163,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             }
         }
 
-        return new JetStreamSource<>(boundedness, configById, payloadDeserializer, connectionFactory);
+        return new JetStreamSource<>(boundedness, configById, sourceConverter, connectionFactory);
     }
 }

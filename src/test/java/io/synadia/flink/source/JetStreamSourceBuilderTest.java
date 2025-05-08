@@ -8,7 +8,7 @@ import io.synadia.flink.TestBase;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static io.synadia.flink.utils.Constants.STRING_PAYLOAD_DESERIALIZER_CLASSNAME;
+import static io.synadia.flink.utils.Constants.UTF8_STRING_SOURCE_CONVERTER_CLASSNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit test for {@link JetStreamSourceBuilder}. */
@@ -21,12 +21,12 @@ class JetStreamSourceBuilderTest extends TestBase {
         String yamlSourceFile = "src/test/resources/source" + which + ".yaml";
         JetStreamSource<String> jsonSource = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceJson(jsonSourceFile)
+            .jsonConfigFile(jsonSourceFile)
             .build();
 
         JetStreamSource<String> yamlSource = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceYaml(yamlSourceFile)
+            .yamlConfigFile(yamlSourceFile)
             .build();
         validateSourceFileConstruction(jsonSource, yamlSource);
 
@@ -35,20 +35,20 @@ class JetStreamSourceBuilderTest extends TestBase {
 
         JetStreamSource<String> jsonSource2 = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceJson(jsonFile)
+            .jsonConfigFile(jsonFile)
             .build();
         validateSourceFileConstruction(jsonSource, jsonSource2);
 
         JetStreamSource<String> yamlSource2 = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceYaml(yamlFile)
+            .yamlConfigFile(yamlFile)
             .build();
         validateSourceFileConstruction(jsonSource, yamlSource2);
 
         if (which.equals("MaxMessages")) {
             JetStreamSource<String> manualSource = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-                .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
+                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
                 .addSubjectConfigurations(
                     JetStreamSubjectConfiguration.builder()
                         .streamName("StreamA")
@@ -69,7 +69,7 @@ class JetStreamSourceBuilderTest extends TestBase {
         else if (which.equals("Endless")) {
             JetStreamSource<String> manualSource = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-                .payloadDeserializerClass(STRING_PAYLOAD_DESERIALIZER_CLASSNAME)
+                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
                 .addSubjectConfigurations(
                     JetStreamSubjectConfiguration.builder()
                         .streamName("StreamSS")
@@ -119,7 +119,7 @@ class JetStreamSourceBuilderTest extends TestBase {
             assertEquals(expectedConfig, actualConfig);
         }
         assertEquals(expected.configById, actual.configById);
-        assertEquals(expected.payloadDeserializer.getClass(), actual.payloadDeserializer.getClass());
+        assertEquals(expected.sourceConverter.getClass(), actual.sourceConverter.getClass());
         assertEquals(expected.connectionFactory, actual.connectionFactory);
         assertEquals(expected, actual);
     }

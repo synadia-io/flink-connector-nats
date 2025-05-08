@@ -6,9 +6,8 @@ package io.synadia.flink.utils;
 public interface Constants {
 
     // ===================================================================================
-    // Connection Property Name Constants
+    // JetStreamOptions Property Name Constants
     // ===================================================================================
-    String CONNECT_JITTER = "connect_jitter";
     String JSO_REQUEST_TIMEOUT = "jso_request_timeout";
     String JSO_PREFIX = "jso_prefix";
     String JSO_DOMAIN = "jso_domain";
@@ -16,8 +15,8 @@ public interface Constants {
     // ===================================================================================
     // Sink and Source JSON / YAML Configuration Field Name Constants
     // ===================================================================================
-    String PAYLOAD_DESERIALIZER = "payload_deserializer";
-    String PAYLOAD_SERIALIZER = "payload_serializer";
+    String SOURCE_CONVERTER_CLASS_NAME = "source_converter_class_name";
+    String SINK_CONVERTER_CLASS_NAME = "sink_converter_class_name";
     String JETSTREAM_SUBJECT_CONFIGURATIONS = "jetstream_subject_configurations";
     String SUBJECTS = "subjects"; // Used in core source and both core and js sink
 
@@ -36,10 +35,12 @@ public interface Constants {
     // ===================================================================================
     // Sink and Source JSON / YAML Configuration Value Constants
     // ===================================================================================
-    String STRING_PAYLOAD_SERIALIZER_CLASSNAME = "io.synadia.flink.payload.StringPayloadSerializer";
-    String STRING_PAYLOAD_DESERIALIZER_CLASSNAME = "io.synadia.flink.payload.StringPayloadDeserializer";
-    String BYTE_ARRAY_PAYLOAD_SERIALIZER_CLASSNAME = "io.synadia.flink.payload.ByteArrayPayloadSerializer";
-    String BYTE_ARRAY_PAYLOAD_DESERIALIZER_CLASSNAME = "io.synadia.flink.payload.ByteArrayPayloadDeserializer";
+    String ASCII_STRING_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.AsciiStringSinkConverter";
+    String ASCII_STRING_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.AsciiStringSourceConverter";
+    String UTF8_STRING_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.Utf8StringSinkConverter";
+    String UTF8_STRING_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.Utf8StringSourceConverter";
+    String BYTE_ARRAY_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.ByteArraySinkConverter";
+    String BYTE_ARRAY_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.ByteArraySourceConverter";
 
     // ===================================================================================
     // Split state JSON Field Constants

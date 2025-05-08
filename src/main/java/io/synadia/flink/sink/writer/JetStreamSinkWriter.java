@@ -1,11 +1,13 @@
 // Copyright (c) 2024-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details. 
 
-package io.synadia.flink.sink;
+package io.synadia.flink.sink.writer;
 
 import io.nats.client.JetStreamApiException;
-import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.message.SinkConverter;
+import io.synadia.flink.message.SinkMessage;
 import io.synadia.flink.utils.ConnectionFactory;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -13,29 +15,31 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * This class is responsible to publish to one or more JetStream subjects
- * @param <InputT> The type of the input elements.
+ * INTERNAL CLASS SUBJECT TO CHANGE
  */
+@Internal
 public class JetStreamSinkWriter<InputT> extends NatsSinkWriter<InputT> {
 
     public JetStreamSinkWriter(String sinkId,
                                List<String> subjects,
-                               PayloadSerializer<InputT> payloadSerializer,
+                               SinkConverter<InputT> sinkConverter,
                                ConnectionFactory connectionFactory,
                                WriterInitContext writerInitContext) throws IOException
     {
-        super(sinkId, subjects, payloadSerializer, connectionFactory, writerInitContext);
+        super(sinkId, subjects, sinkConverter, connectionFactory, writerInitContext);
     }
 
     @Override
     public void write(InputT element, Context context) throws IOException, InterruptedException {
-        byte[] payload = payloadSerializer.getBytes(element);
-        for (String subject : subjects) {
-            try {
-                ctx.js.publish(subject, null, payload);
-            }
-            catch (JetStreamApiException e) {
-                throw new FlinkRuntimeException(e);
+        SinkMessage sm = sinkConverter.convert(element);
+        if (sm != null) {
+            for (String subject : subjects) {
+                try {
+                    ctx.js.publish(subject, sm.headers, sm.payload);
+                }
+                catch (JetStreamApiException e) {
+                    throw new FlinkRuntimeException(e);
+                }
             }
         }
     }

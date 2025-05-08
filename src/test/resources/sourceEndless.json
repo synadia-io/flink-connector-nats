@@ -1,5 +1,5 @@
 {
-  "payload_deserializer": "io.synadia.flink.payload.StringPayloadDeserializer",
+  "source_converter_class_name": "io.synadia.flink.message.Utf8StringSourceConverter",
   "jetstream_subject_configurations": [
     {
       "stream_name": "StreamSS",

@@ -59,7 +59,7 @@ public class JetStreamExampleFromConfigFiles {
     // The input file is determined by the constants in JetStreamExampleHelper.java
     // either SOURCE_CONFIG_FILE_JSON or SOURCE_CONFIG_FILE_YAML
     // ------------------------------------------------------------------------------------------
-    public static final boolean USE_JSON_NOT_YAML = false;
+    public static final boolean USE_JSON_NOT_YAML = true;
 
     // ==========================================================================================
     // Flink Configuration: Use these settings to change how Flink runs
@@ -91,17 +91,17 @@ public class JetStreamExampleFromConfigFiles {
         // ==========================================================================================
         // Create a JetStreamSource from a config file
         // ==========================================================================================
-        // Build the source by setting up the connection properties, and the json or yaml for the source
+        // Build the source by setting up the connection properties, and the json or yaml config file
         // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source;
         JetStreamSourceBuilder<String> sourceBuilder = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         if (USE_JSON_NOT_YAML) {
-            source = sourceBuilder.sourceJson(JetStreamExample.SOURCE_CONFIG_FILE_JSON).build();
+            source = sourceBuilder.jsonConfigFile(JetStreamExample.SOURCE_CONFIG_FILE_JSON).build();
             System.out.println("Source as configured via JSON\n" + source.toJson());
         }
         else {
-            source = sourceBuilder.sourceYaml(JetStreamExample.SOURCE_CONFIG_FILE_YAML).build();
+            source = sourceBuilder.yamlConfigFile(JetStreamExample.SOURCE_CONFIG_FILE_YAML).build();
             System.out.println("Source as configured via Yaml\n" + source.toYaml());
         }
 
@@ -118,11 +118,11 @@ public class JetStreamExampleFromConfigFiles {
         JetStreamSinkBuilder<String> sinkBuilder = new JetStreamSinkBuilder<String>()
             .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         if (USE_JSON_NOT_YAML) {
-            sink = sinkBuilder.sinkJson(JetStreamExample.SINK_CONFIG_FILE_JSON).build();
+            sink = sinkBuilder.jsonConfigFile(JetStreamExample.SINK_CONFIG_FILE_JSON).build();
             System.out.println("Sink as configured via JSON\n" + sink.toJson());
         }
         else {
-            sink = sinkBuilder.sinkYaml(JetStreamExample.SINK_CONFIG_FILE_YAML).build();
+            sink = sinkBuilder.yamlConfigFile(JetStreamExample.SINK_CONFIG_FILE_YAML).build();
             System.out.println("Sink as configured via Yaml\n" + sink.toYaml());
         }
 

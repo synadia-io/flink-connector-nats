@@ -6,8 +6,8 @@ package io.synadia.flink.utils;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
-import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.message.SinkConverter;
+import io.synadia.flink.message.SourceConverter;
 import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -15,27 +15,24 @@ import java.util.*;
 
 import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.*;
-import static io.synadia.flink.utils.PropertiesUtils.loadPropertiesFromFile;
 
 public abstract class BuilderBase<SerialT, BuilderT> {
     protected Properties connectionProperties;
     protected String connectionPropertiesFile;
-    protected long minConnectionJitter = 0;
-    protected long maxConnectionJitter = 0;
-    protected String payloadSerializerClass;
-    protected String payloadDeserializerClass;
+    protected String sinkConverterClass;
+    protected String sourceConverterClass;
     protected List<String> subjects;
 
     protected ConnectionFactory connectionFactory;
-    protected PayloadSerializer<SerialT> payloadSerializer;
-    protected PayloadDeserializer<SerialT> payloadDeserializer;
+    protected SinkConverter<SerialT> sinkConverter;
+    protected SourceConverter<SerialT> sourceConverter;
 
     private final boolean expectsSubjects;
-    private final boolean expectsSerializerNotDeserializer;
+    private final boolean forSink;
 
-    protected BuilderBase(boolean expectsSubjects, boolean expectsSerializerNotDeserializer) {
+    protected BuilderBase(boolean expectsSubjects, boolean forSink) {
         this.expectsSubjects = expectsSubjects;
-        this.expectsSerializerNotDeserializer = expectsSerializerNotDeserializer;
+        this.forSink = forSink;
     }
 
     protected abstract BuilderT getThis();
@@ -47,7 +44,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      * @param connectionProperties the properties
      * @return the builder
      */
-    public BuilderT connectionPropertiesFile(Properties connectionProperties) {
+    public BuilderT connectionProperties(Properties connectionProperties) {
         this.connectionProperties = connectionProperties;
         this.connectionPropertiesFile = null;
         return getThis();
@@ -55,7 +52,10 @@ public abstract class BuilderBase<SerialT, BuilderT> {
 
     /**
      * Set the properties file path to a properties file to be used to instantiate the {@link io.nats.client.Connection Connection}
-     * @param connectionPropertiesFile the properties file path that would be available on all servers executing the job.
+     * The properties file path must be available on all servers executing the job.
+     * <p>The properties should include enough information to create a connection to a NATS server.
+     * See {@link io.nats.client.Options Connection Options}</p>
+     * @param connectionPropertiesFile the properties file path
      * @return the builder
      */
     public BuilderT connectionPropertiesFile(String connectionPropertiesFile) {
@@ -70,81 +70,75 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     }
 
     protected BuilderT _subjects(List<String> subjects) {
-        if (subjects == null || subjects.isEmpty()) {
+        this.subjects = new ArrayList<>();
+        if (subjects != null) {
+            for (String subject : subjects) {
+                if (subject != null && !subject.isEmpty()) {
+                    this.subjects.add(subject);
+                }
+            }
+        }
+        if (this.subjects.isEmpty()) {
             this.subjects = null;
         }
-        else {
-            this.subjects = new ArrayList<>(subjects);
-        }
         return getThis();
     }
 
-    protected BuilderT _payloadDeserializer(PayloadDeserializer<SerialT> payloadDeserializer) {
-        return _payloadDeserializerClass(getClassName(payloadDeserializer));
+    protected BuilderT _sourceConverter(SourceConverter<SerialT> sourceConverter) {
+        return _sourceConverterClass(getClassName(sourceConverter));
     }
 
-    protected BuilderT _payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializerClass = payloadDeserializerClass;
+    protected BuilderT _sourceConverterClass(String sourceConverterClass) {
+        this.sourceConverterClass = sourceConverterClass;
         return getThis();
     }
 
-    protected BuilderT _payloadSerializer(PayloadSerializer<SerialT> payloadSerializer) {
-        return _payloadSerializerClass(getClassName(payloadSerializer));
+    protected BuilderT _sinkConverter(SinkConverter<SerialT> sinkConverter) {
+        return _sinkConverterClass(getClassName(sinkConverter));
     }
 
-    public BuilderT _payloadSerializerClass(String payloadSerializerClass) {
-        this.payloadSerializerClass = payloadSerializerClass;
+    public BuilderT _sinkConverterClass(String sinkConverterClass) {
+        this.sinkConverterClass = sinkConverterClass;
         return getThis();
     }
 
-    protected interface PropertyAdapter {
+    protected interface ConfigurationAdapter {
         List<String> getList(String key);
         String getString(String key);
     }
 
-    protected void setBaseProperties(PropertyAdapter adapter) {
+    protected void _config(ConfigurationAdapter adapter) {
         if (expectsSubjects) {
-            _subjects(adapter.getList(SUBJECTS));
+            // We support SUBJECT or SUBJECTS
+            List<String> subjects = adapter.getList(SUBJECTS);
+            if (subjects == null || subjects.isEmpty()) {
+                String s = adapter.getString(SUBJECT);
+                if (s != null && !s.trim().isEmpty()) {
+                    _subjects(s.split(","));
+                }
+            }
+            else {
+                _subjects(subjects);
+            }
         }
 
-        if (expectsSerializerNotDeserializer) {
-            String classname = adapter.getString(PAYLOAD_SERIALIZER);
+        if (forSink) {
+            String classname = adapter.getString(SINK_CONVERTER_CLASS_NAME);
             if (classname != null) {
-                _payloadSerializerClass(classname);
+                _sinkConverterClass(classname);
             }
         }
         else {
-            String classname = adapter.getString(PAYLOAD_DESERIALIZER);
+            String classname = adapter.getString(SOURCE_CONVERTER_CLASS_NAME);
             if (classname != null) {
-                _payloadDeserializerClass(classname);
+                _sourceConverterClass(classname);
             }
         }
     }
 
-    @SuppressWarnings("UnusedReturnValue")
-    protected Properties setBaseFromPropertiesFile(String propertiesFilePath) throws IOException {
-        Properties properties = loadPropertiesFromFile(propertiesFilePath);
-        setBaseFromProperties(properties);
-        return properties;
-    }
-
-    protected void setBaseFromProperties(Properties properties) {
-        setBaseProperties(new PropertyAdapter() {
-            @Override
-            public List<String> getList(String key) {
-                return PropertiesUtils.getAsList(PropertiesUtils.getStringProperty(properties, key));
-            }
-
-            @Override
-            public String getString(String key) {
-                return PropertiesUtils.getStringProperty(properties, key);
-            }
-        });
-    }
-
-    protected JsonValue setBaseFromJsonFile(String jsonFilePath) throws IOException {
+    protected JsonValue _jsonConfigFile(String jsonFilePath) throws IOException {
         JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
-        setBaseProperties(new PropertyAdapter() {
+        _config(new ConfigurationAdapter() {
             @Override
             public List<String> getList(String key) {
                 return JsonValueUtils.readStringList(jv, key);
@@ -158,9 +152,9 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return jv;
     }
 
-    protected Map<String, Object> setBaseFromYamlFile(String yamlFilePath) throws IOException {
+    protected Map<String, Object> _yamlConfigFile(String yamlFilePath) throws IOException {
         Map<String, Object> map = new Yaml().load(getInputStream(yamlFilePath));
-        setBaseProperties(new PropertyAdapter() {
+        _config(new ConfigurationAdapter() {
             @Override
             public List<String> getList(String key) {
                 return YamlUtils.readStringList(map, key);
@@ -194,15 +188,11 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             }
         }
 
-        if (minConnectionJitter > maxConnectionJitter) {
-            throw new IllegalArgumentException("Minimum jitter must be less than or equal to maximum jitter.");
-        }
-
-        if (expectsSerializerNotDeserializer) {
-            createPayloadSerializerInstance();
+        if (forSink) {
+            createMessageSupplierInstance();
         }
         else {
-            createPayloadDeserializerInstance();
+            createMessageReaderInstance();
         }
 
         connectionFactory = connectionProperties == null
@@ -210,31 +200,31 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             : new ConnectionFactory(connectionProperties);
     }
 
-    private void createPayloadSerializerInstance() {
-        if (payloadSerializerClass == null) {
-            throw new IllegalArgumentException("Valid payload serializer class must be provided.");
+    private void createMessageSupplierInstance() {
+        if (sinkConverterClass == null) {
+            throw new IllegalArgumentException("Valid message supplier class must be provided.");
         }
         // so much can go wrong here... ClassNotFoundException, ClassCastException
         try {
             //noinspection unchecked
-            payloadSerializer = (PayloadSerializer<SerialT>) createInstanceOf(payloadSerializerClass);
+            sinkConverter = (SinkConverter<SerialT>) createInstanceOf(sinkConverterClass);
         }
         catch (Exception e) {
-            throw new IllegalArgumentException("Valid payload serializer class must be provided.", e);
+            throw new IllegalArgumentException("Valid message supplier class must be provided.", e);
         }
     }
 
-    private void createPayloadDeserializerInstance() {
-        if (payloadDeserializerClass == null) {
-            throw new IllegalArgumentException("Valid payload deserializer class must be provided.");
+    private void createMessageReaderInstance() {
+        if (sourceConverterClass == null) {
+            throw new IllegalArgumentException("Valid source converter class must be provided.");
         }
         // so much can go wrong here... ClassNotFoundException, ClassCastException
         try {
             //noinspection unchecked
-            payloadDeserializer = (PayloadDeserializer<SerialT>) createInstanceOf(payloadDeserializerClass);
+            sourceConverter = (SourceConverter<SerialT>) createInstanceOf(sourceConverterClass);
         }
         catch (Exception e) {
-            throw new IllegalArgumentException("Valid payload deserializer class must be provided.", e);
+            throw new IllegalArgumentException("Valid source converter class must be provided.", e);
         }
     }
 }

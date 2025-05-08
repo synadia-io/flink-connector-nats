@@ -6,6 +6,7 @@ package io.synadia.flink.source.split;
 import io.nats.client.Message;
 import io.nats.client.support.*;
 import io.synadia.flink.source.JetStreamSubjectConfiguration;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -17,6 +18,10 @@ import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.synadia.flink.utils.Constants.*;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class JetStreamSplit implements SourceSplit, JsonSerializable {
     public final AtomicReference<String> lastEmittedMessageReplyTo;
     public final AtomicLong lastEmittedStreamSequence;

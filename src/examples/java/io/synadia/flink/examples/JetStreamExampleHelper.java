@@ -59,7 +59,7 @@ public class JetStreamExampleHelper {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
-        // Create a JetStream stream for the source subject
+        // Create a JetStream for the source subject
         System.out.println("Setting up data streams");
         ExampleUtils.createOrReplaceStream(jsm, SOURCE_A_STORAGE_TYPE, SOURCE_A_STREAM, SOURCE_A_SUBJECT);
         ExampleUtils.createOrReplaceStream(jsm, SOURCE_B_STORAGE_TYPE, SOURCE_B_STREAM, SOURCE_B_SUBJECTS);

@@ -6,9 +6,10 @@ package io.synadia.flink.source.reader;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.utils.ConnectionFactory;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -24,19 +25,23 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubjectSplit> {
     private final ConnectionFactory connectionFactory;
-    private final PayloadDeserializer<OutputT> payloadDeserializer;
+    private final SourceConverter<OutputT> sourceConverter;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> messages;
     private Connection connection;
     private Dispatcher dispatcher;
 
     public NatsSourceReader(ConnectionFactory connectionFactory,
-                            PayloadDeserializer<OutputT> payloadDeserializer,
+                            SourceConverter<OutputT> sourceConverter,
                             SourceReaderContext readerContext) {
         this.connectionFactory = connectionFactory;
-        this.payloadDeserializer = payloadDeserializer;
+        this.sourceConverter = sourceConverter;
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
         messages = new FutureCompletingBlockingQueue<>();
@@ -59,7 +64,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         if (m == null) {
             return InputStatus.NOTHING_AVAILABLE;
         }
-        output.collect(payloadDeserializer.getObject(m));
+        output.collect(sourceConverter.convert(m));
         return messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
     }
 

@@ -7,8 +7,8 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
-import io.synadia.flink.payload.ByteArrayPayloadSerializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.ByteArraySinkConverter;
+import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.sink.NatsSink;
@@ -198,25 +198,25 @@ public class TestBase {
     }
 
     public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
         }
         else {
-            builder.connectionPropertiesFile(connectionProperties);
+            builder.connectionProperties(connectionProperties);
         }
         return builder.build();
     }
 
     public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final ByteArrayPayloadSerializer serializer = new ByteArrayPayloadSerializer();
+        final ByteArraySinkConverter serializer = new ByteArraySinkConverter();
         NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             if (connectionPropertiesFile != null) {
@@ -224,22 +224,22 @@ public class TestBase {
             }
         }
         else {
-            builder.connectionPropertiesFile(connectionProperties);
+            builder.connectionProperties(connectionProperties);
         }
         return builder.build();
     }
 
     public static JetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
         JetStreamSinkBuilder<String> builder = new JetStreamSinkBuilder<String>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
         }
         else {
-            builder.connectionPropertiesFile(connectionProperties);
+            builder.connectionProperties(connectionProperties);
         }
         return builder.build();
     }
@@ -320,10 +320,6 @@ public class TestBase {
         return outObject;
     }
 
-    public static void writeToFile(String path, String text) throws IOException {
-        writeToFile(new File(path), text);
-    }
-
     public static void writeToFile(File f, String text) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
             writer.write(text);
@@ -334,15 +330,6 @@ public class TestBase {
     public static String writeToTempFile(String prefix, String ext, String text) throws IOException {
         File f = File.createTempFile(prefix, ext);
         writeToFile(f, text);
-        return f.getAbsolutePath();
-    }
-
-    public static String writeToTempFile(String prefix, Properties props) throws IOException {
-        File f = File.createTempFile(prefix, ".properties");
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
-            props.store(writer, null);
-            writer.flush();
-        }
         return f.getAbsolutePath();
     }
 }

@@ -8,7 +8,10 @@ import org.apache.flink.annotation.Internal;
 
 import java.util.Set;
 
-/** The state of Nats source enumerator. */
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ * The state of Nats source enumerator.
+ */
 @Internal
 public class NatsSubjectSourceEnumeratorState {
     private final Set<NatsSubjectSplit> unassignedSplits;

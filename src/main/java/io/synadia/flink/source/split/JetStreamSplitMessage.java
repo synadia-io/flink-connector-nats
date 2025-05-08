@@ -4,7 +4,12 @@
 package io.synadia.flink.source.split;
 
 import io.nats.client.Message;
+import org.apache.flink.annotation.Internal;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class JetStreamSplitMessage {
     public final String splitId;
     public final Message message;

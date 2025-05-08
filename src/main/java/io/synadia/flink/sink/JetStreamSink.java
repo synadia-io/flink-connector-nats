@@ -3,7 +3,8 @@
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.payload.PayloadSerializer;
+import io.synadia.flink.message.SinkConverter;
+import io.synadia.flink.sink.writer.JetStreamSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -18,15 +19,15 @@ import java.util.List;
 public class JetStreamSink<InputT> extends NatsSink<InputT> {
 
     JetStreamSink(List<String> subjects,
-                  PayloadSerializer<InputT> payloadSerializer,
+                  SinkConverter<InputT> sinkConverter,
                   ConnectionFactory connectionFactory)
     {
-        super(subjects, payloadSerializer, connectionFactory);
+        super(subjects, sinkConverter, connectionFactory);
     }
 
     @Override
     public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
-        return new JetStreamSinkWriter<>(id, subjects, payloadSerializer, connectionFactory, context);
+        return new JetStreamSinkWriter<>(id, subjects, sinkConverter, connectionFactory, context);
     }
 
     @Override
@@ -34,7 +35,7 @@ public class JetStreamSink<InputT> extends NatsSink<InputT> {
         return "JetStreamSink{" +
             "id='" + id + '\'' +
             ", subjects=" + subjects +
-            ", payloadSerializer=" + payloadSerializer.getClass().getCanonicalName() +
+            ", sinkConverter=" + sinkConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
     }

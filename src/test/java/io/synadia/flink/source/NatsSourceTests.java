@@ -8,9 +8,9 @@ import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.helpers.Publisher;
-import io.synadia.flink.payload.ByteArrayPayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.ByteArraySourceConverter;
+import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -45,11 +45,11 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
+            Utf8StringSourceConverter sourceConverter = new Utf8StringSourceConverter();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
-                .connectionPropertiesFile(connectionProperties);
+                .sourceConverter(sourceConverter)
+                .connectionProperties(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -88,11 +88,11 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            ByteArrayPayloadDeserializer deserializer = new ByteArrayPayloadDeserializer();
+            ByteArraySourceConverter sourceConverter = new ByteArraySourceConverter();
             NatsSourceBuilder<Byte[]> builder = new NatsSourceBuilder<Byte[]>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
-                .connectionPropertiesFile(connectionProperties);
+                .sourceConverter(sourceConverter)
+                .connectionProperties(connectionProperties);
 
             NatsSource<Byte[]> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
@@ -130,9 +130,9 @@ public class NatsSourceTests extends TestBase {
         assertTrue(hasSourceSubject2);
     }
 
-    public static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
+    public static class HeaderAwareStringSourceConverter extends Utf8StringSourceConverter {
         @Override
-        public String getObject(Message message) {
+        public String convert(Message message) {
             Headers headers = message.getHeaders();
             String hSubject = headers.getFirst("subject");
             String hNum = headers.getFirst("num");
@@ -165,21 +165,21 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            HeaderAwareStringPayloadDeserializer deserializer = new HeaderAwareStringPayloadDeserializer();
+            HeaderAwareStringSourceConverter sourceConverter = new HeaderAwareStringSourceConverter();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
-                .connectionPropertiesFile(connectionProperties);
+                .sourceConverter(sourceConverter)
+                .connectionProperties(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-headers-input");
 
-            final StringPayloadSerializer serializer = new StringPayloadSerializer();
+            final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
             NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
                 .subjects(sinkSubject)
-                .payloadSerializer(serializer);
-            sinkBuilder.connectionPropertiesFile(connectionProperties);
+                .sinkConverter(serializer);
+            sinkBuilder.connectionProperties(connectionProperties);
 
             NatsSink<String> sink = sinkBuilder.build();
 

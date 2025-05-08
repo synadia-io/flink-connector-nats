@@ -5,7 +5,7 @@ package io.synadia.flink.source;
 
 import io.nats.client.support.JsonUtils;
 import io.synadia.flink.enumerator.NatsSourceEnumerator;
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
@@ -23,7 +23,7 @@ import java.util.List;
 
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.synadia.flink.utils.Constants.PAYLOAD_DESERIALIZER;
+import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
 import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generateId;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
@@ -38,16 +38,16 @@ public class NatsSource<OutputT> implements
 {
     protected final String id;
     protected final List<String> subjects;
-    protected final PayloadDeserializer<OutputT> payloadDeserializer;
+    protected final SourceConverter<OutputT> sourceConverter;
     protected final ConnectionFactory connectionFactory;
 
-    protected NatsSource(PayloadDeserializer<OutputT> payloadDeserializer,
-               ConnectionFactory connectionFactory,
-               List<String> subjects)
+    protected NatsSource(SourceConverter<OutputT> sourceConverter,
+                         ConnectionFactory connectionFactory,
+                         List<String> subjects)
     {
         id = generateId();
         this.subjects = subjects;
-        this.payloadDeserializer = payloadDeserializer;
+        this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
     }
 
@@ -62,14 +62,14 @@ public class NatsSource<OutputT> implements
 
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        JsonUtils.addField(sb, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         JsonUtils.addStrings(sb, SUBJECTS, subjects);
         return endJson(sb).toString();
     }
 
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
-        YamlUtils.addField(sb, 0, PAYLOAD_DESERIALIZER, getClassName(payloadDeserializer));
+        YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
         return sb.toString();
     }
@@ -105,12 +105,12 @@ public class NatsSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new NatsSourceReader<>(connectionFactory, payloadDeserializer, readerContext);
+        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext);
     }
 
     @Override
     public TypeInformation<OutputT> getProducedType() {
-        return payloadDeserializer.getProducedType();
+        return sourceConverter.getProducedType();
     }
 
     @Override
@@ -118,7 +118,7 @@ public class NatsSource<OutputT> implements
         return "NatsSource{" +
             "id='" + id + '\'' +
             ", subjects=" + subjects +
-            ", payloadDeserializer=" + payloadDeserializer.getClass().getCanonicalName() +
+            ", sourceConverter=" + sourceConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
     }

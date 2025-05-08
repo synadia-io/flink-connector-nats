@@ -36,7 +36,7 @@ class ConnectionFactoryTest extends TestBase {
             try {
                 connection = factory.connect();
                 assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             } finally {
                 if (connection != null) {
                     connection.close();
@@ -46,7 +46,7 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
-     * Tests connection creation using properties file.
+     * Tests connection creation using a properties file.
      * Verifies that:
      * 1. Properties are loaded correctly from file
      * 2. Connection is established using file properties
@@ -64,7 +64,7 @@ class ConnectionFactoryTest extends TestBase {
             try {
                 connection = factory.connect();
                 assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             } finally {
                 if (connection != null) {
                     connection.close();
@@ -79,23 +79,22 @@ class ConnectionFactoryTest extends TestBase {
      * 1. ConnectionContext is created successfully with JetStream enabled
      * 2. Both JetStream (js) and JetStreamManagement (jsm) objects are properly initialized
      * 3. Basic JetStream connectivity is working by verifying we can list streams
-     *
      * Note: This test focuses on context creation and basic connectivity.
      */
     @Test
-    void testConnectContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
+    void testConnectionContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
         runInServer(true, (nc, url) -> {
             ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
             ConnectionContext context = null;
             try {
-                context = factory.connectContext();
+                context = factory.getConnectionContext();
                 assertNotNull(context);
                 assertNotNull(context.js);
                 assertNotNull(context.jsm);
                 ConnectionContext finalContext = context;
                 assertDoesNotThrow(() -> finalContext.jsm.getStreams(), "JetStream operation should not throw an exception");
             } finally {
-                if (context != null && context.connection != null) {
+                if (context != null) {
                     context.connection.close();
                 }
             }
@@ -103,9 +102,9 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
-     * Tests error handling when connection fails.
+     * Tests error handling when a connection fails.
      * Verifies that:
-     * 1. IOException is thrown with appropriate message
+     * 1. IOException is thrown with an appropriate message
      * 2. Original cause is preserved
      * 3. Resources are cleaned up properly
      */
@@ -129,8 +128,8 @@ class ConnectionFactoryTest extends TestBase {
     /**
      * Tests connection properties immutability.
      * Verifies that:
-     * 1. Returned properties are a copy
-     * 2. Modifying returned properties doesn't affect original
+     * 1. Returned properties are a copy of the original
+     * 2. Modifying returned properties doesn't affect the original
      * 3. Original properties remain unchanged
      */
     @Test
@@ -162,21 +161,17 @@ class ConnectionFactoryTest extends TestBase {
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
-            props.setProperty(Constants.CONNECT_JITTER, "1000");
             ConnectionFactory originalFactory = new ConnectionFactory(props);
 
             // Create multiple deserialized instances
             ConnectionFactory deserialized = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
             assertNotNull(deserialized);
 
-            props = deserialized.getConnectionProperties();
-            assertEquals("1000", props.getProperty(Constants.CONNECT_JITTER));
-
             // Verify each instance can create valid connections
             for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {
                 try (Connection connection = factory.connect()) {
                     assertNotNull(connection);
-                    assertSame(connection.getStatus(), Connection.Status.CONNECTED);
+                    assertSame(Connection.Status.CONNECTED, connection.getStatus());
                 }
             }
         });

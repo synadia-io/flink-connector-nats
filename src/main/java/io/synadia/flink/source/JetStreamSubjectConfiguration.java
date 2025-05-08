@@ -159,7 +159,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Copies all the configuration except the subject
          * @param config the config to use as a basis for the new config
-         * @return The Builder
+         * @return the builder
          */
         public Builder copy(JetStreamSubjectConfiguration config) {
             return streamName(config.streamName)
@@ -174,7 +174,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the stream name
          * @param streamName the stream name
-         * @return The Builder
+         * @return the builder
          */
         public Builder streamName(String streamName) {
             this.streamName = streamName;
@@ -184,7 +184,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the subject
          * @param subject the subject
-         * @return The Builder
+         * @return the builder
          */
         public Builder subject(String subject) {
             this.subject = subject;
@@ -195,7 +195,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * Set the initial Consume batch size in messages.
          * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT} when bytes are not specified.
          * @param batchSize the batch size in messages.
-         * @return The Builder
+         * @return the builder
          */
         public Builder batchSize(int batchSize) {
             this.batchSize = batchSize;
@@ -208,7 +208,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * Less than 1 will assume the default of {@value BaseConsumeOptions#DEFAULT_THRESHOLD_PERCENT}.
          * Greater than 100 will assume 100. </p>
          * @param thresholdPercent the threshold percent
-         * @return The Builder
+         * @return the builder
          */
         public Builder thresholdPercent(int thresholdPercent) {
             this.thresholdPercent = thresholdPercent;
@@ -218,7 +218,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the start sequence of the JetStreamSubjectConfiguration.
          * @param startSequence the start sequence
-         * @return The Builder
+         * @return the builder
          */
         public Builder startSequence(long startSequence) {
             if (startSequence < 1) {
@@ -236,7 +236,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the start time of the JetStreamSubjectConfiguration.
          * @param startTime the start time
-         * @return The Builder
+         * @return the builder
          */
         public Builder startTime(ZonedDateTime startTime) {
             if (startTime != null && startSequence != -1) {
@@ -249,7 +249,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Set the maximum number of messages to read.
          * This makes this configuration Boundedness BOUNDED if the value is greater than zero.
-         * @return The Builder
+         * @return the builder
          */
         public Builder maxMessagesToRead(long maxMessagesToRead) {
             this.maxMessagesToRead = maxMessagesToRead < 1 ? -1 : maxMessagesToRead;
@@ -261,7 +261,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * Ack will occur when a checkpoint is complete via ack all.
          * It's not recommended to set ackMode unless your stream is a work queue,
          * but even then, be sure of why you are running this against a work queue.
-         * @return The Builder
+         * @return the builder
          */
         public Builder ackMode() {
             this.ackMode = true;

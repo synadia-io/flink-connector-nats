@@ -1,7 +1,7 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.TestBase;
-import io.synadia.flink.payload.StringPayloadDeserializer;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.utils.ConnectionFactory;
@@ -185,7 +185,7 @@ class NatsSourceReaderTest extends TestBase {
 
         NatsSourceReader<String> reader = new NatsSourceReader<>(
             failingFactory,
-                new StringPayloadDeserializer(),
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -229,7 +229,7 @@ class NatsSourceReaderTest extends TestBase {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
-                new StringPayloadDeserializer(),
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -254,7 +254,7 @@ class NatsSourceReaderTest extends TestBase {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
-                new StringPayloadDeserializer(),
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -271,7 +271,7 @@ class NatsSourceReaderTest extends TestBase {
     private NatsSourceReader<String> createReader(String url, SourceReaderContext context) {
         return new NatsSourceReader<>(
             new ConnectionFactory(defaultConnectionProperties(url)),
-                new StringPayloadDeserializer(),
+                new Utf8StringSourceConverter(),
                 context
         );
     }
