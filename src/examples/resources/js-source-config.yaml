@@ -1,0 +1,13 @@
+---
+source_converter_class_name: io.synadia.flink.message.Utf8StringSourceConverter
+jetstream_subject_configurations: 
+  - stream_name: source-a
+    subject: ua
+  - stream_name: source-b
+    subject: ub4
+  - stream_name: source-b
+    subject: ub1
+  - stream_name: source-b
+    subject: ub2
+  - stream_name: source-b
+    subject: ub3

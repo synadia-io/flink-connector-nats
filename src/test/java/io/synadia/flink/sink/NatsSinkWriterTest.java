@@ -6,7 +6,8 @@ package io.synadia.flink.sink;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.synadia.flink.TestBase;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.sink.writer.NatsSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.junit.jupiter.api.Test;
@@ -102,7 +103,7 @@ class NatsSinkWriterTest extends TestBase {
         return new NatsSinkWriter<>(
                 "test-sink",
                 subjects,
-                new StringPayloadSerializer(),
+                new Utf8StringSinkConverter(),
                 new ConnectionFactory(defaultConnectionProperties(url)),
                 new MockWriterInitContext()
         );

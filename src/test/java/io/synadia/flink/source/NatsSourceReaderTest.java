@@ -1,7 +1,7 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.TestBase;
-import io.synadia.flink.payload.StringPayloadDeserializer;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.utils.ConnectionFactory;
@@ -184,9 +184,8 @@ class NatsSourceReaderTest extends TestBase {
         }
 
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                "test-source",
-                failingFactory,
-                new StringPayloadDeserializer(),
+            failingFactory,
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -229,9 +228,8 @@ class NatsSourceReaderTest extends TestBase {
     void testSourceEvents() {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                sourceId,
-                mock(ConnectionFactory.class),
-                new StringPayloadDeserializer(),
+            mock(ConnectionFactory.class),
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -255,9 +253,8 @@ class NatsSourceReaderTest extends TestBase {
     void testNotifyNoMoreSplits() {
         String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
-                sourceId,
-                mock(ConnectionFactory.class),
-                new StringPayloadDeserializer(),
+            mock(ConnectionFactory.class),
+                new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
@@ -273,9 +270,8 @@ class NatsSourceReaderTest extends TestBase {
     // Helper method to create reader with specific context
     private NatsSourceReader<String> createReader(String url, SourceReaderContext context) {
         return new NatsSourceReader<>(
-                "test-source",
-                new ConnectionFactory(defaultConnectionProperties(url)),
-                new StringPayloadDeserializer(),
+            new ConnectionFactory(defaultConnectionProperties(url)),
+                new Utf8StringSourceConverter(),
                 context
         );
     }

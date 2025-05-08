@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source.reader;
@@ -6,12 +6,16 @@ package io.synadia.flink.source.reader;
 import io.nats.client.BaseConsumerContext;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
-import io.synadia.flink.source.JetStreamSubjectConfiguration;
 import io.synadia.flink.source.split.JetStreamSplit;
+import org.apache.flink.annotation.Internal;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class JetStreamSourceReaderSplit {
     public final JetStreamSplit split;
     public final BaseConsumerContext consumerContext;
@@ -58,27 +62,7 @@ public class JetStreamSourceReaderSplit {
         }
     }
 
-    public long getLastEmittedStreamSequence() {
-        return split.lastEmittedStreamSequence.get();
-    }
-
-    public long getEmittedCount() {
-        return split.emittedCount.get();
-    }
-
     public boolean isFinished() {
         return split.finished.get();
-    }
-
-    public JetStreamSubjectConfiguration getSubjectConfig() {
-        return split.subjectConfig;
-    }
-
-    public boolean ack() {
-        return split.subjectConfig.ack;
-    }
-
-    public long getMaxMessagesToRead() {
-        return split.subjectConfig.maxMessagesToRead;
     }
 }

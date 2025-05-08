@@ -11,8 +11,6 @@ import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.helpers.WordSubscriber;
 import nats.io.NatsServerRunner;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -81,7 +79,6 @@ public class NatsSinkTest extends TestBase {
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> dataStream = getPayloadDataStream(env);
         dataStream.sinkTo(sink);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
         env.execute(generatePrefixedId(jobName));
         sub.assertAllMessagesReceived();
     }

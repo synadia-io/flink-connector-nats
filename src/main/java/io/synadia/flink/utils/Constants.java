@@ -4,38 +4,50 @@
 package io.synadia.flink.utils;
 
 public interface Constants {
-    String NATS_PREFIX = "nats.";
-    String SOURCE_PREFIX = "source.";
-    String SINK_PREFIX = "sink.";
 
-    String SUBJECTS = "subjects";
-    String STARTUP_JITTER_MIN = "startup.jitter.min";
-    String STARTUP_JITTER_MAX = "startup.jitter.max";
-    String PAYLOAD_DESERIALIZER = "payload.deserializer";
-    String PAYLOAD_SERIALIZER = "payload.serializer";
+    // ===================================================================================
+    // JetStreamOptions Property Name Constants
+    // ===================================================================================
+    String JSO_REQUEST_TIMEOUT = "jso_request_timeout";
+    String JSO_PREFIX = "jso_prefix";
+    String JSO_DOMAIN = "jso_domain";
 
-    String READER_ELEMENT_QUEUE_CAPACITY = "reader.element.queue.capacity";
-    // Flink's default value is 2.  See SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
-    // Not really sure what's good here but we are going to get a lot of messages from NATS consuming
-    // This can always be supplied by the user and we can tune it later.
-    int DEFAULT_ELEMENT_QUEUE_CAPACITY = 1000;
+    // ===================================================================================
+    // Sink and Source JSON / YAML Configuration Field Name Constants
+    // ===================================================================================
+    String SOURCE_CONVERTER_CLASS_NAME = "source_converter_class_name";
+    String SINK_CONVERTER_CLASS_NAME = "sink_converter_class_name";
+    String JETSTREAM_SUBJECT_CONFIGURATIONS = "jetstream_subject_configurations";
+    String SUBJECTS = "subjects"; // Used in core source and both core and js sink
 
-    String FETCH_ONE_MESSAGE_TIMEOUT = "fetch.one.timeout";
-    long DEFAULT_FETCH_ONE_MESSAGE_TIMEOUT_MS = 1000;
+    // ===================================================================================
+    // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants
+    // ===================================================================================
+    String STREAM_NAME = "stream_name";
+    String SUBJECT = "subject";
+    String START_SEQUENCE = "start_sequence";
+    String START_TIME = "start_time";
+    String MAX_MESSAGES_TO_READ = "max_messages_to_read";
+    String ACK_MODE = "ack_mode";
+    String BATCH_SIZE = "batch_size";
+    String THRESHOLD_PERCENT = "threshold_percent";
 
-    String MAX_FETCH_RECORDS = "max.fetch.records";
-    int DEFAULT_MAX_FETCH_RECORDS = 100;
+    // ===================================================================================
+    // Sink and Source JSON / YAML Configuration Value Constants
+    // ===================================================================================
+    String ASCII_STRING_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.AsciiStringSinkConverter";
+    String ASCII_STRING_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.AsciiStringSourceConverter";
+    String UTF8_STRING_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.Utf8StringSinkConverter";
+    String UTF8_STRING_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.Utf8StringSourceConverter";
+    String BYTE_ARRAY_SINK_CONVERTER_CLASSNAME = "io.synadia.flink.message.ByteArraySinkConverter";
+    String BYTE_ARRAY_SOURCE_CONVERTER_CLASSNAME = "io.synadia.flink.message.ByteArraySourceConverter";
 
-    String FETCH_TIMEOUT = "fetch.timeout";
-    long DEFAULT_FETCH_TIMEOUT_MS = 1000;
-
-    String AUTO_ACK_INTERVAL = "auto.ack.interval";
-    long DEFAULT_AUTO_ACK_INTERVAL_MS = 5000;
-
-    String ENABLE_AUTO_ACK = "enable.auto.ack";
-    boolean DEFAULT_ENABLE_AUTO_ACK = false;
-
-    String JSO_REQUEST_TIMEOUT = "jso.request.timeout";
-    String JSO_PREFIX = "jso.prefix";
-    String JSO_DOMAIN = "jso.domain";
+    // ===================================================================================
+    // Split state JSON Field Constants
+    // ===================================================================================
+    String FINISHED = "finished";
+    String LAST_REPLY_TO = "last_reply_to";
+    String LAST_EMITTED_SEQ = "last_emitted_seq";
+    String MESSAGES = "messages";
+    String SUBJECT_CONFIG = "subject_config";
 }

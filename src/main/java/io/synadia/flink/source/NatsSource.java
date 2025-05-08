@@ -3,25 +3,30 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.JsonUtils;
 import io.synadia.flink.enumerator.NatsSourceEnumerator;
-import io.synadia.flink.payload.PayloadDeserializer;
+import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
+import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
  * Flink Source to consume data from one or more NATS subjects
@@ -33,28 +38,17 @@ public class NatsSource<OutputT> implements
 {
     protected final String id;
     protected final List<String> subjects;
-    protected final PayloadDeserializer<OutputT> payloadDeserializer;
+    protected final SourceConverter<OutputT> sourceConverter;
     protected final ConnectionFactory connectionFactory;
-    protected final Logger logger;
 
-    NatsSource(PayloadDeserializer<OutputT> payloadDeserializer,
-               ConnectionFactory connectionFactory,
-               List<String> subjects)
-    {
-        this(payloadDeserializer, connectionFactory, subjects, NatsSource.class);
-    }
-
-    protected NatsSource(PayloadDeserializer<OutputT> payloadDeserializer,
+    protected NatsSource(SourceConverter<OutputT> sourceConverter,
                          ConnectionFactory connectionFactory,
-                         List<String> subjects,
-                         Class<?> logClazz)
+                         List<String> subjects)
     {
         id = generateId();
         this.subjects = subjects;
-        this.payloadDeserializer = payloadDeserializer;
+        this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
-        logger = LoggerFactory.getLogger(logClazz.getCanonicalName()); // done this way to get full package path - needed to
-        logger.debug("{} | Init {}", id, subjects);
     }
 
     @Override
@@ -62,11 +56,28 @@ public class NatsSource<OutputT> implements
         return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
+    public List<String> getSubjects() {
+        return subjects;
+    }
+
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
+        JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        return endJson(sb).toString();
+    }
+
+    public String toYaml() {
+        StringBuilder sb = YamlUtils.beginYaml();
+        YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
+        YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
+        return sb.toString();
+    }
+
     @Override
     public SplitEnumerator<NatsSubjectSplit, Collection<NatsSubjectSplit>> createEnumerator(
         SplitEnumeratorContext<NatsSubjectSplit> enumContext) throws Exception
     {
-        logger.debug("{} | createEnumerator", id);
         List<NatsSubjectSplit> list = new ArrayList<>();
         for (String subject : subjects) {
             list.add(new NatsSubjectSplit(subject));
@@ -79,31 +90,27 @@ public class NatsSource<OutputT> implements
         SplitEnumeratorContext<NatsSubjectSplit> enumContext,
         Collection<NatsSubjectSplit> checkpoint)
     {
-        logger.debug("{} | restoreEnumerator", id);
-        return new NatsSourceEnumerator<>(id, enumContext, checkpoint);
+        return new NatsSourceEnumerator<>(enumContext, checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<NatsSubjectSplit> getSplitSerializer() {
-        logger.debug("{} | getSplitSerializer", id);
         return new NatsSubjectSplitSerializer();
     }
 
     @Override
     public SimpleVersionedSerializer<Collection<NatsSubjectSplit>> getEnumeratorCheckpointSerializer() {
-        logger.debug("{} | getEnumeratorCheckpointSerializer", id);
         return new NatsSubjectCheckpointSerializer();
     }
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        logger.debug("{} | createReader", id);
-        return new NatsSourceReader<>(id, connectionFactory, payloadDeserializer, readerContext);
+        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext);
     }
 
     @Override
     public TypeInformation<OutputT> getProducedType() {
-        return payloadDeserializer.getProducedType();
+        return sourceConverter.getProducedType();
     }
 
     @Override
@@ -111,7 +118,7 @@ public class NatsSource<OutputT> implements
         return "NatsSource{" +
             "id='" + id + '\'' +
             ", subjects=" + subjects +
-            ", payloadDeserializer=" + payloadDeserializer.getClass().getCanonicalName() +
+            ", sourceConverter=" + sourceConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
     }

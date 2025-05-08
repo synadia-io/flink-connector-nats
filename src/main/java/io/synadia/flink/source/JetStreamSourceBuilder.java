@@ -1,30 +1,34 @@
-// Copyright (c) 2025 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source;
 
-import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
+import io.synadia.flink.message.SourceConverter;
+import io.synadia.flink.utils.BuilderBase;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<JetStreamSourceBuilder<OutputT>> {
-    private PayloadDeserializer<OutputT> payloadDeserializer;
-    private String payloadDeserializerClass;
-    private int messageQueueCapacity = Constants.DEFAULT_ELEMENT_QUEUE_CAPACITY;
-    private Configuration configuration;
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+
+/**
+ * Builder to construct {@link JetStreamSource}.
+ * @param <OutputT> type of the records emitted by the source
+ */
+public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
 
+    /**
+     * Construct a new JetStreamSourceBuilder instance
+     */
     public JetStreamSourceBuilder() {
-        super(Constants.SOURCE_PREFIX);
+        super(false, false);
     }
 
     @Override
@@ -33,104 +37,118 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
     }
 
     /**
-     * Set source properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
+     * Set source configuration from a JSON file
+     * @param jsonFilePath the location of the file
      * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
      */
-    public JetStreamSourceBuilder<OutputT> sourceProperties(Properties properties) {
-        baseProperties(properties);
-
-        String s = PropertiesUtils.getStringProperty(properties, Constants.PAYLOAD_DESERIALIZER, prefixes);
-        if (s != null) {
-            payloadDeserializerClass(s);
+    public JetStreamSourceBuilder<OutputT> jsonConfigFile(String jsonFilePath) throws IOException {
+        JsonValue jv = _jsonConfigFile(jsonFilePath);
+        JsonValue jvConfigs = JsonValueUtils.readObject(jv, JETSTREAM_SUBJECT_CONFIGURATIONS);
+        if (jvConfigs != null && jvConfigs.type == JsonValue.Type.ARRAY) {
+            for (JsonValue config : jvConfigs.array) {
+                addSubjectConfigurations(JetStreamSubjectConfiguration.fromJsonValue(config));
+            }
         }
         return this;
     }
 
     /**
-     * Set the payload deserializer for the source.
-     * @param payloadDeserializer the deserializer.
+     * Set source configuration from a YAML file
+     * @param yamlFilePath the location of the file
      * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
      */
-    public JetStreamSourceBuilder<OutputT> payloadDeserializer(PayloadDeserializer<OutputT> payloadDeserializer) {
-        this.payloadDeserializer = payloadDeserializer;
-        this.payloadDeserializerClass = null;
+    public JetStreamSourceBuilder<OutputT> yamlConfigFile(String yamlFilePath) throws IOException {
+        Map<String, Object> map = _yamlConfigFile(yamlFilePath);
+        List<Map<String, Object>> mapConfigs = YamlUtils.readArray(map, JETSTREAM_SUBJECT_CONFIGURATIONS);
+        if (mapConfigs != null) {
+            for (Map<String, Object> config : mapConfigs) {
+                addSubjectConfigurations(JetStreamSubjectConfiguration.fromMap(config));
+            }
+        }
         return this;
     }
 
     /**
-     * Set the fully qualified name of the desired class payload deserializer for the source.
-     * @param payloadDeserializerClass the serializer class name.
+     * Set the source converter.
+     * @param sourceConverter the source converter.
      * @return the builder
      */
-    public JetStreamSourceBuilder<OutputT> payloadDeserializerClass(String payloadDeserializerClass) {
-        this.payloadDeserializer = null;
-        this.payloadDeserializerClass = payloadDeserializerClass;
-        return this;
+    public JetStreamSourceBuilder<OutputT> sourceConverter(SourceConverter<OutputT> sourceConverter) {
+        return _sourceConverter(sourceConverter);
     }
 
-    public JetStreamSourceBuilder<OutputT> messageQueueCapacity(int messageQueueCapacity) {
-        this.messageQueueCapacity = messageQueueCapacity < 1 ? Constants.DEFAULT_ELEMENT_QUEUE_CAPACITY : messageQueueCapacity;
-        return this;
+    /**
+     * Set the fully qualified name of the desired source converter class.
+     * @param sourceConverterClass the converter class name.
+     * @return the builder
+     */
+    public JetStreamSourceBuilder<OutputT> sourceConverterClass(String sourceConverterClass) {
+        return _sourceConverterClass(sourceConverterClass);
     }
 
-    public JetStreamSourceBuilder<OutputT> configuration(Configuration configuration) {
-        this.configuration = configuration;
-        return this;
-    }
-
+    /**
+     * Set one or more subject configurations, replacing any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {
         configById.clear();
         return addSubjectConfigurations(subjectConfigurations);
     }
 
+    /**
+     * Set one or more subject configurations, replacing any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> setSubjectConfigurations(List<JetStreamSubjectConfiguration> subjectConfigurations) {
         configById.clear();
         return addSubjectConfigurations(subjectConfigurations);
     }
 
+    /**
+     * Add one or more subject configurations to any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> addSubjectConfigurations(JetStreamSubjectConfiguration... subjectConfigurations) {
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
                 if (subjectConfiguration != null) {
-                    configById.put(subjectConfiguration.configId, subjectConfiguration);
+                    configById.put(subjectConfiguration.id, subjectConfiguration);
                 }
             }
         }
         return this;
     }
 
+    /**
+     * Add one or more subject configurations to any existing subject configurations
+     * @param subjectConfigurations the subject configurations
+     * @return the builder
+     */
     public JetStreamSourceBuilder<OutputT> addSubjectConfigurations(List<JetStreamSubjectConfiguration> subjectConfigurations) {
         if (subjectConfigurations != null) {
             for (JetStreamSubjectConfiguration subjectConfiguration : subjectConfigurations) {
                 if (subjectConfiguration != null) {
-                    configById.put(subjectConfiguration.configId, subjectConfiguration);
+                    configById.put(subjectConfiguration.id, subjectConfiguration);
                 }
             }
         }
         return this;
     }
 
+    /**
+     * Build a JetStreamSource
+     * @return the JetStreamSource
+     */
     public JetStreamSource<OutputT> build() {
-        if (payloadDeserializer == null) {
-            if (payloadDeserializerClass == null) {
-                throw new IllegalStateException("Valid payload deserializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadDeserializer = (PayloadDeserializer<OutputT>) Class.forName(payloadDeserializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-        baseBuild(false);
+        beforeBuild();
 
         if (configById.isEmpty()) {
-            throw new IllegalStateException("At least 1 managed subject configuration is required");
+            throw new IllegalArgumentException("At least 1 managed subject configuration is required");
         }
 
         // check all the consume options of all the subject configs to
@@ -141,22 +159,10 @@ public class JetStreamSourceBuilder<OutputT> extends SinkOrSourceBuilderBase<Jet
                 boundedness = msc.boundedness;
             }
             else if (boundedness != msc.boundedness) {
-                throw new IllegalStateException("All boundedness must be the same.");
+                throw new IllegalArgumentException("All boundedness must be the same.");
             }
         }
 
-        if (configuration == null) {
-            configuration = new Configuration();
-        }
-        if (!configuration.contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
-            configuration.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, messageQueueCapacity);
-        }
-
-        return new JetStreamSource<>(
-            payloadDeserializer,
-            boundedness,
-            configById,
-            createConnectionFactory(),
-            configuration);
+        return new JetStreamSource<>(boundedness, configById, sourceConverter, connectionFactory);
     }
 }

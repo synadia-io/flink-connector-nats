@@ -6,6 +6,7 @@ package io.synadia.flink.source.split;
 import io.nats.client.Message;
 import io.nats.client.support.*;
 import io.synadia.flink.source.JetStreamSubjectConfiguration;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -13,16 +14,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.support.ApiConstants.CONFIG;
-import static io.nats.client.support.ApiConstants.MSGS;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.*;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class JetStreamSplit implements SourceSplit, JsonSerializable {
-    public static final String FINISHED = "finished";
-    public static final String LAST_REPLY_TO = "last_reply_to";
-    public static final String LAST_EMITTED_SEQ = "last_emitted_seq";
-
     public final AtomicReference<String> lastEmittedMessageReplyTo;
     public final AtomicLong lastEmittedStreamSequence;
     public final AtomicLong emittedCount;
@@ -42,9 +42,9 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
             JsonValue jv = JsonParser.parse(json);
             lastEmittedMessageReplyTo = new AtomicReference<>(JsonValueUtils.readString(jv, LAST_REPLY_TO));
             lastEmittedStreamSequence = new AtomicLong(JsonValueUtils.readLong(jv, LAST_EMITTED_SEQ, -1));
-            emittedCount = new AtomicLong(JsonValueUtils.readLong(jv, MSGS, 0));
+            emittedCount = new AtomicLong(JsonValueUtils.readLong(jv, MESSAGES, 0));
             finished = new AtomicBoolean(JsonValueUtils.readBoolean(jv, FINISHED, false));
-            JsonValue jcConfig = JsonValueUtils.readObject(jv, CONFIG);
+            JsonValue jcConfig = JsonValueUtils.readObject(jv, SUBJECT_CONFIG);
             subjectConfig = JetStreamSubjectConfiguration.fromJsonValue(jcConfig);
         }
         catch (JsonParseException e) {
@@ -57,9 +57,9 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, LAST_REPLY_TO, lastEmittedMessageReplyTo.get());
         JsonUtils.addField(sb, LAST_EMITTED_SEQ, lastEmittedStreamSequence.get());
-        JsonUtils.addField(sb, MSGS, emittedCount.get());
+        JsonUtils.addField(sb, MESSAGES, emittedCount.get());
         JsonUtils.addField(sb, FINISHED, finished.get());
-        JsonUtils.addField(sb, CONFIG, subjectConfig);
+        JsonUtils.addField(sb, SUBJECT_CONFIG, subjectConfig);
         return endJson(sb).toString();
     }
 
@@ -68,7 +68,7 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
      */
     @Override
     public String splitId() {
-        return subjectConfig.configId;
+        return subjectConfig.id;
     }
 
     public long markEmitted(Message message) {

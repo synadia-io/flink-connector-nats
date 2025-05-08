@@ -3,19 +3,19 @@
 
 package io.synadia.flink.helpers;
 
-import io.synadia.flink.payload.MessageRecord;
-import io.synadia.flink.payload.PayloadDeserializer;
-import io.synadia.flink.utils.PropertiesUtils;
+import io.nats.client.Message;
+import io.synadia.flink.message.SourceConverter;
+import io.synadia.flink.utils.MiscUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-public class WordCountDeserializer implements PayloadDeserializer<WordCount> {
+public class WordCountDeserializer implements SourceConverter<WordCount> {
     @Override
-    public WordCount getObject(MessageRecord record) {
-        return new WordCount(record.message.getData());
+    public WordCount convert(Message message) {
+        return new WordCount(message.getData());
     }
 
     @Override
     public TypeInformation<WordCount> getProducedType() {
-        return PropertiesUtils.getTypeInformation(WordCount.class);
+        return MiscUtils.getTypeInformation(WordCount.class);
     }
 }

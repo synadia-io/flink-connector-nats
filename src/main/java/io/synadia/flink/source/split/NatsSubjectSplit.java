@@ -4,12 +4,17 @@
 package io.synadia.flink.source.split;
 
 import io.nats.client.Message;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class NatsSubjectSplit implements SourceSplit {
 
     private final String subject;

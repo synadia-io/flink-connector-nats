@@ -3,8 +3,11 @@
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.payload.PayloadSerializer;
+import io.nats.client.support.JsonUtils;
+import io.synadia.flink.message.SinkConverter;
+import io.synadia.flink.sink.writer.NatsSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
@@ -12,39 +15,62 @@ import org.apache.flink.api.connector.sink2.WriterInitContext;
 import java.io.IOException;
 import java.util.List;
 
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.synadia.flink.utils.Constants.SINK_CONVERTER_CLASS_NAME;
+import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generateId;
+import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
- * Flink Sink to publish data to one or more NATS subjects
+ * A Flink Sink to publish data to one or more NATS subjects
  * @param <InputT> the type of object from the source to convert for publishing
  */
 public class NatsSink<InputT> implements Sink<InputT> {
     protected final String id;
     protected final List<String> subjects;
-    protected final PayloadSerializer<InputT> payloadSerializer;
+    protected final SinkConverter<InputT> sinkConverter;
     protected final ConnectionFactory connectionFactory;
 
     protected NatsSink(List<String> subjects,
-             PayloadSerializer<InputT> payloadSerializer,
+             SinkConverter<InputT> sinkConverter,
              ConnectionFactory connectionFactory)
     {
         id = generateId();
         this.subjects = subjects;
-        this.payloadSerializer = payloadSerializer;
+        this.sinkConverter = sinkConverter;
         this.connectionFactory = connectionFactory;
+    }
+
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        JsonUtils.addField(sb, SINK_CONVERTER_CLASS_NAME, getClassName(sinkConverter));
+        JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        return endJson(sb).toString();
+    }
+
+    public String toYaml() {
+        StringBuilder sb = YamlUtils.beginYaml();
+        YamlUtils.addField(sb, 0, SINK_CONVERTER_CLASS_NAME, getClassName(sinkConverter));
+        YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
+        return sb.toString();
+    }
+
+    public List<String> getSubjects() {
+        return subjects;
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public SinkWriter<InputT> createWriter(InitContext context) throws IOException {
         // THIS IS DEPRECATED and won't be called, createWriter(WriterInitContext context) is called
-        // Docs said to implement anyway so this is what I implemented
+        // Docs said to implement anyway, so this is what I implemented
         return createWriter((WriterInitContext)null);
     }
 
     @Override
     public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
-        return new NatsSinkWriter<>(id, subjects, payloadSerializer, connectionFactory, context);
+        return new NatsSinkWriter<>(id, subjects, sinkConverter, connectionFactory, context);
     }
 
     @Override
@@ -52,7 +78,7 @@ public class NatsSink<InputT> implements Sink<InputT> {
         return "NatsSink{" +
             "id='" + id + '\'' +
             ", subjects=" + subjects +
-            ", payloadSerializer=" + payloadSerializer.getClass().getCanonicalName() +
+            ", sinkConverter=" + sinkConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
     }

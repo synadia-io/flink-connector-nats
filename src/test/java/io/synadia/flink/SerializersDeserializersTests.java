@@ -10,10 +10,8 @@ import io.synadia.flink.enumerator.NatsSourceEnumeratorStateSerializer;
 import io.synadia.flink.enumerator.NatsSubjectSourceEnumeratorState;
 import io.synadia.flink.helpers.WordCount;
 import io.synadia.flink.helpers.WordCountDeserializer;
-import io.synadia.flink.helpers.WordCountSerializer;
-import io.synadia.flink.payload.MessageRecord;
-import io.synadia.flink.payload.StringPayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.helpers.WordCountSinkConverter;
+import io.synadia.flink.message.*;
 import io.synadia.flink.source.split.NatsSubjectCheckpointSerializer;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
@@ -36,7 +34,7 @@ public class SerializersDeserializersTests extends TestBase {
     @DisplayName("Test Serialization for subject")
     @ParameterizedTest(name = "{2} | Subjects: {1}")
     @MethodSource("provideSplitTestData")
-    void testSourceSideSerialization(int version, List<NatsSubjectSplit> splits, String description) throws Exception {
+    void testSourceSideSerialization(int version, List<NatsSubjectSplit> splits) throws Exception {
         NatsSubjectSplitSerializer splitSerializer = new NatsSubjectSplitSerializer();
         NatsSubjectCheckpointSerializer checkpointSerializer = new NatsSubjectCheckpointSerializer();
 
@@ -165,74 +163,77 @@ public class SerializersDeserializersTests extends TestBase {
         assertTrue(splits.contains(nss2));
     }
 
+
+
     @Test
     public void testStringPayload() throws Exception {
         // validate works from construction
-        StringPayloadDeserializer spdAscii = new StringPayloadDeserializer("ASCII");
-        StringPayloadDeserializer spdUtf8 = new StringPayloadDeserializer();
-        StringPayloadSerializer spsAscii = new StringPayloadSerializer("ASCII");
-        StringPayloadSerializer spsUtf8 = new StringPayloadSerializer();
-        validateStringPayload(spdAscii, spdUtf8, spsAscii, spsUtf8);
+        SourceConverter<String> sourceAscii = new AsciiStringSourceConverter();
+        SourceConverter<String> sourceUtf8 = new Utf8StringSourceConverter();
+        SinkConverter<String> sinkAscii = new AsciiStringSinkConverter();
+        SinkConverter<String> sinkUtf8 = new Utf8StringSinkConverter();
+        validateStringPayload(sourceAscii, sourceUtf8, sinkAscii, sinkUtf8);
 
-        // validate works after java serialization round trip
-        spdAscii = (StringPayloadDeserializer)javaSerializeDeserializeObject(spdAscii);
-        spdUtf8 = (StringPayloadDeserializer)javaSerializeDeserializeObject(spdUtf8);
-        spsAscii = (StringPayloadSerializer)javaSerializeDeserializeObject(spsAscii);
-        spsUtf8 = (StringPayloadSerializer)javaSerializeDeserializeObject(spsUtf8);
-        validateStringPayload(spdAscii, spdUtf8, spsAscii, spsUtf8);
+        // validate Java serialization round trip
+        sourceAscii = (AsciiStringSourceConverter)javaSerializeDeserializeObject(sourceAscii);
+        sourceUtf8 = (Utf8StringSourceConverter)javaSerializeDeserializeObject(sourceUtf8);
+        sinkAscii = (AsciiStringSinkConverter)javaSerializeDeserializeObject(sinkAscii);
+        sinkUtf8 = (Utf8StringSinkConverter)javaSerializeDeserializeObject(sinkUtf8);
+        validateStringPayload(sourceAscii, sourceUtf8, sinkAscii, sinkUtf8);
     }
 
-    private static void validateStringPayload(StringPayloadDeserializer spdAscii,
-                                              StringPayloadDeserializer spdUtf8,
-                                              StringPayloadSerializer spsAscii,
-                                              StringPayloadSerializer spsUtf8) {
+    private static void validateStringPayload(SourceConverter<String> sourceAscii,
+                                              SourceConverter<String> sourceUtf8,
+                                              SinkConverter<String> sinkAscii,
+                                              SinkConverter<String> sinkUtf8) {
 
         String subject = "validateStringPayload";
         byte[] bytes = PLAIN_ASCII.getBytes();
 
-        MessageRecord p = toPayload(subject, bytes);
+        Message m = toMessage(subject, bytes);
 
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        assertEquals(PLAIN_ASCII, sourceAscii.convert(m));
+        assertEquals(PLAIN_ASCII, sourceUtf8.convert(m));
 
-        bytes = spsAscii.getBytes(PLAIN_ASCII);
-        p = toPayload(subject, bytes);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        bytes = sinkAscii.convert(PLAIN_ASCII).payload;
+        m = toMessage(subject, bytes);
+        assertEquals(PLAIN_ASCII, sourceAscii.convert(m));
+        assertEquals(PLAIN_ASCII, sourceUtf8.convert(m));
 
-        bytes = spsUtf8.getBytes(PLAIN_ASCII);
-        p = toPayload(subject, bytes);
-        assertEquals(PLAIN_ASCII, spdAscii.getObject(p));
-        assertEquals(PLAIN_ASCII, spdUtf8.getObject(p));
+        bytes = sinkUtf8.convert(PLAIN_ASCII).payload;
+        m = toMessage(subject, bytes);
+        assertEquals(PLAIN_ASCII, sourceAscii.convert(m));
+        assertEquals(PLAIN_ASCII, sourceUtf8.convert(m));
 
         for (String data : UTF8_TEST_STRINGS) {
             bytes = data.getBytes(StandardCharsets.UTF_8);
-            p = toPayload("utf-data-1", bytes);
-            assertNotEquals(data, spdAscii.getObject(p));
-            assertEquals(data, spdUtf8.getObject(p));
+            m = toMessage("utf-data-1", bytes);
+            assertNotEquals(data, sourceAscii.convert(m));
+            assertEquals(data, sourceUtf8.convert(m));
 
-            bytes = spsUtf8.getBytes(data);
-            p = toPayload("utf-data-2", bytes);
-            assertNotEquals(data, spdAscii.getObject(p));
-            assertEquals(data, spdUtf8.getObject(p));
+            bytes = sinkUtf8.convert(data).payload;
+            m = toMessage("utf-data-2", bytes);
+            assertNotEquals(data, sourceAscii.convert(m));
+            assertEquals(data, sourceUtf8.convert(m));
         }
     }
 
     @Test
     public void testCustomPayload() {
-        WordCountSerializer ser = new WordCountSerializer();
+        WordCountSinkConverter ser = new WordCountSinkConverter();
         WordCountDeserializer dser = new WordCountDeserializer();
         for (String json : WORD_COUNT_JSONS) {
             WordCount wc = new WordCount(json);
-            byte[] bytes = ser.getBytes(wc);
+            byte[] bytes = ser.convert(wc).payload;
             WordCount wc2 = new WordCount(bytes);
             assertEquals(wc, wc2);
-            wc2 = dser.getObject(toPayload("testCustomPayload", bytes));
+            wc2 = dser.convert(toMessage("testCustomPayload", bytes));
             assertEquals(wc, wc2);
         }
     }
 
-    private static MessageRecord toPayload(String subject, byte[] bytes) {
-        return new MessageRecord(new NatsMessage(subject, null, bytes));
+    private static Message toMessage(String subject, byte[] bytes) {
+        //noinspection DataFlowIssue
+        return new NatsMessage(subject, null, null, bytes);
     }
 }

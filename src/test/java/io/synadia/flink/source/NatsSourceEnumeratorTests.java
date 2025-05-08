@@ -5,7 +5,6 @@ import io.synadia.flink.enumerator.NatsSourceEnumerator;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,17 +23,6 @@ import static org.mockito.Mockito.*;
 
 class NatsSourceEnumeratorTests extends TestBase {
 
-    private SplitEnumeratorContext<NatsSubjectSplit> context;
-    private Queue<NatsSubjectSplit> splitsQueue;
-    private NatsSourceEnumerator enumerator;
-
-    @BeforeEach
-    @SuppressWarnings("unchecked")
-    void setup() {
-        context = mock(SplitEnumeratorContext.class);
-        splitsQueue = new ArrayDeque<>();
-    }
-
     static Stream<TestParameters> provideTestParameters() {
         return Stream.of(
                 new TestParameters(5, 3, generateSplits(3), "Splits < Parallelism"),
@@ -45,15 +33,20 @@ class NatsSourceEnumeratorTests extends TestBase {
         );
     }
 
+    @SuppressWarnings("unchecked")
     @DisplayName("NatsSourceEnumerator Parameterized Test")
     @ParameterizedTest(name = "{index} - {0}")
     @MethodSource("provideTestParameters")
     void testHandleSplitRequest(TestParameters params) {
+        SplitEnumeratorContext<NatsSubjectSplit> context = mock(SplitEnumeratorContext.class);
+        Queue<NatsSubjectSplit> splitsQueue = new ArrayDeque<>();
+
         // Setup splits queue
         splitsQueue.addAll(params.splits.stream().map(NatsSubjectSplit::new).collect(Collectors.toList()));
 
         when(context.currentParallelism()).thenReturn(params.parallelism);
-        enumerator = new NatsSourceEnumerator<>("test", context, splitsQueue);
+        //noinspection resource
+        NatsSourceEnumerator<NatsSubjectSplit> enumerator = new NatsSourceEnumerator<>(context, splitsQueue);
 
         // precompute split assignments
         enumerator.start();

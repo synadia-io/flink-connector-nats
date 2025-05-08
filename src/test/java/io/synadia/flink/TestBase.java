@@ -7,8 +7,8 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
-import io.synadia.flink.payload.ByteArrayPayloadSerializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.ByteArraySinkConverter;
+import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.sink.NatsSink;
@@ -30,6 +30,7 @@ import java.util.logging.Level;
 import static io.synadia.flink.utils.MiscUtils.random;
 
 public class TestBase {
+    public static final String TEST_CONNECTION_PROPERTIES_FILE = "src/test/resources/connection.properties";
     public static final String PLAIN_ASCII = "hello world ascii";
     public static final List<String> UTF8_TEST_STRINGS = new ArrayList<>();
     public static final List<String> WORD_COUNT_JSONS = new ArrayList<>();
@@ -197,10 +198,10 @@ public class TestBase {
     }
 
     public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
@@ -212,10 +213,10 @@ public class TestBase {
     }
 
     public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final ByteArrayPayloadSerializer serializer = new ByteArrayPayloadSerializer();
+        final ByteArraySinkConverter serializer = new ByteArraySinkConverter();
         NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             if (connectionPropertiesFile != null) {
@@ -229,10 +230,10 @@ public class TestBase {
     }
 
     public static JetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final StringPayloadSerializer serializer = new StringPayloadSerializer();
+        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
         JetStreamSinkBuilder<String> builder = new JetStreamSinkBuilder<String>()
             .subjects(subject)
-            .payloadSerializer(serializer);
+            .sinkConverter(serializer);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
@@ -264,6 +265,17 @@ public class TestBase {
             //noinspection DataFlowIssue
             File file = new File(classLoader.getResource(fileName).getFile());
             return Files.readAllLines(file.toPath());
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static InputStream resourceAsStream(String fileName) {
+        try {
+            ClassLoader classLoader = TestBase.class.getClassLoader();
+            //noinspection DataFlowIssue
+            return classLoader.getResource(fileName).openStream();
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -306,5 +318,18 @@ public class TestBase {
         Object outObject = objectInputStream.readObject();
         objectInputStream.close();
         return outObject;
+    }
+
+    public static void writeToFile(File f, String text) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(f))) {
+            writer.write(text);
+            writer.flush();
+        }
+    }
+
+    public static String writeToTempFile(String prefix, String ext, String text) throws IOException {
+        File f = File.createTempFile(prefix, ext);
+        writeToFile(f, text);
+        return f.getAbsolutePath();
     }
 }

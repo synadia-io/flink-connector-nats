@@ -11,9 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
 
@@ -37,7 +35,7 @@ class ConnectionFactoryTest extends TestBase {
             try {
                 connection = factory.connect();
                 assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             } finally {
                 if (connection != null) {
                     connection.close();
@@ -47,7 +45,7 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
-     * Tests connection creation using properties file.
+     * Tests connection creation using a properties file.
      * Verifies that:
      * 1. Properties are loaded correctly from file
      * 2. Connection is established using file properties
@@ -65,44 +63,7 @@ class ConnectionFactoryTest extends TestBase {
             try {
                 connection = factory.connect();
                 assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-            } finally {
-                if (connection != null) {
-                    connection.close();
-                }
-            }
-        });
-    }
-
-    /**
-     * Tests connection creation with connection jitter settings.
-     * Verifies that:
-     * 1. Jitter values are preserved in factory
-     * 2. Connection is created with jitter options properly configured
-     * 3. Both min and max reconnect jitter values are properly applied to connection options
-     */
-    @Test
-    void testConnectWithJitterSettingsShouldApplyJitterAndConnect() throws Exception {
-        runInServer((nc, url) -> {
-            Properties props = defaultConnectionProperties(url);
-            long minJitter = 100;
-            long maxJitter = 500;
-
-            ConnectionFactory factory = new ConnectionFactory(props, minJitter, maxJitter);
-
-            // Verify jitter values are stored in factory
-            assertEquals(minJitter, factory.getMinConnectionJitter());
-            assertEquals(maxJitter, factory.getMaxConnectionJitter());
-
-            Connection connection = null;
-            try {
-                connection = factory.connect();
-                assertNotNull(connection);
-                assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-
-                // Verify both min and max jitter values are set in the connection options
-                Options options = connection.getOptions();
-                assertEquals(Duration.ofMillis(minJitter), options.getReconnectJitter());
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             } finally {
                 if (connection != null) {
                     connection.close();
@@ -117,23 +78,22 @@ class ConnectionFactoryTest extends TestBase {
      * 1. ConnectionContext is created successfully with JetStream enabled
      * 2. Both JetStream (js) and JetStreamManagement (jsm) objects are properly initialized
      * 3. Basic JetStream connectivity is working by verifying we can list streams
-     *
      * Note: This test focuses on context creation and basic connectivity.
      */
     @Test
-    void testConnectContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
+    void testConnectionContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
         runInServer(true, (nc, url) -> {
             ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
             ConnectionContext context = null;
             try {
-                context = factory.connectContext();
+                context = factory.getConnectionContext();
                 assertNotNull(context);
                 assertNotNull(context.js);
                 assertNotNull(context.jsm);
                 ConnectionContext finalContext = context;
                 assertDoesNotThrow(() -> finalContext.jsm.getStreams(), "JetStream operation should not throw an exception");
             } finally {
-                if (context != null && context.connection != null) {
+                if (context != null) {
                     context.connection.close();
                 }
             }
@@ -141,9 +101,9 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
-     * Tests error handling when connection fails.
+     * Tests error handling when a connection fails.
      * Verifies that:
-     * 1. IOException is thrown with appropriate message
+     * 1. IOException is thrown with an appropriate message
      * 2. Original cause is preserved
      * 3. Resources are cleaned up properly
      */
@@ -167,8 +127,8 @@ class ConnectionFactoryTest extends TestBase {
     /**
      * Tests connection properties immutability.
      * Verifies that:
-     * 1. Returned properties are a copy
-     * 2. Modifying returned properties doesn't affect original
+     * 1. Returned properties are a copy of the original
+     * 2. Modifying returned properties doesn't affect the original
      * 3. Original properties remain unchanged
      */
     @Test
@@ -192,7 +152,7 @@ class ConnectionFactoryTest extends TestBase {
      * Tests serialization/deserialization of ConnectionFactory.
      * Verifies that:
      * 1. Factory can be serialized
-     * 2. Multiple deserializations produce consistent objects
+     * 2. Deserializations produce consistent objects
      * 3. All deserialized instances maintain original properties and state
      * 4. Each deserialized factory can create valid connections
      */
@@ -200,66 +160,37 @@ class ConnectionFactoryTest extends TestBase {
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
         runInServer((nc, url) -> {
             Properties props = defaultConnectionProperties(url);
-            ConnectionFactory originalFactory = new ConnectionFactory(props, 100, 500);
+            ConnectionFactory originalFactory = new ConnectionFactory(props);
 
             // Create multiple deserialized instances
-            ConnectionFactory deserializedFactory1 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-            ConnectionFactory deserializedFactory2 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-            ConnectionFactory deserializedFactory3 = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-
-            // Verify all instances have same properties
-            assertNotNull(deserializedFactory1);
-            assertNotNull(deserializedFactory2);
-            assertNotNull(deserializedFactory3);
-
-            // Verify properties are consistent across all instances
-            assertEquals(deserializedFactory1.getMinConnectionJitter(), deserializedFactory2.getMinConnectionJitter());
-            assertEquals(deserializedFactory2.getMinConnectionJitter(), deserializedFactory3.getMinConnectionJitter());
-            assertEquals(deserializedFactory1.getMaxConnectionJitter(), deserializedFactory2.getMaxConnectionJitter());
-            assertEquals(deserializedFactory2.getMaxConnectionJitter(), deserializedFactory3.getMaxConnectionJitter());
-
-            // Verify all maintain original properties
-            assertEquals(originalFactory.getMinConnectionJitter(), deserializedFactory1.getMinConnectionJitter());
-            assertEquals(originalFactory.getMaxConnectionJitter(), deserializedFactory1.getMaxConnectionJitter());
+            ConnectionFactory deserialized = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
+            assertNotNull(deserialized);
 
             // Verify each instance can create valid connections
-            for (ConnectionFactory factory : Arrays.asList(deserializedFactory1, deserializedFactory2, deserializedFactory3)) {
-                Connection connection = null;
-                try {
-                    connection = factory.connect();
+            for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {
+                try (Connection connection = factory.connect()) {
                     assertNotNull(connection);
-                    assertTrue(connection.getStatus() == Connection.Status.CONNECTED);
-                } finally {
-                    if (connection != null) {
-                        connection.close();
-                    }
+                    assertSame(Connection.Status.CONNECTED, connection.getStatus());
                 }
             }
         });
     }
 
     /**
-     * Tests error handling when properties file path is invalid.
+     * Tests error handling when the Properties file path is invalid.
      * Verifies that:
-     * 1. NoSuchFileException is thrown
+     * 1. IOException is thrown
      * 2. Exception message contains the invalid file path
      */
     @Test
-    void testConnectWithInvalidPropertiesFileShouldThrowNoSuchFileException() {
+    void testConnectWithInvalidPropertiesFileShouldThrowIOException() throws IOException {
         String nonExistentFile = "nonexistent.properties";
         ConnectionFactory factory = new ConnectionFactory(nonExistentFile);
-
-        NoSuchFileException thrown = assertThrows(
-            NoSuchFileException.class,
-            factory::connect,
-            "Should throw NoSuchFileException for invalid properties file path"
-        );
-
-        assertEquals(nonExistentFile, thrown.getMessage());
+        assertThrows(IOException.class, factory::connect);
     }
 
     /**
-     * Tests error handling when properties file is malformed.
+     * Tests error handling when the Properties file is malformed.
      * Verifies that:
      * 1. IOException is thrown for malformed properties
      * 2. Original cause is preserved

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
+ * INTERNAL CLASS SUBJECT TO CHANGE
  * Serializes and deserializes the {@link NatsSubjectSplit}. This class needs to handle
  * deserializing splits from older versions.
  */

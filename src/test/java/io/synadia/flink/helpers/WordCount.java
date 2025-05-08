@@ -3,17 +3,16 @@
 
 package io.synadia.flink.helpers;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Objects;
 
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
-
-public class WordCount implements JsonSerializable {
-    public String word;
-    public int count;
+public class WordCount {
+    public final String word;
+    public final int count;
 
     public WordCount(byte[] json) {
         this(new String(json));
@@ -28,14 +27,6 @@ public class WordCount implements JsonSerializable {
         catch (Exception e) {
             throw new FlinkRuntimeException("Invalid Json: " + e);
         }
-    }
-
-    @Override
-    public String toJson() {
-        StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, "word", word);
-        JsonUtils.addField(sb, "count", count);
-        return endJson(sb).toString();
     }
 
     @Override

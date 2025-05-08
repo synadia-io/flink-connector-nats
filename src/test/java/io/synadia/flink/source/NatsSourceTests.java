@@ -8,15 +8,12 @@ import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.helpers.Publisher;
-import io.synadia.flink.payload.ByteArrayPayloadDeserializer;
-import io.synadia.flink.payload.MessageRecord;
-import io.synadia.flink.payload.StringPayloadDeserializer;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.ByteArraySourceConverter;
+import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
@@ -48,10 +45,10 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            StringPayloadDeserializer deserializer = new StringPayloadDeserializer();
+            Utf8StringSourceConverter sourceConverter = new Utf8StringSourceConverter();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
+                .sourceConverter(sourceConverter)
                 .connectionProperties(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
@@ -61,7 +58,6 @@ public class NatsSourceTests extends TestBase {
             NatsSink<String> sink = newNatsStringSink(sinkSubject, connectionProperties, null);
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithString");
 
             Thread.sleep(1000);
@@ -92,10 +88,10 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            ByteArrayPayloadDeserializer deserializer = new ByteArrayPayloadDeserializer();
+            ByteArraySourceConverter sourceConverter = new ByteArraySourceConverter();
             NatsSourceBuilder<Byte[]> builder = new NatsSourceBuilder<Byte[]>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
+                .sourceConverter(sourceConverter)
                 .connectionProperties(connectionProperties);
 
             NatsSource<Byte[]> natsSource = builder.build();
@@ -105,7 +101,6 @@ public class NatsSourceTests extends TestBase {
             NatsSink<Byte[]> sink = newNatsByteArraySink(sinkSubject, connectionProperties, null);
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithByteArray");
 
             Thread.sleep(1000);
@@ -135,10 +130,10 @@ public class NatsSourceTests extends TestBase {
         assertTrue(hasSourceSubject2);
     }
 
-    static class HeaderAwareStringPayloadDeserializer extends StringPayloadDeserializer {
+    public static class HeaderAwareStringSourceConverter extends Utf8StringSourceConverter {
         @Override
-        public String getObject(MessageRecord record) {
-            Headers headers = record.getMessage().getHeaders();
+        public String convert(Message message) {
+            Headers headers = message.getHeaders();
             String hSubject = headers.getFirst("subject");
             String hNum = headers.getFirst("num");
             return Publisher.dataString(hSubject, hNum);
@@ -170,27 +165,26 @@ public class NatsSourceTests extends TestBase {
 
             // --------------------------------------------------------------------------------
             Properties connectionProperties = defaultConnectionProperties(url);
-            HeaderAwareStringPayloadDeserializer deserializer = new HeaderAwareStringPayloadDeserializer();
+            HeaderAwareStringSourceConverter sourceConverter = new HeaderAwareStringSourceConverter();
             NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
                 .subjects(sourceSubject1, sourceSubject2)
-                .payloadDeserializer(deserializer)
+                .sourceConverter(sourceConverter)
                 .connectionProperties(connectionProperties);
 
             NatsSource<String> natsSource = builder.build();
             StreamExecutionEnvironment env = getStreamExecutionEnvironment();
             DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-headers-input");
 
-            final StringPayloadSerializer serializer = new StringPayloadSerializer();
+            final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
             NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
                 .subjects(sinkSubject)
-                .payloadSerializer(serializer);
+                .sinkConverter(serializer);
             sinkBuilder.connectionProperties(connectionProperties);
 
             NatsSink<String> sink = sinkBuilder.build();
 
             ds.sinkTo(sink);
 
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, Time.seconds(5)));
             env.executeAsync("testSourceWithHeaders");
 
             Thread.sleep(1000);

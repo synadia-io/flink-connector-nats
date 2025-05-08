@@ -3,103 +3,94 @@
 
 package io.synadia.flink.sink;
 
-import io.synadia.flink.payload.PayloadSerializer;
-import io.synadia.flink.utils.Constants;
-import io.synadia.flink.utils.PropertiesUtils;
-import io.synadia.flink.utils.SinkOrSourceBuilderBase;
+import io.synadia.flink.message.SinkConverter;
+import io.synadia.flink.utils.BuilderBase;
 
-import java.util.Properties;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Builder to construct {@link NatsSink}.
- *
- * <p>The following example shows the minimum setup to create a NatsSink that writes String values
- * to one or more NATS subjects.
- *
- * <pre>{@code
- * NatsSink<String> sink = NatsSink
- *     .<String>builder
- *     .subjects("subject1", "subject2")
- *     .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
- *     .build();
- * }</pre>
- *
- * @see NatsSink
- * @param <InputT> type of the records written
+ * @param <InputT> type expected as input to the sink
  */
-public class NatsSinkBuilder<InputT> extends SinkOrSourceBuilderBase<NatsSinkBuilder<InputT>> {
-    private PayloadSerializer<InputT> payloadSerializer;
-    private String payloadSerializerClass;
+public class NatsSinkBuilder<InputT> extends BuilderBase<InputT, NatsSinkBuilder<InputT>> {
+
+    /**
+     * Construct a new NatsSinkBuilder instance
+     */
+    public NatsSinkBuilder() {
+        super(true, true);
+    }
 
     @Override
     protected NatsSinkBuilder<InputT> getThis() {
         return this;
     }
 
-    public NatsSinkBuilder() {
-        super(Constants.SINK_PREFIX);
+    /**
+     * Set one or more subjects. Replaces all subjects previously set in the builder.
+     * @param subjects the subjects
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> subjects(String... subjects) {
+        return super._subjects(subjects);
     }
 
     /**
-     * Set the payload serializer for the sink.
-     * @param payloadSerializer the serializer.
+     * Set the subjects. Replaces all subjects previously set in the builder.
+     * @param subjects the list of subjects
      * @return the builder
      */
-    public NatsSinkBuilder<InputT> payloadSerializer(PayloadSerializer<InputT> payloadSerializer) {
-        this.payloadSerializer = payloadSerializer;
-        this.payloadSerializerClass = null;
+    public NatsSinkBuilder<InputT> subjects(List<String> subjects) {
+        return super._subjects(subjects);
+    }
+
+    /**
+     * Set the sink converter.
+     * @param sinkConverter the supplier.
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> sinkConverter(SinkConverter<InputT> sinkConverter) {
+        return super._sinkConverter(sinkConverter);
+    }
+
+    /**
+     * Set the fully qualified name of the desired class sink converter.
+     * @param sinkConverterClass the converter class name.
+     * @return the builder
+     */
+    public NatsSinkBuilder<InputT> sinkConverterClass(String sinkConverterClass) {
+        return super._sinkConverterClass(sinkConverterClass);
+    }
+
+    /**
+     * Set sink configuration from a JSON file
+     * @param jsonFilePath the location of the file
+     * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
+     */
+    public NatsSinkBuilder<InputT> jsonConfigFile(String jsonFilePath) throws IOException {
+        _jsonConfigFile(jsonFilePath);
         return this;
     }
 
     /**
-     * Set the fully qualified name of the desired class payload serializer for the sink.
-     * @param payloadSerializerClass the serializer class name.
+     * Set sink configuration from a YAML file
+     * @param yamlFilePath the location of the file
      * @return the builder
+     * @throws IOException if there is a problem loading or reading the file
      */
-    public NatsSinkBuilder<InputT> payloadSerializerClass(String payloadSerializerClass) {
-        this.payloadSerializer = null;
-        this.payloadSerializerClass = payloadSerializerClass;
+    public NatsSinkBuilder<InputT> yamlConfigFile(String yamlFilePath) throws IOException {
+        _yamlConfigFile(yamlFilePath);
         return this;
     }
 
     /**
-     * Set sink properties from a properties object
-     * See the readme and {@link Constants} for property keys
-     * @param properties the properties object
-     * @return the builder
-     */
-    public NatsSinkBuilder<InputT> sinkProperties(Properties properties) {
-        baseProperties(properties);
-
-        String s = PropertiesUtils.getStringProperty(properties, Constants.PAYLOAD_SERIALIZER, prefixes);
-        if (s != null) {
-            payloadSerializerClass(s);
-        }
-
-        return this;
-    }
-
-    /**
-     * Build a NatsSink. Subject and
-     * @return the sink
+     * Build a NatsSink.
+     * @return the NatsSink
      */
     public NatsSink<InputT> build() {
-        if (payloadSerializer == null) {
-            if (payloadSerializerClass == null) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.");
-            }
-
-            // so much can go wrong here... ClassNotFoundException, ClassCastException
-            try {
-                //noinspection unchecked
-                payloadSerializer = (PayloadSerializer<InputT>) Class.forName(payloadSerializerClass).getDeclaredConstructor().newInstance();
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("Valid payload serializer class must be provided.", e);
-            }
-        }
-
-        baseBuild(true);
-        return new NatsSink<>(subjects, payloadSerializer, createConnectionFactory());
+        beforeBuild();
+        return new NatsSink<>(subjects, sinkConverter, connectionFactory);
     }
 }

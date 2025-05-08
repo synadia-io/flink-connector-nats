@@ -5,6 +5,7 @@ package io.synadia.flink.enumerator;
 
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.VersionMismatchException;
 
@@ -12,6 +13,10 @@ import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * INTERNAL CLASS SUBJECT TO CHANGE
+ */
+@Internal
 public class NatsSourceEnumeratorStateSerializer
     implements SimpleVersionedSerializer<NatsSubjectSourceEnumeratorState> {
 

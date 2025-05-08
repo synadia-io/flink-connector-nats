@@ -7,7 +7,8 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
-import io.synadia.flink.payload.StringPayloadSerializer;
+import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.sink.writer.JetStreamSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.junit.jupiter.api.Test;
@@ -147,7 +148,7 @@ class JetStreamSinkWriterTest extends TestBase {
             JetStreamSinkWriter<String> writer = new JetStreamSinkWriter<>(
                     sinkId,
                     subjects,
-                    new StringPayloadSerializer(),
+                    new Utf8StringSinkConverter(),
                     new ConnectionFactory(defaultConnectionProperties(url)),
                     new MockWriterInitContext()
             );
@@ -169,7 +170,7 @@ class JetStreamSinkWriterTest extends TestBase {
         return new JetStreamSinkWriter<>(
                 "test-sink",
                 subjects,
-                new StringPayloadSerializer(),
+                new Utf8StringSinkConverter(),
                 new ConnectionFactory(defaultConnectionProperties(url)),
                 new MockWriterInitContext()
         );
