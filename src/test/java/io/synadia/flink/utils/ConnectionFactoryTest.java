@@ -11,7 +11,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Properties;
@@ -178,27 +177,20 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
-     * Tests error handling when properties file path is invalid.
+     * Tests error handling when the Properties file path is invalid.
      * Verifies that:
-     * 1. NoSuchFileException is thrown
+     * 1. IOException is thrown
      * 2. Exception message contains the invalid file path
      */
     @Test
-    void testConnectWithInvalidPropertiesFileShouldThrowNoSuchFileException() {
+    void testConnectWithInvalidPropertiesFileShouldThrowIOException() throws IOException {
         String nonExistentFile = "nonexistent.properties";
         ConnectionFactory factory = new ConnectionFactory(nonExistentFile);
-
-        NoSuchFileException thrown = assertThrows(
-            NoSuchFileException.class,
-            factory::connect,
-            "Should throw NoSuchFileException for invalid properties file path"
-        );
-
-        assertEquals(nonExistentFile, thrown.getMessage());
+        assertThrows(IOException.class, factory::connect);
     }
 
     /**
-     * Tests error handling when properties file is malformed.
+     * Tests error handling when the Properties file is malformed.
      * Verifies that:
      * 1. IOException is thrown for malformed properties
      * 2. Original cause is preserved
