@@ -16,10 +16,9 @@
 * [Builders](#builders)
 * [Connection Properties](#connection-properties)
 * [Source and Sink Concepts](#source-and-sink-concepts)
-* [Built In Converters](#built-in-converters)
-* [Sources](#sources)
+* [Converters](#converters)
 * [Sinks](#sinks)
-* [Configuring Converters](#configuring-converters)
+* [Sources](#sources)
 * [Getting the Library](#getting-the-library)
 * [License](#license)
  
@@ -146,7 +145,7 @@ the subject and the into some JSON. Then you will need to provide a custom sink 
 A converter will receive the entire NATS `Message` so you can extract all the information you need.
 If you are using the JetStreamSource, the message will contain metadata, including the stream sequence.
 
-## Built In Converters
+## Converters
 
 All converter implementations must implement either SourceConverter or SinkConverter interfaces.
 
@@ -176,8 +175,7 @@ public interface SinkConverter<InputT> extends Serializable {
 }
 ```
 
-* `StringMessageReader` takes a NATS Message and converts the message data byte array to a String
-* `ByteArrayMessageReader` takes a NATS Message and converts the message data byte array (`byte[]`) and converts it to the object form (`Byte[]`)
+These converters are supplied with the project;
 
 | Class                                                                                                | Use                                |
 |------------------------------------------------------------------------------------------------------|------------------------------------|
@@ -188,16 +186,49 @@ public interface SinkConverter<InputT> extends Serializable {
 | [Utf8StringSinkConverter](src/main/java/io/synadia/flink/message/Utf8StringSinkConverter.java)       | Sink input is a UTF-8 string.      |
 | [ByteArraySinkConverter](src/main/java/io/synadia/flink/message/ByteArraySinkConverter.java)         | Sink input is a byte array.        |
 
+
+It will be likely that you want to supply a custom converter. A good place to start is by looking at the provided converters.
+
+Something important to remember is that your converters must be Serializable. If you don't have any state or configuration
+to save, this is a non-issue. If you do have some state to save, look at the String converters; their state is the name
+of the character set.
+
+## Sinks
+
+Both the `NatsSink` and `JetStreamSink` expect input from a source
+and use a converter to extract data and optionally headers from that input and produce a `SinkMessage`.
+The `SinkMessage` is then published.
+
+The difference between `NatsSink` and `JetStreamSink` is that `NatsSink` publishes a message to a subject that it
+assumes is not part of a JetStream stream. It "fires and forgets". On the other hand, the `JetStreamSink` publishes
+the message to what it assumes to be a JetStream subject and waits for a Publish Ack. If the publishing fails,
+the sink throws an exception.
+
+Subjects may not have wildcards. The builder will not validate this, it's up to you to ensure you configure
+this properly, otherwise publishing will fail during runtime with an exception.
+
+JetStream subjects must exist in your target NATS system otherwise publishing will fail during runtime with an exception. 
+
+To construct a `NatsSink`, you must use the `NatsSinkBuilder`.
+To construct a `JetStreamSink`, you must use the `JetStreamSinkBuilder`.
+The sinks can be configured in code or from files on JSON or YAML format. They support these property keys:
+* `sink_converter_class_name`
+* `subjects`
+
 ## Sources
 
 There are two types of Flink source implementations available. 
 1. NatsSource, which subscribes to NATS core subjects.
 2. JetStreamSource, which consumes JetStream stream subjects.
 
+Subjects with wildcards are allowed and are treated as one subject for splits. This is normal NATS behavior.
+If a subject is invalid or the supplied stream does not have a matching subject, 
+consuming will fail during runtime with an exception.
+
 ### NatsSource
 
-A `NatsSource` subscribes to one or more core NATS core subjects and uses a 
-Source Converter implementation to convert the message to the output type emitted to sinks.
+A `NatsSource` subscribes to one or more core NATS subjects and uses a 
+Source Converter implementation to convert the messages to the output type emitted to sinks.
 
 * Each subject is subscribed in its own split, which Flink can run in different threads or in different nodes depending
 on your Flink configuration.
@@ -213,92 +244,93 @@ The source can be configured in code or from files on JSON or YAML format. It su
 
 ### JetStreamSource
 
-Here are examples for 
-  [JSON](src/examples/resources/core-source-config.json) and
-  [YAML](src/examples/resources/core-source-config.yaml)
+A `JetStreamSource` consumes to one or more JetStream subjects and uses a
+Source Converter implementation to convert the messages to the output type emitted to sinks.
 
-## Sinks
+* Each subject is consumed in its own split, which Flink can run in different threads or in different nodes depending
+  on your Flink configuration.
 
-Both the `NatsSink` and `JetStreamSink` expect input from a source 
-and use a converter to extract data and optionally headers from that input and produce a `SinkMessage`. 
-The `SinkMessage` is then published.
+To construct a `JetStreamSource`, you must use the `JetStreamSourceBuilder`.
 
-The difference between `NatsSink` and `JetStreamSink` is that `NatsSink` publishes a message to a subject that it 
-assumes is not part of a JetStream stream. It "fires and forgets". On the other hand, the `JetStreamSink` publishes
-the message to what it assumes to be a JetStream subject and waits for a Publish Ack. If the publishing fails,
-the sink throws an exception.
+A `JetStreamSource` is composed of a `SourceConverter` and one or more `JetStreamSubjectConfiguration` instances.
 
-To construct a `NatsSink`, you must use the `NatsSinkBuilder`.
-To construct a `JetStreamSink`, you must use the `JetStreamSinkBuilder`.
-The sinks can be configured in code or from files on JSON or YAML format. They support these property keys:
-* `sink_converter_class_name`
-* `subjects`
+All instances of JetStreamSubjectConfiguration must be of the same boundedness, meaning they must all be configured
+with a maximum number of messages to read or none of them are configured with a maximum.
 
-### JetStreamSink
+#### JetStreamSubjectConfiguration
 
-## Configuring Converters
+A `JetStreamSubjectConfiguration` is created by using the JetStreamSubjectConfiguration Builder
 
-There are three ways to configure a serializer / deserializer into your source/sink.
+```java
+JetStreamSubjectConfiguration subjectConfiguration = 
+    JetStreamSubjectConfiguration.builder()
+        ...
+        .build()
+```
 
-1\. By giving the fully qualified class name.
-  ```java
-  NatsSink<String> sink = new NatsSinkBuilder<String>
-      ...
-      .sinkConverterClass("io.synadia.flink.message.Utf8StringSinkConverter")
-      .build();
+* A configuration requires a stream name and a subject. 
+* You can optionally supply a start sequence or start time, which will have the effect of starting
+the consumption at that point in the stream. A start time can be in any format that `java.time.ZonedDateTime` can parse.
+See [ZonedDateTime.parse](https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html#parse-java.lang.CharSequence-)
+* You can specify a maximum number of messages to read. This has the effect of making the source BOUNDED.
+* You can specify "ack mode" which will ack groups of messages at checkpoints. This is significantly slower.
+You must specify ack mode to true if your stream is a work queue
+* You can specify the consumer batch size and threshold percent if you feel you need to tune the behavior of the consumer.   
 
-  NatsSource<String> source = new NatsSourceBuilder<String>
-      ...
-      .sourceConverterClass("io.synadia.flink.message.Utf8StringSourceConverter")
-      .build();
-  ```
+The source can be configured in code or from files on JSON or YAML format. It supports these property keys:
+```json
+{
+  "source_converter_class_name": "io.synadia.flink.message.Utf8StringSourceConverter",
+  "jetstream_subject_configurations": [
+    {
+      "stream_name": "streamName",
+      "subject": "subject1",
+      "start_sequence":  999,
+      "start_time":  "2025-04-08T00:38:32.109526400Z",
+      "max_messages_to_read": 10000,
+      "ack_mode":  false,
+      "batch_size": 100,
+      "threshold_percent": 25
+    },
+    {
+      "stream_name": "streamName",
+      "subject": "subject2"
+    },
+    {
+      "stream_name": "anotherStream",
+      "subject": "foo.>"
+    },
+    {
+      "stream_name": "anotherStream",
+      "subject": "bar.*"
+    }
+  ]
+}
+```
+```yaml
+---
+source_converter_class_name: io.synadia.flink.message.Utf8StringSourceConverter
+jetstream_subject_configurations:
+- stream_name: streamName
+  subject: subject1
+  start_sequence: 999
+  start_time: '2025-04-08T00:38:32.109526400Z'
+  max_messages_to_read: 10000
+  ack_mode: false
+  batch_size: 100
+  threshold_percent: 25
+- stream_name: streamName
+  subject: subject2
+- stream_name: anotherStream
+  subject: foo.>
+- stream_name: anotherStream
+  subject: bar.*
+```
 
-2\. By supplying an instance of the serializer
-  ```java
-  StringMessageSupplier serializer = new StringMessageSupplier();
-  NatsSink<String> sink = new NatsSinkBuilder<String>
-      ...
-      .sinkConverter(serializer)
-      .build();
-  
-  StringSourceConverter serializer = new StringSourceConverter();
-  NatsSource<String> source = new NatsSourceBuilder<String>
-      ...
-      .sourceConverter(serializer)
-      .build();
-  ```
-
-3\. By supplying the fully qualified name as a property 
-  ```properties
-  sink_converter_class_name=com.mycompany.MySupplier
-  source_converter_class_name=com.mycompany.MyDeserializer
-  ```
-
-  ```java
-  Properties props = Utils.loadPropertiesFromFile("/path/to/my.properties");
-  NatsSink<MySerializerType> sink = new NatsSinkBuilder<MySerializerType>
-      .sinkProperties(props)
-      ...
-      .build();
-  
-  NatsSource<MyDeserializerType> source = new NatsSourceBuilder<MyDeserializerType>
-      .sourceProperties(props)
-      ...
-      .build();
-  ```
-
-There is nothing significantly different, it is simply a developer's preference. In either case the class
-* must have a no parameter constructor
-* must be of the proper input or output type for the sink or source
-* must `implements Serializable`, which is usually trivial since there is should not be any state. 
-
-If any of these conditions are not met, a terminal exception will be thrown.
-
-See the code for the built-in String converters,  
-[AbstractStringSourceConverter](src/main/java/io/synadia/flink/message/AbstractStringSourceConverter.java)
-and
-[AbstractStringSinkConverter](src/main/java/io/synadia/flink/message/AbstractStringSinkConverter.java)
-for examples of serialization implementation.
+Here are 
+the [JSON](src/examples/resources/core-source-config.json) 
+and [YAML](src/examples/resources/core-source-config.yaml)
+configuration files used in the examples
 
 ## Getting the Library
 
