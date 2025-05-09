@@ -1,111 +1,73 @@
 ![Synadia](src/main/javadoc/images/synadia-logo.png)
 
-![NATS](src/main/javadoc/images/nats-logo.png)
-
-# Synadia's Flink to NATS Java Connector
-
-Connect NATS to Flink with Java
+# Synadia NATS to Flink Connector
 
 **Current Release**: 2.0.0-beta4 &nbsp; **Current Snapshot**: 2.1.0-rc1-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
 [![javadoc](https://javadoc.io/badge2/io.synadia/flink-connector-nats/javadoc.svg)](https://javadoc.io/doc/io.synadia/flink-connector-nats)
-[![Coverage Status](https://coveralls.io/repos/github/synadia-io/flink-connector-nats/badge.svg?branch=main)](https://coveralls.io/github/synadia-io/flink-connector-nats?branch=main)
 [![Build Main Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/synadia-io/flink-connector-nats/actions/workflows/build-release.yml)
 
 ## Table of Contents
 * [Java Version](#java-version)
-* [Builders](#builders) 
-* [Nats Message Processing](#nats-message-processing)
+* [Releases and Versioning](#releases-and-versioning)
+* [Builders](#builders)
+* [Connection Properties](#connection-properties)
+* [Source and Sink Concepts](#source-and-sink-concepts)
+* [Built In Converters](#built-in-converters)
 * [Sources](#sources)
-  * [NatsSource](#natssource)
-  * [JetStreamSource](#jetstreamsource)
 * [Sinks](#sinks)
-  * [NatsSink](#natssink)
-  * [JetStreamSink](#jetstreamsink)
-* [Source and Sink Configuration](#source-and-sink-configuration)
-  * [Connection Properties](#connection-properties)
-  * [Serializers / Deserializers](#serializers--deserializers)
+* [Configuring Converters](#configuring-converters)
 * [Getting the Library](#getting-the-library)
-  * [Gradle](#gradle)
-  * [Maven](#maven)
 * [License](#license)
  
 ## Java Version
 
 The connector requires Java version 11 or later to be compatible with Flink libraries. 
-The JNATS library is built with Java 8 and is compatible with being run by a later version of Java.  
+The JNats library is built with Java 8 and is compatible with being run by a later version of Java.  
 
-## Beta Release and Implementation Versioning
+## Releases and Versioning
 
-The current release is a _beta_ and all APIs are subject to change. 
+The current release is a "Release Candidate". All APIs are frozen. They are unlikely to, but still subject to change.
+This project will adhere to semver except where a class is commented as "INTERNAL" and annotated with the `@Internal` annotation
+(`org.apache.flink.annotation.Internal`) 
 
 ## Builders
 
 There are fluent builders throughout the code. 
 
-1\. The only way to supply connection information is through a Properties object instance or a Properties file. 
-All connections are built using the properties that the JNats client Options object accepts. 
-If no connection properties are supplied, the configuration will assume the default insecure url `nats://localhost:4222`.
+1\. The only way to supply connection information is through a Properties object instance or a Properties file.
 More details can be found in the [Connection Properties](#connection-properties) section of this document.
 
-2\. You can provide a lot of configuration directly from configuration files.
-But if a configuration property can be set from a property _and_ can be set directly with a fluent builder,
-the last one called will be used. For example
-* There is a property `sink_converter` where you can specify the `sinkConverterClass`
-but if you call `sourceProperties(...)` with properties that has that key, 
-and then you call `sinkConverterClass(...)` the value set directly will be used.
+* If neither a Properties object nor a file are supplied, connections will be attempted insecurely to the default url, `nats://localhost:4222`.  
+* The properties are used to create a JNats client Options object. 
 
-3\. The JetStreamSourceBuilder has both "set" and "add" methods. 
-* If you `setSubjectConfigurations(...)` you replace whatever was in place before with the new configuration(s).
-* If you `addSubjectConfigurations(...)` you append the new configuration(s) to whatever was already set or added. 
+2\. When configuring JetStream, if your stream has a domain or prefix, you can supply options used to create a
+[JetStreamOptions](https://github.com/nats-io/nats.java/blob/main/src/main/java/io/nats/client/JetStreamOptions.java) object.
+More details can be found in the [JetStream Options](#jetstream-options) section of this document.
 
-4\. You can supply source and sink settings with code, for example...
-  ```java
-  NatsSource<String> source = new NatsSourceBuilder<String>()
-      .connectionPropertiesFile("/path/to/jnats_client_connection.properties")
-      .sourceConverter("io.synadia.message.StringMessageReader")
-      .subjects("subject1", "subject1")
-      .build();
-  ```
+3\. You can configure with code or from JSON or YAML files, or a combination.
 
-5\. For `NatsSource`, `NatsSink` and `JetStreamSink` you can supply properties from either a Properties, YAML or JSON file.
+Since a configuration property can be set from a property _and_ can be set directly with a fluent builder method,
+the last one called will be used. For example, there is a property `sink_converter_class_name` where you can specify the sink converter class.
+If _first_ you call `jsonConfigFile(...)` with a file that has that key, 
+and _then_ you call `sinkConverterClass(...)` the value set with `sinkConverterClass` method will be used.
 
-  ```java
-  NatsSource<String> source = new NatsSourceBuilder<String>()
-        .connectionPropertiesFile("/path/to/connection.properties")
-        .sourceProperties("/path/to/source.yaml")
-        .build();
-  ```
-
-  ```java
-  NatsSink<String> sink = new NatsSinkBuilder<String>()
-        .connectionPropertiesFile("/path/to/connection.properties")
-        .sinkYaml("/path/to/source.yaml")
-        .build();
-  ```
-
-  ```java
-  JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-      .connectionPropertiesFile("/path/to/connection.properties")
-      .sinkJson("/path/to/json.yaml")
-      .build();
-  ```
-
-For `JetStreamSource` you can only use YAML or JSON due to the complexity for the configuration. 
+4\. Some builders have both "set" and "add" methods. 
+* If you `set(...)` you replace whatever was in place before with the new configuration.
+* If you `add(...)` you append the new configuration to whatever was already set or added. 
 
 ## Connection Properties
 
-There are two ways to get the connection properties into the sink or source:
+There are two ways to configure connection properties.
 
 1\. Passing a file location via `.connectionPropertiesFile(String)`
-
-When the sink or source are given a properties file location,
-this must be an existing path on every instance of Flink in the cluster environment.
-Otherwise, it will not be found, and the sink or source won't be able to connect.
 This is probably the most likely way that you will configure the connection.
+
+**Configuration files must be available on all Flink nodes that might run execute the job,**
+otherwise, an IOException will be thrown when trying to open the file, and the node will fail to run.
 
   ```java
   NatsSink<String> sink = new NatsSinkBuilder<String>()
@@ -132,12 +94,11 @@ necessarily secure.
       .build();
   ```
 
-### Connection Properties Reference
 For full connection properties see the [NATS - Java Client, README Options Properties](https://github.com/nats-io/nats.java?tab=readme-ov-file#properties)
 
-### Example Connection Properties File
+### Example Connection Properties
 
-This is a simple example [Connection Properties File](src/examples/resources/connection.properties).
+This is a simple example [Connection Properties File](src/examples/resources/connection.properties) you can review.
 
 This is an example of using properties to set up tls:
 ```properties
@@ -148,156 +109,134 @@ io.nats.client.trustStorePassword=tspassword
 io.nats.client.trustStore=/path/to/truststore.jks
 ```
 
+**When a property references a file location, those files must be present on all nodes.**
+ 
+### JetStream Options
+The following properties can be set in the connection Properties object or file and are required 
+if your streams live in domains. See the server documentation for more info.  
+
+| Property              | JetStreamOptions Builder Method           |
+|-----------------------|-------------------------------------------|
+| `jso_prefix`          | `prefix(String prefix)`                   | 
+| `jso_domain`          | `domain(String domain)`                   |
+
 ## Source and Sink Concepts
 
-This project's sources get messages from NATS and emit them in a form that can be received by a sink.
-This is done via payload deserializer and sink converters.
+The output of a source becomes the input of a sink. This project's sources get messages from NATS 
+and emits them in a form that can be received by a sink. They are generic, 
+meaning you can provide a converter to emit the type expected by your target source.
 
-A deserializer is used by the source to take data from the origin it knows about, 
-in our case a NATS message received while subscribing to a NATS subject.
-It then converts it into a format that the sink understands and emits it. 
-The output of a source becomes the input of a sink.
-
-A serializer is used by the sink to take data it got from the source and output it to its origin, 
-in our case publishing to a NATS subject.
+The sink receives input from a source. This project's sink uses converters to process data it receives from the source 
+and extract message data and headers, which will then be published to NATS by the sink.
+This project's sinks are generic, meaning you can provide a converter to handle emitted type.
 
 There will probably be a time when you read data from a source other than NATS or write data to a source
 other than NATS. It will be up to you to understand what a foreign source outputs or a foreign sink expects
 as input. 
 
-### Foreign Source to a NATS or JetStream Sink
-Maybe a foreign source emits an encrypted array of bytes. If you are just storing that data as is as the payload of 
-a NATS message, you can use the build-in `ByteArrayMessageReader`. Otherwise, using that class as your starting
-point, you can customize what it does with that encrypted input. This project's sinks expect a byte[] to be used
-as the message data published to the configured sink subjects, which is why all sink converters used for
-this project's sinks output a byte[].
+Maybe a non-NATS source emits an encrypted array of bytes. If you are just storing that data as is as the payload of 
+a NATS message, you can use the built-in `ByteArraySourceConverter`. Otherwise, using that class as your starting
+point, you can customize what it does with that encrypted input. 
 
-### NATS or JetStream Source to a Foreign Sink.
-Maybe you want to sink a subject or stream of data to some foreign sink. Maybe that foreign sink is just a passthrough
-for message data in either byte or String form, then you can use the provided sink converters.
-But maybe you have headers in your messages, and you combine those headers, the subject and the into some JSON,
-then you will provide a custom MessageReader. A deserializer receives the entire NATS `Message`
-so you can extract all the information you need. If you are using the JetStreamSource, the message will actually 
-be a NatsJetStreamMessage, so the metadata, including the stream sequence, will be available.
+Maybe you want to sink a subject or stream of data to some non-NATS sink. Maybe that foreign sink is just a passthrough
+for message data in either byte or String form, then you can use the provided sink converters, for instance a
+`ByteArraySinkConverter` But maybe you have headers in your messages, and you combine those headers, 
+the subject and the into some JSON. Then you will need to provide a custom sink converter.
 
-### Built In Implementations
+A converter will receive the entire NATS `Message` so you can extract all the information you need.
+If you are using the JetStreamSource, the message will contain metadata, including the stream sequence.
 
-The project's sources require an implementation of:
+## Built In Converters
 
+All converter implementations must implement either SourceConverter or SinkConverter interfaces.
+
+A [SourceConverter](src/main/java/io/synadia/flink/message/SourceConverter.java) takes a message as input and outputs 
+the type that sinks are expecting.
 ```java
-public interface MessageReader<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
-    /**
-     * Convert a Message into an instance of the output type.
-     * @return the output object
-     */
-    OutputT getObject(Message message);
+public interface SourceConverter<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
+  /**
+   * Read a message and to create an instance of the output type.
+   * @return the output object
+   */
+  OutputT convert(Message message);
 }
 ```
 
-The built-in payload deserializers are:
+A [SinkConverter](src/main/java/io/synadia/flink/message/SinkConverter.java) takes the input from the source
+and returns a SinkMessage that can have a byte[] for the message payload and headers in a Headers object.
+```java
+public interface SinkConverter<InputT> extends Serializable {
+  /**
+   * Create a SinkMessage based on the input object given to the sink.
+   * If you return null, no messages will be published for this input.
+   * @param input the input object
+   * @return The SinkMessage object or null.
+   */
+  SinkMessage convert(InputT input);
+}
+```
 
 * `StringMessageReader` takes a NATS Message and converts the message data byte array to a String
 * `ByteArrayMessageReader` takes a NATS Message and converts the message data byte array (`byte[]`) and converts it to the object form (`Byte[]`)
 
-The project's sinks require an implementation of:
-
-```java
-public interface MessageReader<InputT> extends Serializable {
-  /**
-   * Get bytes from the input object so they can be published in a message
-   * @param input the input object
-   * @return the bytes
-   */
-  byte[] getBytes(InputT input);
-}
-```
-
-The built-in sink converters are:
-
-* `StringMessageReader` takes a takes a String and converts it to a byte array
-* `ByteArrayMessageSupplier` A ByteArrayMessageSupplier takes a byte array in object form (`Byte[]`) and converts it to a byte array (`byte[]`).
+| Class                                                                                                | Use                                |
+|------------------------------------------------------------------------------------------------------|------------------------------------|
+| [AsciiStringSourceConverter](src/main/java/io/synadia/flink/message/AsciiStringSourceConverter.java) | Message payload is an ASCII string |
+| [Utf8StringSourceConverter](src/main/java/io/synadia/flink/message/Utf8StringSourceConverter.java)   | Message payload is a UTF-8 string  |
+| [ByteArraySourceConverter](src/main/java/io/synadia/flink/message/ByteArraySourceConverter.java)     | Message payload is binary.         |
+| [AsciiStringSinkConverter](src/main/java/io/synadia/flink/message/AsciiStringSinkConverter.java)     | Sink input is an ASCII string.     |
+| [Utf8StringSinkConverter](src/main/java/io/synadia/flink/message/Utf8StringSinkConverter.java)       | Sink input is a UTF-8 string.      |
+| [ByteArraySinkConverter](src/main/java/io/synadia/flink/message/ByteArraySinkConverter.java)         | Sink input is a byte array.        |
 
 ## Sources
 
 There are two types of Flink source implementations available. 
-1. NatsSource subscribes one or more core NATS subjects.
-2. JetStreamSource subscribes one or more JetStream subjects.
+1. NatsSource, which subscribes to NATS core subjects.
+2. JetStreamSource, which consumes JetStream stream subjects.
 
 ### NatsSource
 
-A NatsSource subscribes to one or more core NATS subjects and uses a MessageReader implementation to convert the 
-message to the output type emitted to sinks. To construct a NatsSource, you must use the NatsSourceBuilder.
+A `NatsSource` subscribes to one or more core NATS core subjects and uses a 
+Source Converter implementation to convert the message to the output type emitted to sinks.
 
 * Each subject is subscribed in its own split, which Flink can run in different threads or in different nodes depending
 on your Flink configuration.
 
 * A NatsSource is currently only unbounded, meaning it runs forever. 
-It's on the TODO list to make this the source able to be bounded. 
+It's on the TODO list to make this the source able to be bounded,
+meaning limited to run for a number of messages or period of time. 
 
-The source can be configured in code or with the Properties, JSON or YAML. It supports these property keys:
+To construct a `NatsSource`, you must use the `NatsSourceBuilder`. 
+The source can be configured in code or from files on JSON or YAML format. It supports these property keys:
 * `source_converter_class_name`
 * `subjects`
 
+### JetStreamSource
+
 Here are examples for 
-  [Properties](src/examples/resources/core-source-config.properties),
   [JSON](src/examples/resources/core-source-config.json) and
   [YAML](src/examples/resources/core-source-config.yaml)
 
-## NatsSink
+## Sinks
 
-NatsSink expects some sort of data, most likely either a String or a byte[].
-If turns around and uses that data for the data in a NATS Message  
-and publishes that same data to all subjects configured for the sink. It's basically just a core NATS publisher.
+Both the `NatsSink` and `JetStreamSink` expect input from a source 
+and use a converter to extract data and optionally headers from that input and produce a `SinkMessage`. 
+The `SinkMessage` is then published.
 
-If for instance you want to publish 
+The difference between `NatsSink` and `JetStreamSink` is that `NatsSink` publishes a message to a subject that it 
+assumes is not part of a JetStream stream. It "fires and forgets". On the other hand, the `JetStreamSink` publishes
+the message to what it assumes to be a JetStream subject and waits for a Publish Ack. If the publishing fails,
+the sink throws an exception.
 
-To construct a sink, you must use the builder.
-* The NatsSinkBuilder is generic. Its generic type, `<InputT>` is the type of object you expect from a source that will become the byte[] payload of a message.
-* You must set or include properties to construct a connection unless you are connecting to 'nats://localhost:4222' with no security.
-* the builder has these methods:
-    ```
-    subjects(String... subjects)
-    subjects(List<String> subjects)
-    connectionProperties(Properties connectionProperties)
-    connectionPropertiesFile(String connectionPropertiesFile)
-    sinkConverter(SinkMessageSupplier<InputT> sinkConverter)
-    sinkConverterClass(String sinkConverterClass)
-    sinkProperties(Properties properties)
-    ```
-  
-* When using the builder, the last call value is used; they are not additive.
-  * Calling multiple variations or instances of `subjects`
-  * Calling `connectionProperties` or `connectionPropertiesFile`
-  * Calling `sinkConverter` or `sinkConverterClass`
-  * Calling `sinkProperties`
+To construct a `NatsSink`, you must use the `NatsSinkBuilder`.
+To construct a `JetStreamSink`, you must use the `JetStreamSinkBuilder`.
+The sinks can be configured in code or from files on JSON or YAML format. They support these property keys:
+* `sink_converter_class_name`
+* `subjects`
 
-* You can supply sink settings with code
+### JetStreamSink
 
-  ```java
-  NatsSink<String> sink = new NatsSinkBuilder<String>()
-      .subjects("subject1", "subject2")
-      .connectionPropertiesFile("/path/to/connection.properties")
-      .sinkConverterClass("io.synadia.message.StringMessageSupplier")
-      .build();
-  ```
-
-* You can also supply sink properties from a file.
-
-  ```java
-  Properties props = Utils.loadPropertiesFromFile("/path/to/sink.properties");
-  NatsSink<String> sink = new NatsSinkBuilder<String>()
-      .sinkProperties(props)
-      .connectionPropertiesFile("/path/to/connection.properties")
-      .build();
-  ```
-
-* The sink supports these property keys
-  ```properties
-  subjects
-  sink_converter_class_name
-  ```
-
-### Serializers / Deserializers
+## Configuring Converters
 
 There are three ways to configure a serializer / deserializer into your source/sink.
 
@@ -322,7 +261,7 @@ There are three ways to configure a serializer / deserializer into your source/s
       .sinkConverter(serializer)
       .build();
   
-  StringMessageReader serializer = new StringMessageReader();
+  StringSourceConverter serializer = new StringSourceConverter();
   NatsSource<String> source = new NatsSourceBuilder<String>
       ...
       .sourceConverter(serializer)
@@ -351,9 +290,15 @@ There are three ways to configure a serializer / deserializer into your source/s
 There is nothing significantly different, it is simply a developer's preference. In either case the class
 * must have a no parameter constructor
 * must be of the proper input or output type for the sink or source
-* must `implements Serializable`, which is usually trivial since there is should not be any state.
+* must `implements Serializable`, which is usually trivial since there is should not be any state. 
 
 If any of these conditions are not met, a terminal exception will be thrown.
+
+See the code for the built-in String converters,  
+[AbstractStringSourceConverter](src/main/java/io/synadia/flink/message/AbstractStringSourceConverter.java)
+and
+[AbstractStringSinkConverter](src/main/java/io/synadia/flink/message/AbstractStringSinkConverter.java)
+for examples of serialization implementation.
 
 ## Getting the Library
 

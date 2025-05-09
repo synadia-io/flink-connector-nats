@@ -160,15 +160,6 @@ class NatsSourceBuilderTest extends TestBase {
                     .connectionProperties(props)
                     .build()
             );
-
-            // Test missing required properties
-            IllegalArgumentException missingPropsEx = assertThrows(
-                IllegalArgumentException.class,
-                () -> new NatsSourceBuilder<String>()
-                    .subjects(subject())
-                    .sourceConverter(new Utf8StringSourceConverter())
-                    .build()  // Missing connection properties
-            );
         });
     }
 

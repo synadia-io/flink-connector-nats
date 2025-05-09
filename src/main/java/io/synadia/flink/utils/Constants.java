@@ -8,7 +8,6 @@ public interface Constants {
     // ===================================================================================
     // JetStreamOptions Property Name Constants
     // ===================================================================================
-    String JSO_REQUEST_TIMEOUT = "jso_request_timeout";
     String JSO_PREFIX = "jso_prefix";
     String JSO_DOMAIN = "jso_domain";
 

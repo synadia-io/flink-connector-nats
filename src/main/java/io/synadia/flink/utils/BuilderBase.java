@@ -173,19 +173,9 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             throw new IllegalArgumentException("One or more subjects must be provided.");
         }
 
-        // must have one or the other
+        // If neither are supplied, we will connect to localhost. Not really our problem.
         if (connectionProperties == null && connectionPropertiesFile == null) {
-            throw new IllegalArgumentException ("Connection properties or properties file must be provided.");
-        }
-
-        // if there is a file, we must be able to load it
-        if (connectionPropertiesFile != null) {
-            try {
-                PropertiesUtils.loadPropertiesFromFile(connectionPropertiesFile);
-            }
-            catch (IOException e) {
-                throw new IllegalArgumentException ("Cannot load properties file.", e.getCause());
-            }
+            connectionProperties = new Properties();
         }
 
         if (forSink) {

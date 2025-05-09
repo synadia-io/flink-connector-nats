@@ -11,7 +11,6 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -52,15 +51,15 @@ public class ConnectionFactory implements Serializable {
     }
 
     private static Options getOptions(Properties props) {
-        return Options.builder().properties(props).maxReconnects(0).build();
+        Options.Builder b = Options.builder();
+        if (props != null) {
+            b.properties(props);
+        }
+        return b.maxReconnects(0).build();
     }
 
     private static JetStreamOptions getJetStreamOptions(Properties props) {
         JetStreamOptions.Builder b = JetStreamOptions.builder();
-        long rtMillis = PropertiesUtils.getLongProperty(props, Constants.JSO_REQUEST_TIMEOUT, 0);
-        if (rtMillis > 0) {
-            b.requestTimeout(Duration.ofMillis(rtMillis));
-        }
         String temp = PropertiesUtils.getStringProperty(props, Constants.JSO_PREFIX);
         if (temp != null) {
             b.prefix(temp);
