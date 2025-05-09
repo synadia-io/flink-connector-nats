@@ -2,7 +2,7 @@
 
 # Synadia NATS to Flink Connector
 
-**Current Release**: 2.0.0-beta4 &nbsp; **Current Snapshot**: 2.1.0-rc1-SNAPSHOT
+**Current Release**: 2.1.1 &nbsp; **Current Snapshot**: 2.1.2-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
@@ -29,7 +29,6 @@ The JNats library is built with Java 8 and is compatible with being run by a lat
 
 ## Releases and Versioning
 
-The current release is a "Release Candidate". All APIs are frozen. They are unlikely to, but still subject to change.
 This project will adhere to semver except where a class is commented as "INTERNAL" and annotated with the `@Internal` annotation
 (`org.apache.flink.annotation.Internal`) 
 
