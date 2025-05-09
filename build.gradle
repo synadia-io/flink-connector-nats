@@ -39,7 +39,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.21.1-SNAPSHOT'
+    implementation 'io.nats:jnats:2.21.1'
 
     // these are here to override flink since the flink dependency version has vulnerabilities
     implementation 'org.apache.commons:commons-compress:1.27.1'
