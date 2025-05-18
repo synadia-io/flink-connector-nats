@@ -86,7 +86,7 @@ task bundle(type: Bundle) {
 
 jar {
     manifest {
-        attributes('Automatic-Module-Name': 'io.nats.jnats')
+        attributes('Automatic-Module-Name': 'io.synadia.flink-connector-nats')
     }
     bnd (['Implementation-Title': 'Flink Connector Nats',
           'Implementation-Version': jarVersion,
