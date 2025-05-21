@@ -13,6 +13,7 @@ import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
+import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
@@ -25,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -43,9 +45,10 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
     private final CompletableFuture<Void> availableFuture;
     private final ExecutorService scheduler;
+    private final ReentrantLock connectionLock;
 
     private int activeSplits;
-    private Connection connection;
+    private ConnectionContext _connectionContext;
 
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
@@ -55,6 +58,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         this.bounded = boundedness == Boundedness.BOUNDED;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
+        connectionLock = new ReentrantLock();
 
         checkNotNull(readerContext); // it's not used but is supposed to be provided
 
@@ -66,11 +70,24 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public void start() {
+        getConnectionContext();
+    }
+
+    private ConnectionContext getConnectionContext() {
+        connectionLock.lock();
         try {
-            connection = connectionFactory.connect();
+            if (_connectionContext == null) {
+                try {
+                    _connectionContext = connectionFactory.getConnectionContext();
+                }
+                catch (IOException e) {
+                    throw new FlinkRuntimeException(e);
+                }
+            }
+            return _connectionContext;
         }
-        catch (IOException e) {
-            throw new FlinkRuntimeException(e);
+        finally {
+            connectionLock.unlock();
         }
     }
 
@@ -81,16 +98,16 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             return InputStatus.NOTHING_AVAILABLE;
         }
         // 1. Get the split
-        // 2. The split could be finished but more messages came into the queue. These will just be ignored.
+        // 2. The split could be finished, but more messages came into the queue. These will just be ignored.
         JetStreamSourceReaderSplit readerSplit = splitMap.get(sm.splitId);
         if (!readerSplit.isFinished()) {
             // 1. collect the message
             // 2. mark the message as emitted - this increments the count
-            // 3. if bounded check to see if
+            // 3. if bounded, check to see if
             output.collect(sourceConverter.convert(sm.message));
             long emittedCount = readerSplit.markEmitted(sm.message);
             if (bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
-                // this split has fulfilled it's bound. Not all splits reader necessarily have yet
+                // This split has fulfilled it's bound. Not all splits readers necessarily have yet,
                 // so only say END_OF_INPUT if all are done
                 readerSplit.done();
                 if (--activeSplits < 1) {
@@ -190,6 +207,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        ConnectionContext connectionContext  = getConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackMode) {
@@ -197,7 +215,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader
                 // This is probably not perfect, but the whole acking thing is questionable anyway...
-                scheduler.execute(() -> connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
+                scheduler.execute(() -> connectionContext.connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
             }
         }
     }
@@ -209,9 +227,18 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public void close() throws Exception {
-        for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
-            srSplit.consumer.stop();
+        connectionLock.lock();
+        try {
+            if (_connectionContext != null && _connectionContext.connection != null) {
+                for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
+                    srSplit.consumer.stop();
+                }
+                _connectionContext.connection.close();
+            }
         }
-        connection.close();
+        finally {
+            _connectionContext = null;
+            connectionLock.unlock();
+        }
     }
 }

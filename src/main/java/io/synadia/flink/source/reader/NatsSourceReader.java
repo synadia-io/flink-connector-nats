@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,7 +35,9 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private final SourceConverter<OutputT> sourceConverter;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> messages;
-    private Connection connection;
+    private final ReentrantLock connectionLock;
+
+    private Connection _connection;
     private Dispatcher dispatcher;
 
     public NatsSourceReader(ConnectionFactory connectionFactory,
@@ -45,16 +48,30 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
         messages = new FutureCompletingBlockingQueue<>();
+        connectionLock = new ReentrantLock();
     }
 
     @Override
     public void start() {
+        getConnection();
+    }
+
+    private Connection getConnection() {
+        connectionLock.lock();
         try {
-            connection = connectionFactory.connect();
-            dispatcher = connection.createDispatcher(m -> messages.put(1, m));
+            if (_connection == null) {
+                try {
+                    _connection = connectionFactory.connect();
+                    dispatcher = _connection.createDispatcher(m -> messages.put(1, m));
+                }
+                catch (IOException e) {
+                    throw new FlinkRuntimeException(e);
+                }
+            }
+            return _connection;
         }
-        catch (IOException e) {
-            throw new FlinkRuntimeException(e);
+        finally {
+            connectionLock.unlock();
         }
     }
 
@@ -80,9 +97,13 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public void addSplits(List<NatsSubjectSplit> splits) {
+        Connection connection = null;
         for (NatsSubjectSplit split : splits) {
             int ix = subbedSplits.indexOf(split);
             if (ix == -1) {
+                if (connection == null) {
+                    connection = getConnection();
+                }
                 dispatcher.subscribe(split.getSubject());
                 subbedSplits.add(split);
             }
@@ -95,7 +116,16 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public void close() throws Exception {
-        connection.close();
+        connectionLock.lock();
+        try {
+            if (_connection != null) {
+                _connection.close();
+            }
+        }
+        finally {
+            _connection = null;
+            connectionLock.unlock();
+        }
     }
 
     @Override
