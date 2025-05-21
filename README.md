@@ -343,24 +343,13 @@ dependencies {
 }
 ```
 
-If you need the latest and greatest before Maven central updates, you can use:
-
-```groovy
-repositories {
-    mavenCentral()
-    maven {
-        url "https://s01.oss.sonatype.org/content/repositories/releases"
-    }
-}
-```
-
 If you need a snapshot version, you must add the url for the snapshots and change your dependency.
 
 ```groovy
 repositories {
     mavenCentral()
     maven {
-        url "https://s01.oss.sonatype.org/content/repositories/snapshots"
+      url "https://central.sonatype.com/repository/maven-snapshots/"
     }
 }
 
@@ -379,27 +368,13 @@ dependencies {
 </dependency>
 ```
 
-If you need the absolute latest, before it propagates to maven central, you can use the repository:
-
-```xml
-<repositories>
-    <repository>
-        <id>sonatype releases</id>
-        <url>https://s01.oss.sonatype.org/content/repositories/releases</url>
-        <releases>
-           <enabled>true</enabled>
-        </releases>
-    </repository>
-</repositories>
-```
-
 If you need a snapshot version, you must enable snapshots and change your dependency.
 
 ```xml
 <repositories>
     <repository>
         <id>sonatype snapshots</id>
-        <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         <snapshots>
             <enabled>true</enabled>
         </snapshots>
