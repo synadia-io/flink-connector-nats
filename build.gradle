@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.1.3"
+def jarVersion = "2.1.4"
 group = 'io.synadia'
 
 def isMerge = System.getenv("BUILD_EVENT") == "push"
