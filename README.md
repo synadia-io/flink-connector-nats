@@ -343,6 +343,17 @@ dependencies {
 }
 ```
 
+If you need the latest and greatest before Maven central updates, you can use:
+
+```groovy
+repositories {
+    mavenCentral()
+    maven {
+      url "https://repo1.maven.org/maven2/"
+    }
+}
+```
+
 If you need a snapshot version, you must add the url for the snapshots and change your dependency.
 
 ```groovy
@@ -366,6 +377,20 @@ dependencies {
     <artifactId>flink-connector-nats</artifactId>
     <version>{major.minor.patch}</version>
 </dependency>
+```
+
+If you need the absolute latest, before it propagates to maven central, you can use the repository:
+
+```xml
+<repositories>
+    <repository>
+        <id>sonatype releases</id>
+        <url>https://repo1.maven.org/maven2</url>
+        <releases>
+           <enabled>true</enabled>
+        </releases>
+    </repository>
+</repositories>
 ```
 
 If you need a snapshot version, you must enable snapshots and change your dependency.
