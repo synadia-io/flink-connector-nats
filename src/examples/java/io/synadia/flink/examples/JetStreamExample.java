@@ -4,6 +4,7 @@
 package io.synadia.flink.examples;
 
 import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
@@ -50,7 +51,7 @@ public class JetStreamExample {
     // Set the quiet period longer if you are using ack mode. See notes on ACK_MODE below.
     // Try 3000 or 10000 in ack mode.
     // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 3000;
+    public static final int QUIET_PERIOD = 10000;
 
     // ------------------------------------------------------------------------------------------
     // Locations where to write config files based on how the example gets configured.
@@ -66,11 +67,14 @@ public class JetStreamExample {
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
-    // ACK_MODE mode false means use a consumer with no acking
-    // ACK_MODE true true means the split(s) will ack (AckPolicy.All) messages at the checkpoint
-    // Try false or true
+    // Ack policy for the source.
+    // This is the policy that the source will use to acknowledge messages
+    // three options:
+    // AckPolicy.None - no acks, messages are not acknowledged [default]
+    // AckPolicy.All - one message ack, all messages are acknowledged
+    // AckPolicy.Explicit - explicit acks, messages must be acknowledged explicitly
     // ------------------------------------------------------------------------------------------
-    public static final boolean ACK_MODE = false;
+    public static final AckPolicy ACK_POLICY = AckPolicy.All;
 
     // ------------------------------------------------------------------------------------------
     // <= 0 makes the source boundedness "Boundedness.CONTINUOUS_UNBOUNDED"
@@ -130,7 +134,7 @@ public class JetStreamExample {
             .streamName(SOURCE_A_STREAM)
             .subject(SOURCE_A_SUBJECT)
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ackMode(ACK_MODE)
+            .ackPolicy(ACK_POLICY)
             .build();
         System.out.println("JetStreamSubjectConfiguration" + subjectConfigurationA.toJson());
 
@@ -145,7 +149,7 @@ public class JetStreamExample {
             .streamName(SOURCE_B_STREAM)
             .subject(SOURCE_B_SUBJECTS[0])
             .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ackMode(ACK_MODE)
+            .ackPolicy(ACK_POLICY)
             .build());
         for (int x = 1; x < SOURCE_B_SUBJECTS.length; x++) {
             subjectConfigurationsB.add(JetStreamSubjectConfiguration.builder()

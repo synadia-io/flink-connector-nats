@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * INTERNAL CLASS SUBJECT TO CHANGE
  */
 @Internal
-public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
+public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
     private final boolean bounded;
@@ -141,9 +141,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
                 try {
                     StreamContext sc = connectionFactory.getConnectionContext().js.getStreamContext(split.subjectConfig.streamName);
-                    BaseConsumerContext consumerContext = split.subjectConfig.ackMode
-                        ? createConsumer(split, sc)
-                        : createOrderedConsumer(split, sc);
+                    BaseConsumerContext consumerContext = split.subjectConfig.ackPolicy == AckPolicy.None
+                            ? createOrderedConsumer(split, sc) : createConsumer(split, sc);
 
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
@@ -164,7 +163,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private BaseConsumerContext createConsumer(JetStreamSplit split, StreamContext sc) throws JetStreamApiException, IOException {
         ConsumerConfiguration.Builder b = ConsumerConfiguration.builder()
-            .ackPolicy(AckPolicy.All)
+            .ackPolicy(split.subjectConfig.ackPolicy)
             .filterSubject(split.subjectConfig.subject);
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
@@ -210,7 +209,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         ConnectionContext connectionContext  = getConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.split.subjectConfig.ackMode) {
+            if (snapshot != null && srSplit.split.subjectConfig.ackPolicy.equals(AckPolicy.All)) {
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader
