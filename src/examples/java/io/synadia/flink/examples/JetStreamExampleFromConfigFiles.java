@@ -51,7 +51,7 @@ public class JetStreamExampleFromConfigFiles {
     // Set the quiet period longer if you have acks 10000 vs. 3000 for instance.
     // Try 3000 or 10000
     // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 10000;
+    public static final int QUIET_PERIOD = 3000;
 
     // ------------------------------------------------------------------------------------------
     // Set this flag to tell the program to use the JSON or YAML file for input.

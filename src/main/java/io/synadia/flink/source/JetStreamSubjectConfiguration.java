@@ -11,8 +11,6 @@ import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
@@ -78,7 +76,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
-        JsonUtils.addField(sb, ACK_POLICY, ackPolicy.toString());
+
+        if (ackPolicy!= null && ackPolicy != AckPolicy.None) {
+            JsonUtils.addField(sb, ACK_POLICY, ackPolicy.toString());
+        }
+
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
             JsonUtils.addField(sb, BATCH_SIZE, co.getBatchSize());
@@ -96,7 +98,10 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
-        YamlUtils.addField(sb, indentLevel, ACK_POLICY, ackPolicy.toString());
+
+        if (ackPolicy!= null && ackPolicy != AckPolicy.None) {
+            YamlUtils.addField(sb, indentLevel, ACK_POLICY, ackPolicy.toString());
+        }
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
@@ -271,13 +276,26 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         /**
          * Sets the ack policy for the consumer.
-         * if ackPolicy is null, it defaults to {@link AckPolicy#None}.
-         * library will use ordered consumer if ackPolicy is None.
-         * @param ackPolicy the ack policy
+         * Ack will occur when a checkpoint is complete via ack all.
+         * AckPolicy.None is the default. AckPolicy.All is slower than none. AckPolicy.Explicit is the slowest.
+         * It is not recommended to set ackMode unless your stream is a work queue,
+         * but even then, be sure of why you are running this against a work queue.
+         * @param ackPolicy the ack policy or null for AckPolicy.None
          * @return the builder
          */
         public Builder ackPolicy(AckPolicy ackPolicy) {
             this.ackPolicy = ackPolicy == null ? AckPolicy.None : ackPolicy;
+            return this;
+        }
+
+        /**
+         * @deprecated Use {@link #ackPolicy(AckPolicy)} instead.
+         * ackMode false sets the policy to AckPolicy.None.
+         * ackMode true sets the policy to AckPolicy.All
+         */
+        @Deprecated
+        public Builder ackMode(boolean ackMode) {
+            this.ackPolicy = ackMode ? AckPolicy.All : AckPolicy.None;
             return this;
         }
 

@@ -48,10 +48,10 @@ public class JetStreamExample {
 
     // ------------------------------------------------------------------------------------------
     // The quiet period is how long to wait when not receiving messages to end the program.
-    // Set the quiet period longer if you are using ack mode. See notes on ACK_MODE below.
-    // Try 3000 or 10000 in ack mode.
+    // Set the quiet period longer if you are using ack policy. See notes on ACK_POLICY below.
+    // Try 3000, 10000 or 20000 in ack policy.
     // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 10000;
+    public static final int QUIET_PERIOD = 3000;
 
     // ------------------------------------------------------------------------------------------
     // Locations where to write config files based on how the example gets configured.
@@ -74,7 +74,7 @@ public class JetStreamExample {
     // AckPolicy.All - one message ack, all messages are acknowledged
     // AckPolicy.Explicit - explicit acks, messages must be acknowledged explicitly
     // ------------------------------------------------------------------------------------------
-    public static final AckPolicy ACK_POLICY = AckPolicy.All;
+    public static final AckPolicy ACK_POLICY = AckPolicy.None;
 
     // ------------------------------------------------------------------------------------------
     // <= 0 makes the source boundedness "Boundedness.CONTINUOUS_UNBOUNDED"
