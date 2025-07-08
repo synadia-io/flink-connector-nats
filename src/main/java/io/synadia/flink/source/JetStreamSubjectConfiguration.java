@@ -36,7 +36,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final long startSequence;
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
-    public final AckPolicy ackPolicy;
+    public final AckBehavior ackBehavior;
     public final SerializableConsumeOptions serializableConsumeOptions;
 
     public final Boundedness boundedness;
@@ -49,7 +49,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
-        ackPolicy = Objects.requireNonNullElse(b.ackPolicy, AckPolicy.None);
+        ackBehavior = Objects.requireNonNullElse(b.ackBehavior, AckBehavior.NoAck);
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
         deliverPolicy = startSequence != -1
@@ -63,7 +63,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             startSequence,
             startTime,
             maxMessagesToRead,
-            ackPolicy,
+            ackBehavior,
             serializableConsumeOptions.getConsumeOptions().toJson()
         );
     }
@@ -77,8 +77,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
 
-        if (ackPolicy!= null && ackPolicy != AckPolicy.None) {
-            JsonUtils.addField(sb, ACK_POLICY, ackPolicy.toString());
+        if (ackBehavior != AckBehavior.NoAck) {
+            JsonUtils.addField(sb, ACK_BEHAVIOR, ackBehavior.toString());
         }
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
@@ -99,8 +99,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
 
-        if (ackPolicy!= null && ackPolicy != AckPolicy.None) {
-            YamlUtils.addField(sb, indentLevel, ACK_POLICY, ackPolicy.toString());
+        if (ackBehavior != AckBehavior.NoAck) {
+            YamlUtils.addField(sb, indentLevel, ACK_BEHAVIOR, ackBehavior.toString());
         }
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
@@ -139,7 +139,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
             .batchSize(JsonValueUtils.readInteger(jv, BATCH_SIZE, -1))
             .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
-            .ackPolicy(AckPolicy.get(JsonValueUtils.readString(jv, ACK_POLICY, AckPolicy.None.toString())))
+            .ackBehavior(AckBehavior.valueOf(JsonValueUtils.readString(jv, ACK_BEHAVIOR, AckBehavior.NoAck.toString())))
             .build();
     }
 
@@ -152,7 +152,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
             .batchSize(YamlUtils.readInteger(map, BATCH_SIZE, -1))
             .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
-            .ackPolicy(AckPolicy.get(YamlUtils.readString(map, ACK_POLICY, AckPolicy.None.toString())))
+            .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR, AckPolicy.None.toString())))
             .build();
     }
 
@@ -162,7 +162,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private long startSequence = -1;
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
-        private AckPolicy ackPolicy = AckPolicy.None;
+        private AckBehavior ackBehavior = AckBehavior.NoAck;
         private int batchSize = -1;
         private int thresholdPercent = -1;
 
@@ -176,7 +176,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 .startSequence(config.startSequence)
                 .startTime(config.startTime)
                 .maxMessagesToRead(config.maxMessagesToRead)
-                .ackPolicy(config.ackPolicy)
+                .ackBehavior(config.ackBehavior)
                 .batchSize(config.serializableConsumeOptions.getConsumeOptions().getBatchSize())
                 .thresholdPercent(config.serializableConsumeOptions.getConsumeOptions().getThresholdPercent());
         }
@@ -270,32 +270,32 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * Sets the ack policy None for the consumer.
          * @return the builder
          */
-        public Builder ackPolicy() {
-            return ackPolicy(AckPolicy.None);
+        public Builder ackBehavior() {
+            return ackBehavior(AckBehavior.NoAck);
         }
 
         /**
          * Sets the ack policy for the consumer.
          * Ack will occur when a checkpoint is complete via ack all.
-         * AckPolicy.None is the default. AckPolicy.All is slower than none. AckPolicy.Explicit is the slowest.
+         * AckBehavior.NoAck is the default. AckBehavior.All is slower than NoAck. AckBehavior.ExplicitButNoAck is the slowest.
          * It is not recommended to set ackMode unless your stream is a work queue,
          * but even then, be sure of why you are running this against a work queue.
-         * @param ackPolicy the ack policy or null for AckPolicy.None
+         * @param ackBehavior the ack behavior or null for AckPolicy.None
          * @return the builder
          */
-        public Builder ackPolicy(AckPolicy ackPolicy) {
-            this.ackPolicy = ackPolicy == null ? AckPolicy.None : ackPolicy;
+        public Builder ackBehavior(AckBehavior ackBehavior) {
+            this.ackBehavior = ackBehavior == null ? AckBehavior.NoAck : ackBehavior;
             return this;
         }
 
         /**
-         * @deprecated Use {@link #ackPolicy(AckPolicy)} instead.
-         * ackMode false sets the policy to AckPolicy.None.
-         * ackMode true sets the policy to AckPolicy.All
+         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
+         * ackMode false sets the policy to AckBehavior.NoAck.
+         * ackMode true sets the policy to AckBehavior.All
          */
         @Deprecated
         public Builder ackMode(boolean ackMode) {
-            this.ackPolicy = ackMode ? AckPolicy.All : AckPolicy.None;
+            this.ackBehavior = ackMode ? AckBehavior.AckAll : AckBehavior.NoAck;
             return this;
         }
 
