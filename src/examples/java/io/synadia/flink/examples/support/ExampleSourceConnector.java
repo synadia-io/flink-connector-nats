@@ -9,13 +9,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.nio.charset.StandardCharsets;
 
-public class AckSourceConverter implements SourceConverter<String> {
+public class ExampleSourceConnector implements SourceConverter<String> {
     private static final long serialVersionUID = 1L;
 
     @Override
     public String convert(Message message) {
         String data = new String(message.getData(), StandardCharsets.UTF_8);
-        return data + "|" + message.getReplyTo() + "|" + message.metaData().streamSequence();
+        return data + "|" + message.getReplyTo();
     }
 
     @Override

@@ -5,10 +5,10 @@ package io.synadia.flink.examples;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
-import io.synadia.flink.examples.support.AckSourceConverter;
+import io.synadia.flink.examples.support.ExampleSourceConnector;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
-import io.synadia.flink.examples.support.TimedAckMapFunction;
+import io.synadia.flink.examples.support.AckMapFunction;
 import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
@@ -168,7 +168,7 @@ public class JetStreamExplicitButDoNotAckExample {
         // and subject configurations, etc.
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-                .sourceConverter(new AckSourceConverter())
+                .sourceConverter(new ExampleSourceConnector())
                 .addSubjectConfigurations(subjectConfigurationA)
                 .addSubjectConfigurations(subjectConfigurationsB)
                 .build();
@@ -208,7 +208,7 @@ public class JetStreamExplicitButDoNotAckExample {
         }
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), JOB_NAME);
-        dataStream.map(new TimedAckMapFunction()).name("Ack Messages").uid("ack-source-messages").sinkTo(sink);
+        dataStream.map(new AckMapFunction()).name("Ack Messages").uid("ack-source-messages").sinkTo(sink);
 
         env.executeAsync(JOB_NAME);
 

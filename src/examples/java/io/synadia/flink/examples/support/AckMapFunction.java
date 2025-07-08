@@ -8,7 +8,7 @@ import io.nats.client.impl.AckType;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 
-public class TimedAckMapFunction extends RichMapFunction<String, String> {
+public class AckMapFunction extends RichMapFunction<String, String> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
     private transient Connection natsCtx;
 
