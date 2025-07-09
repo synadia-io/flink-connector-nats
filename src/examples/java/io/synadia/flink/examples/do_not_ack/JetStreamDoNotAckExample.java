@@ -1,13 +1,12 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.examples;
+package io.synadia.flink.examples.do_not_ack;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
-import io.synadia.flink.examples.support.AckMapFunction;
 import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
@@ -29,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.synadia.flink.examples.JetStreamExampleHelper.*;
 import static io.synadia.flink.examples.support.ExampleUtils.writeToFile;
 
-public class JetStreamExplicitButDoNotAckExample {
+public class JetStreamDoNotAckExample {
     // ==========================================================================================
     // General Configuration: Use these settings to change how the example runs
     // ==========================================================================================
@@ -65,13 +64,11 @@ public class JetStreamExplicitButDoNotAckExample {
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
-    // Ack policy for the source.
-    // This is the policy that the source will use to acknowledge messages
-    // three options:
-    // AckBehavior.NoAck - no acks, messages are not acknowledged [default]
-    // AckBehavior.AckAll - one message ack, all messages are acknowledged, acked by source on checkpoints
-    // AckBehavior.AllButDoNotAck - Ack policy with all but acking is left to the user
-    // AckBehavior.ExplicitButDoNotAck - explicit acks, messages must be acknowledged explicitly
+    // AckBehavior for the source, the behavior that the source will use to acknowledge messages.
+    // For this example we use AckBehavior.ExplicitButDoNotAck:
+    //   The Consumer uses AckPolicy.Explicit but the source does not ack
+    //   at the checkpoint, leaving acking up to the user.
+    //   If messages are not acked in time, they will be redelivered to the source.
     // ------------------------------------------------------------------------------------------
     public static final AckBehavior ACK_BEHAVIOR = AckBehavior.ExplicitButDoNotAck;
 
@@ -167,7 +164,7 @@ public class JetStreamExplicitButDoNotAckExample {
         // and subject configurations, etc.
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-                .sourceConverter(new JetStreamExplicitSourceConnector())
+                .sourceConverter(new JetStreamDoNotAckSourceConverter())
                 .addSubjectConfigurations(subjectConfigurationA)
                 .addSubjectConfigurations(subjectConfigurationsB)
                 .build();
@@ -207,7 +204,9 @@ public class JetStreamExplicitButDoNotAckExample {
         }
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), JOB_NAME);
-        dataStream.map(new AckMapFunction()).name("Ack Messages").uid("ack-source-messages").sinkTo(sink);
+
+        // The does the actual acking. Could have also been done in a source aware sink.
+        dataStream.map(new JetStreamDoNotAckMapFunction()).name("Ack Messages").uid("ack-source-messages").sinkTo(sink);
 
         env.executeAsync(JOB_NAME);
 

@@ -1,15 +1,16 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.examples;
+package io.synadia.flink.examples.do_not_ack;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 import io.synadia.flink.message.SourceConverter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 import java.nio.charset.StandardCharsets;
 
-public class JetStreamExplicitSourceConnector implements SourceConverter<String> {
+public class JetStreamDoNotAckSourceConverter implements SourceConverter<String> {
     private static final long serialVersionUID = 1L;
 
     @Override

@@ -1,12 +1,13 @@
-// Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
+// Copyright (c) 2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.examples.support;
+package io.synadia.flink.examples.do_not_ack;
 
 import io.nats.client.Connection;
 import io.nats.client.impl.AckType;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
+import io.synadia.flink.examples.support.ExampleUtils;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -16,7 +17,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 // It connects to a NATS server and sends an acknowledgment message back to the replyTo subject specified in the input JSON.
 // The input JSON is expected to have a "data" field containing the message data and a "reply_to" field specifying where to send the ack.
 // =====================================================================================================================================
-public class AckMapFunction extends RichMapFunction<String, String> {
+public class JetStreamDoNotAckMapFunction extends RichMapFunction<String, String> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
     private transient Connection natsCtx;
 
