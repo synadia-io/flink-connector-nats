@@ -4,12 +4,11 @@
 package io.synadia.flink.examples;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
+import io.synadia.flink.examples.support.AckMapFunction;
 import io.synadia.flink.message.Utf8StringSinkConverter;
-import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.source.AckBehavior;
@@ -30,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.synadia.flink.examples.JetStreamExampleHelper.*;
 import static io.synadia.flink.examples.support.ExampleUtils.writeToFile;
 
-public class JetStreamExample {
+public class JetStreamExplicitButDoNotAckExample {
     // ==========================================================================================
     // General Configuration: Use these settings to change how the example runs
     // ==========================================================================================
@@ -45,23 +44,21 @@ public class JetStreamExample {
     // 0 or less don't report
     // This is just set so you can see a reasonable amount of progress
     // ------------------------------------------------------------------------------------------
-    public static final int REPORT_FREQUENCY = 20000;
+    public static final int REPORT_FREQUENCY = 50000;
 
     // ------------------------------------------------------------------------------------------
     // The quiet period is how long to wait when not receiving messages to end the program.
     // Set the quiet period longer if you are using ack behavior. See notes on ACK_BEHAVIOR below.
     // Try 3000, 10000 or 20000 depending on ack behavior.
     // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 3000;
+    public static final int QUIET_PERIOD = 40000;
 
     // ------------------------------------------------------------------------------------------
     // Locations where to write config files based on how the example gets configured.
     // These files can be used in the JetStreamExampleFromConfigFiles example.
     // ------------------------------------------------------------------------------------------
-    public static final String SOURCE_CONFIG_FILE_JSON = "src/examples/resources/js-source-config.json";
-    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/js-source-config.yaml";
-    public static final String SINK_CONFIG_FILE_JSON = "src/examples/resources/js-sink-config.json";
-    public static final String SINK_CONFIG_FILE_YAML = "src/examples/resources/js-sink-config.yaml";
+    public static final String SOURCE_CONFIG_FILE_JSON = "src/examples/resources/js-explicit-source-config.json";
+    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/js-explicit-source-config.yaml";
 
     // ==========================================================================================
     // JetStreamSource Configuration: Use these settings to change how the source is configured
@@ -76,7 +73,7 @@ public class JetStreamExample {
     // AckBehavior.AllButDoNotAck - Ack policy with all but acking is left to the user
     // AckBehavior.ExplicitButDoNotAck - explicit acks, messages must be acknowledged explicitly
     // ------------------------------------------------------------------------------------------
-    public static final AckBehavior ACK_BEHAVIOR = AckBehavior.NoAck;
+    public static final AckBehavior ACK_BEHAVIOR = AckBehavior.ExplicitButDoNotAck;
 
     // ------------------------------------------------------------------------------------------
     // <= 0 makes the source boundedness "Boundedness.CONTINUOUS_UNBOUNDED"
@@ -133,11 +130,11 @@ public class JetStreamExample {
         // Use this when you have only one subject for a given stream/configuration
         // ------------------------------------------------------------------------------------------
         JetStreamSubjectConfiguration subjectConfigurationA = JetStreamSubjectConfiguration.builder()
-            .streamName(SOURCE_A_STREAM)
-            .subject(SOURCE_A_SUBJECT)
-            .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ackBehavior(ACK_BEHAVIOR)
-            .build();
+                .streamName(SOURCE_A_STREAM)
+                .subject(SOURCE_A_SUBJECT)
+                .maxMessagesToRead(MAX_MESSAGES_TO_READ)
+                .ackBehavior(ACK_BEHAVIOR)
+                .build();
         System.out.println("JetStreamSubjectConfiguration" + subjectConfigurationA.toJson());
 
         // ------------------------------------------------------------------------------------------
@@ -148,16 +145,16 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         List<JetStreamSubjectConfiguration> subjectConfigurationsB = new ArrayList<>();
         subjectConfigurationsB.add(JetStreamSubjectConfiguration.builder()
-            .streamName(SOURCE_B_STREAM)
-            .subject(SOURCE_B_SUBJECTS[0])
-            .maxMessagesToRead(MAX_MESSAGES_TO_READ)
-            .ackBehavior(ACK_BEHAVIOR)
-            .build());
+                .streamName(SOURCE_B_STREAM)
+                .subject(SOURCE_B_SUBJECTS[0])
+                .maxMessagesToRead(MAX_MESSAGES_TO_READ)
+                .ackBehavior(ACK_BEHAVIOR)
+                .build());
         for (int x = 1; x < SOURCE_B_SUBJECTS.length; x++) {
             subjectConfigurationsB.add(JetStreamSubjectConfiguration.builder()
-                .copy(subjectConfigurationsB.get(0))
-                .subject(SOURCE_B_SUBJECTS[x])
-                .build());
+                    .copy(subjectConfigurationsB.get(0))
+                    .subject(SOURCE_B_SUBJECTS[x])
+                    .build());
         }
         for (JetStreamSubjectConfiguration jssc : subjectConfigurationsB) {
             System.out.println("JetStreamSubjectConfiguration" + jssc.toJson());
@@ -168,16 +165,12 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         // Build the source by setting up the connection properties, the message supplier
         // and subject configurations, etc.
-        // ------------------------------------------------------------------------------------------
-        // A Utf8StringSourceConverter takes the NATS Message and outputs its data payload as a String
-        // When we published to these streams, the data is in the form "data--<subject>--<num>"
-        // ------------------------------------------------------------------------------------------
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .sourceConverter(new Utf8StringSourceConverter())
-            .addSubjectConfigurations(subjectConfigurationA)
-            .addSubjectConfigurations(subjectConfigurationsB)
-            .build();
+                .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
+                .sourceConverter(new JetStreamExplicitSourceConnector())
+                .addSubjectConfigurations(subjectConfigurationA)
+                .addSubjectConfigurations(subjectConfigurationsB)
+                .build();
 
         // ------------------------------------------------------------------------------------------
         // Here we write the source config out to a file in different formats.
@@ -196,17 +189,10 @@ public class JetStreamExample {
         // to all the sink subjects. For this example, there is only one sink subject, see SINK_SUBJECT
         // ------------------------------------------------------------------------------------------
         JetStreamSink<String> sink = new JetStreamSinkBuilder<String>()
-            .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-            .sinkConverter(new Utf8StringSinkConverter())
-            .subjects(SINK_SUBJECT)
-            .build();
-
-        // ------------------------------------------------------------------------------------------
-        // Here we write the sink config out to a file in different formats.
-        // The files can be used in the JetStreamExampleFromConfigFiles example.
-        // ------------------------------------------------------------------------------------------
-        writeToFile(SINK_CONFIG_FILE_JSON, sink.toJson());
-        writeToFile(SINK_CONFIG_FILE_YAML, sink.toYaml());
+                .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
+                .sinkConverter(new Utf8StringSinkConverter())
+                .subjects(SINK_SUBJECT)
+                .build();
 
         // ==========================================================================================
         // Setup and start flink
@@ -221,7 +207,7 @@ public class JetStreamExample {
         }
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), JOB_NAME);
-        dataStream.sinkTo(sink);
+        dataStream.map(new AckMapFunction()).name("Ack Messages").uid("ack-source-messages").sinkTo(sink);
 
         env.executeAsync(JOB_NAME);
 
@@ -234,7 +220,7 @@ public class JetStreamExample {
         // ------------------------------------------------------------------------------------------
         StreamContext sc = nc.getStreamContext(SINK_STREAM_NAME);
         OrderedConsumerContext occ = sc.createOrderedConsumer(
-            new OrderedConsumerConfiguration().filterSubjects(SINK_SUBJECT));
+                new OrderedConsumerConfiguration().filterSubjects(SINK_SUBJECT));
         try (IterableConsumer consumer = occ.iterate()) {
             long lastMessageReceived = System.currentTimeMillis() + 5000; // 5000 gives it a little time to get started
             int manualTotal = 0;
@@ -269,3 +255,4 @@ public class JetStreamExample {
         System.exit(0); // Threads are running, stuff still going, so force exit. Probably not a production strategy!
     }
 }
+

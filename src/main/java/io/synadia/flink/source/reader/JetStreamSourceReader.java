@@ -11,6 +11,7 @@ import io.nats.client.api.OrderedConsumerConfiguration;
 import io.nats.client.impl.AckType;
 import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.message.SourceConverter;
+import io.synadia.flink.source.AckBehavior;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
@@ -35,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * INTERNAL CLASS SUBJECT TO CHANGE
  */
 @Internal
-public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
+public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
     private final boolean bounded;
@@ -141,9 +142,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
                 try {
                     StreamContext sc = connectionFactory.getConnectionContext().js.getStreamContext(split.subjectConfig.streamName);
-                    BaseConsumerContext consumerContext = split.subjectConfig.ackMode
-                        ? createConsumer(split, sc)
-                        : createOrderedConsumer(split, sc);
+                    BaseConsumerContext consumerContext = split.subjectConfig.ackBehavior== AckBehavior.NoAck
+                            ? createOrderedConsumer(split, sc) : createConsumer(split, sc);
 
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
@@ -164,8 +164,18 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private BaseConsumerContext createConsumer(JetStreamSplit split, StreamContext sc) throws JetStreamApiException, IOException {
         ConsumerConfiguration.Builder b = ConsumerConfiguration.builder()
-            .ackPolicy(AckPolicy.All)
             .filterSubject(split.subjectConfig.subject);
+
+        if (split.subjectConfig.ackBehavior == AckBehavior.AllButDoNotAck || split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
+            b.ackPolicy(AckPolicy.All);
+        }
+        else if (split.subjectConfig.ackBehavior == AckBehavior.ExplicitButDoNotAck) {
+            b.ackPolicy(AckPolicy.Explicit);
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported ack behavior: " + split.subjectConfig.ackBehavior);
+        }
+
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
             b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
@@ -210,7 +220,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         ConnectionContext connectionContext  = getConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.split.subjectConfig.ackMode) {
+            if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader
