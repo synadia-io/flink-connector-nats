@@ -48,8 +48,8 @@ public class JetStreamExplicitButDoNotAckExample {
 
     // ------------------------------------------------------------------------------------------
     // The quiet period is how long to wait when not receiving messages to end the program.
-    // Set the quiet period longer if you are using ack policy. See notes on ACK_POLICY below.
-    // Try 3000, 10000, 20000 or 40000  depending on ack policy.
+    // Set the quiet period longer if you are using ack behavior. See notes on ACK_BEHAVIOR below.
+    // Try 3000, 10000 or 20000 depending on ack behavior.
     // ------------------------------------------------------------------------------------------
     public static final int QUIET_PERIOD = 40000;
 
