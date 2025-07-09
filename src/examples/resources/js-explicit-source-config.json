@@ -1,1 +1,31 @@
-{"source_converter_class_name":"io.synadia.flink.examples.do_not_ack.JetStreamDoNotAckSourceConverter","jetstream_subject_configurations":[{"stream_name":"source-b","subject":"ub1","ack_behavior":"ExplicitButDoNotAck"},{"stream_name":"source-b","subject":"ub3","ack_behavior":"ExplicitButDoNotAck"},{"stream_name":"source-b","subject":"ub4","ack_behavior":"ExplicitButDoNotAck"},{"stream_name":"source-a","subject":"ua","ack_behavior":"ExplicitButDoNotAck"},{"stream_name":"source-b","subject":"ub2","ack_behavior":"ExplicitButDoNotAck"}]}
+{
+  "source_converter_class_name": "io.synadia.flink.examples.JetStreamExplicitSourceConnector",
+  "jetstream_subject_configurations": [
+    {
+      "stream_name": "source-b",
+      "subject": "ub1",
+      "ack_behavior": "ExplicitButDoNotAck"
+    },
+    {
+      "stream_name": "source-b",
+      "subject": "ub3",
+      "ack_behavior": "ExplicitButDoNotAck"
+    },
+    {
+      "stream_name": "source-b",
+      "subject": "ub4",
+      "ack_behavior": "ExplicitButDoNotAck"
+    },
+    {
+      "stream_name": "source-a",
+      "subject": "ua",
+      "ack_behavior": "ExplicitButDoNotAck"
+    },
+    {
+      "stream_name": "source-b",
+      "subject": "ub2",
+      "ack_behavior": "ExplicitButDoNotAck"
+    }
+  ]
+}
+
