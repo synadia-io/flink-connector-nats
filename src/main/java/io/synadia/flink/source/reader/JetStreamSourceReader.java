@@ -168,11 +168,12 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
 
         if (split.subjectConfig.ackBehavior == AckBehavior.AllButDoNotAck || split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
             b.ackPolicy(AckPolicy.All);
-        } else if (split.subjectConfig.ackBehavior.equals(AckBehavior.ExplicitButDoNotAck)) {
+        }
+        else if (split.subjectConfig.ackBehavior == AckBehavior.ExplicitButDoNotAck) {
             b.ackPolicy(AckPolicy.Explicit);
-        } else {
-            throw new IllegalArgumentException(
-                "Unsupported ack behavior: " + split.subjectConfig.ackBehavior);
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported ack behavior: " + split.subjectConfig.ackBehavior);
         }
 
         long lastSeq = split.lastEmittedStreamSequence.get();
@@ -219,7 +220,7 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
         ConnectionContext connectionContext  = getConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.split.subjectConfig.ackBehavior.equals(AckBehavior.AckAll)) {
+            if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader

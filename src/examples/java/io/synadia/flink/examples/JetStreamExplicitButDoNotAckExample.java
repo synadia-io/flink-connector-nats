@@ -5,7 +5,6 @@ package io.synadia.flink.examples;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
-import io.synadia.flink.examples.support.ExampleSourceConnector;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
 import io.synadia.flink.examples.support.AckMapFunction;
@@ -168,7 +167,7 @@ public class JetStreamExplicitButDoNotAckExample {
         // and subject configurations, etc.
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE)
-                .sourceConverter(new ExampleSourceConnector())
+                .sourceConverter(new JetStreamExplicitSourceConnector())
                 .addSubjectConfigurations(subjectConfigurationA)
                 .addSubjectConfigurations(subjectConfigurationsB)
                 .build();
