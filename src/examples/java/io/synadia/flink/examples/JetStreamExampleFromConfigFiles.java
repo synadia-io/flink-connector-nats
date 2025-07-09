@@ -49,7 +49,7 @@ public class JetStreamExampleFromConfigFiles {
     // ------------------------------------------------------------------------------------------
     // The quiet period is how long to wait when not receiving messages to end the program.
     // Set the quiet period longer if you are using ack behavior. See notes on ACK_BEHAVIOR below.
-    // Try 3000, 10000 or 20000 depending on ack behavior.
+    // Try 3000 for AckBehavior.NoAck and 10000 for AckBehavior.AckAll
     // ------------------------------------------------------------------------------------------
     public static final int QUIET_PERIOD = 3000;
 

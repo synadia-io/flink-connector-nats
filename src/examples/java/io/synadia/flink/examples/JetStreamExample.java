@@ -4,7 +4,6 @@
 package io.synadia.flink.examples;
 
 import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.synadia.flink.examples.support.ExampleUtils;
 import io.synadia.flink.examples.support.Publisher;
@@ -50,7 +49,7 @@ public class JetStreamExample {
     // ------------------------------------------------------------------------------------------
     // The quiet period is how long to wait when not receiving messages to end the program.
     // Set the quiet period longer if you are using ack behavior. See notes on ACK_BEHAVIOR below.
-    // Try 3000, 10000 or 20000 depending on ack behavior.
+    // Try 3000 for AckBehavior.NoAck and 10000 for AckBehavior.AckAll
     // ------------------------------------------------------------------------------------------
     public static final int QUIET_PERIOD = 3000;
 
@@ -68,13 +67,13 @@ public class JetStreamExample {
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
-    // Ack policy for the source.
-    // This is the policy that the source will use to acknowledge messages
-    // three options:
-    // AckBehavior.NoAck - no acks, messages are not acknowledged [default]
-    // AckBehavior.AckAll - one message ack, all messages are acknowledged, acked by source on checkpoints
-    // AckBehavior.AllButDoNotAck - Ack policy with all but acking is left to the user
-    // AckBehavior.ExplicitButDoNotAck - explicit acks, messages must be acknowledged explicitly
+    // AckBehavior for the source, the behavior that the source will use to acknowledge messages.
+    // For this example we recommend only 2 of the 4 behaviors since they are the most likely
+    // desired behaviors. For the other behaviors, see the JetStreamDoNotAckExample.
+    // AckBehavior.NoAck - Ordered consumer used, no acks, messages are not acknowledged.
+    //                     This is the default if no behavior is set.
+    // AckBehavior.AckAll - Consumer uses AckPolicy.All. Messages are tracked as they are sourced
+    //                      and the last one is acked at checkpoint
     // ------------------------------------------------------------------------------------------
     public static final AckBehavior ACK_BEHAVIOR = AckBehavior.NoAck;
 

@@ -264,7 +264,7 @@ A `JetStreamSubjectConfiguration` is created by using the JetStreamSubjectConfig
 JetStreamSubjectConfiguration subjectConfiguration = 
     JetStreamSubjectConfiguration.builder()
         ...
-        .build()
+        .build();
 ```
 
 * A configuration requires a stream name and a subject. 
@@ -272,8 +272,13 @@ JetStreamSubjectConfiguration subjectConfiguration =
 the consumption at that point in the stream. A start time can be in any format that `java.time.ZonedDateTime` can parse.
 See [ZonedDateTime.parse](https://docs.oracle.com/javase/8/docs/api/java/time/ZonedDateTime.html#parse-java.lang.CharSequence-)
 * You can specify a maximum number of messages to read. This has the effect of making the source BOUNDED.
-* You can specify "ack mode" which will ack groups of messages at checkpoints. This is significantly slower.
-You must specify ack mode to true if your stream is a work queue
+* You can specify "AckBehavior"
+    * `NoAck` - Ordered consumer used, no acks, messages are not acknowledged
+    * `AckAll` - Consumer uses AckPolicy.All. Messages are tracked as they are sourced and the last one is acked at checkpoint
+    * `AllButDoNotAck` - Consumer uses AckPolicy.All but the source does not ack at the checkpoint, leaving acking up to the user. If messages are not acked in time, they will be redelivered to the source.
+    * `ExplicitButDoNotAck` - Consumer uses AckPolicy.Explicit but the source does not ack at the checkpoint, leaving acking up to the user. If messages are not acked in time, they will be redelivered to the source.
+* You must specify AckBehavior other than `NoAck` if your stream is a work queue
+* AckBehavior other than NoAck are generally slower to process messages.
 * You can specify the consumer batch size and threshold percent if you feel you need to tune the behavior of the consumer.   
 
 The source can be configured in code or from files on JSON or YAML format. It supports these property keys:
@@ -287,7 +292,7 @@ The source can be configured in code or from files on JSON or YAML format. It su
       "start_sequence":  999,
       "start_time":  "2025-04-08T00:38:32.109526400Z",
       "max_messages_to_read": 10000,
-      "ack_mode":  false,
+      "ack_behavior":  "NoAck",
       "batch_size": 100,
       "threshold_percent": 25
     },
@@ -315,7 +320,7 @@ jetstream_subject_configurations:
   start_sequence: 999
   start_time: '2025-04-08T00:38:32.109526400Z'
   max_messages_to_read: 10000
-  ack_mode: false
+  ack_behavior: NoAck
   batch_size: 100
   threshold_percent: 25
 - stream_name: streamName
@@ -412,6 +417,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
     <version>{major.minor.patch}-SNAPSHOT</version>
 </dependency>
 ```
+
 ## License
 
 Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.

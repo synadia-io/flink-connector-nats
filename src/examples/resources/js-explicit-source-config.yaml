@@ -1,5 +1,5 @@
 ---
-source_converter_class_name: io.synadia.flink.examples.JetStreamExplicitSourceConnector
+source_converter_class_name: io.synadia.flink.examples.do_not_ack.JetStreamDoNotAckSourceConverter
 jetstream_subject_configurations: 
   - stream_name: source-b
     subject: ub1
@@ -16,4 +16,3 @@ jetstream_subject_configurations:
   - stream_name: source-b
     subject: ub2
     ack_behavior: ExplicitButDoNotAck
-
