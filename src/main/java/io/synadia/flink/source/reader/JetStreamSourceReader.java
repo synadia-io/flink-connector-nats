@@ -35,7 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * INTERNAL CLASS SUBJECT TO CHANGE
  */
 @Internal
-public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
+public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
     private final boolean bounded;
@@ -43,7 +43,6 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
-    private final CompletableFuture<Void> availableFuture;
     private final ExecutorService scheduler;
     private final ReentrantLock connectionLock;
 
@@ -64,7 +63,6 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
 
         splitMap = new HashMap<>();
         queue = new FutureCompletingBlockingQueue<>();
-        availableFuture = CompletableFuture.completedFuture(null);
         scheduler = Executors.newCachedThreadPool();
     }
 
@@ -111,13 +109,16 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
                 // so only say END_OF_INPUT if all are done
                 readerSplit.done();
                 if (--activeSplits < 1) {
-                    availableFuture.complete(null);
                     return InputStatus.END_OF_INPUT;
                 }
             }
         }
 
-        return queue.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+        // 1. This just is faster than checking the queue size as the queue size check locks
+        // 2. It might give false positives, but that's fine
+        return queue.getAvailabilityFuture() == FutureCompletingBlockingQueue.AVAILABLE
+            ? InputStatus.MORE_AVAILABLE
+            : InputStatus.NOTHING_AVAILABLE;
     }
 
     @Override
@@ -132,7 +133,7 @@ public class  JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Je
 
     @Override
     public CompletableFuture<Void> isAvailable() {
-        return availableFuture.isDone() ? availableFuture : queue.getAvailabilityFuture();
+        return queue.getAvailabilityFuture();
     }
 
     @Override
