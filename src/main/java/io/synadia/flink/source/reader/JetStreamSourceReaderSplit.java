@@ -44,7 +44,9 @@ public class JetStreamSourceReaderSplit {
     }
 
     public void takeSnapshot(long checkpointId) {
-        snapshots.put(checkpointId, new Snapshot(split));
+        if (split.lastEmittedStreamSequence.get() != -1) {
+            snapshots.put(checkpointId, new Snapshot(split));
+        }
     }
 
     public Snapshot removeSnapshot(long checkpointId) {
