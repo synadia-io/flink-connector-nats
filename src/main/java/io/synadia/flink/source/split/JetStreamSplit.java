@@ -23,15 +23,15 @@ import static io.synadia.flink.utils.Constants.*;
  */
 @Internal
 public class JetStreamSplit implements SourceSplit, JsonSerializable {
-    public final AtomicReference<String> lastEmittedMessageReplyTo;
     public final AtomicLong lastEmittedStreamSequence;
+    public final AtomicReference<String> lastEmittedMessageReplyTo;
     public final AtomicLong emittedCount;
     public final AtomicBoolean finished;
     public final JetStreamSubjectConfiguration subjectConfig;
 
     public JetStreamSplit(JetStreamSubjectConfiguration subjectConfig){
-        lastEmittedMessageReplyTo = new AtomicReference<>();
         lastEmittedStreamSequence = new AtomicLong(-1);
+        lastEmittedMessageReplyTo = new AtomicReference<>();
         emittedCount = new AtomicLong(0);
         finished = new AtomicBoolean(false);
         this.subjectConfig = subjectConfig;
@@ -40,8 +40,8 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
     public JetStreamSplit(String json) {
         try {
             JsonValue jv = JsonParser.parse(json);
-            lastEmittedMessageReplyTo = new AtomicReference<>(JsonValueUtils.readString(jv, LAST_REPLY_TO));
             lastEmittedStreamSequence = new AtomicLong(JsonValueUtils.readLong(jv, LAST_EMITTED_SEQ, -1));
+            lastEmittedMessageReplyTo = new AtomicReference<>(JsonValueUtils.readString(jv, LAST_REPLY_TO));
             emittedCount = new AtomicLong(JsonValueUtils.readLong(jv, MESSAGES, 0));
             finished = new AtomicBoolean(JsonValueUtils.readBoolean(jv, FINISHED, false));
             JsonValue jcConfig = JsonValueUtils.readObject(jv, SUBJECT_CONFIG);
@@ -55,8 +55,8 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
     @Override
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, LAST_REPLY_TO, lastEmittedMessageReplyTo.get());
         JsonUtils.addField(sb, LAST_EMITTED_SEQ, lastEmittedStreamSequence.get());
+        JsonUtils.addField(sb, LAST_REPLY_TO, lastEmittedMessageReplyTo.get());
         JsonUtils.addField(sb, MESSAGES, emittedCount.get());
         JsonUtils.addField(sb, FINISHED, finished.get());
         JsonUtils.addField(sb, SUBJECT_CONFIG, subjectConfig);
@@ -72,8 +72,8 @@ public class JetStreamSplit implements SourceSplit, JsonSerializable {
     }
 
     public long markEmitted(Message message) {
-        this.lastEmittedMessageReplyTo.set(message.getReplyTo());
         this.lastEmittedStreamSequence.set(message.metaData().streamSequence());
+        this.lastEmittedMessageReplyTo.set(message.getReplyTo());
         return emittedCount.incrementAndGet();
     }
 
