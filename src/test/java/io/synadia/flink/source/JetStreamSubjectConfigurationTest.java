@@ -397,3 +397,5 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertEquals(Boundedness.BOUNDED, config2.boundedness);
     }
 }
+
+

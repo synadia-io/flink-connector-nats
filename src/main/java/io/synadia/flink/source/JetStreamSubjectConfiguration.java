@@ -6,7 +6,6 @@ package io.synadia.flink.source;
 import io.nats.client.BaseConsumeOptions;
 import io.nats.client.ConsumeOptions;
 import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
@@ -16,7 +15,6 @@ import org.apache.flink.api.connector.source.Boundedness;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
