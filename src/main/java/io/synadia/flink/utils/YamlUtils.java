@@ -4,8 +4,10 @@
 package io.synadia.flink.utils;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Encoding;
 import org.apache.flink.annotation.Internal;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -81,6 +83,13 @@ public abstract class YamlUtils {
         if (value != null && value > 0) {
             _addField(sb, indentLevel, key, value.toString());
         }
+    }
+
+    public static void addFieldAsNanos(StringBuilder sb, int indentLevel, String key, Duration value) {
+        if (value != null && !value.isZero() && !value.isNegative()) {
+            _addField(sb, indentLevel, key, String.valueOf(value.toNanos()));
+        }
+
     }
 
     public static void addField(StringBuilder sb, int indentLevel, String key, ZonedDateTime zonedDateTime) {
@@ -174,6 +183,11 @@ public abstract class YamlUtils {
     public static long readLong(Map<String, Object> map, String key, long dflt) {
         Object o = readObject(map, key);
         return o instanceof Number ? ((Number)o).longValue() : dflt;
+    }
+
+    public static Duration readNanos(Map<String, Object> map, String key, Duration dflt) {
+        Object o = readObject(map, key);
+        return o instanceof Number ? Duration.ofNanos(((Number)o).longValue()) : dflt;
     }
 
     public static List<String> readStringList(Map<String, Object> map, String key) {
