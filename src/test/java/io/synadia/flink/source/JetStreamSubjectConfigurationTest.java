@@ -47,7 +47,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
@@ -62,7 +62,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AllButDoNotAck)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
@@ -77,7 +77,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
@@ -91,7 +91,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                     .streamName(TEST_STREAM)
                     .subject(TEST_SUBJECT)
                     .ackBehavior(AckBehavior.NoAck)
-                    .ackWait(30000) // 30 seconds
+                    .ackWait(Duration.ofSeconds(30))
                     .build();
         });
     }
@@ -102,7 +102,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.NoAck)
-                .ackWait(0)
+                .ackWait(Duration.ZERO)
                 .build();
 
         assertEquals(Duration.ZERO, config.ackWait);
@@ -115,7 +115,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(-1000)
+                .ackWait(Duration.ofMillis(-1000))
                 .build();
 
         assertEquals(Duration.ZERO, config.ackWait);
@@ -129,11 +129,12 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         String json = config.toJson();
-        assertTrue(json.contains("\"ack_wait\":" + ackWait.toMillis()));
+        System.out.println(json);
+        assertTrue(json.contains("\"ack_wait\":" + ackWait.toNanos()));
         assertTrue(json.contains("\"ack_behavior\":\"AckAll\""));
     }
 
@@ -158,11 +159,11 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         String yaml = config.toYaml(0);
-        assertTrue(yaml.contains("ack_wait: " + ackWait.toMillis()));
+        assertTrue(yaml.contains("ack_wait: " + ackWait.toNanos()));
         assertTrue(yaml.contains("ack_behavior: ExplicitButDoNotAck"));
     }
 
@@ -172,7 +173,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
                 + "\"ack_behavior\":\"AckAll\","
-                + "\"ack_wait\":45000"
+                + "\"ack_wait\":" + Duration.ofSeconds(45).toNanos()
                 + "}";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromJson(json);
@@ -189,14 +190,14 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         map.put("stream_name", TEST_STREAM);
         map.put("subject", TEST_SUBJECT);
         map.put("ack_behavior", "AllButDoNotAck");
-        map.put("ack_wait", 120000L);
+        map.put("ack_wait", Duration.ofSeconds(12).toNanos());
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
         assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
-        assertEquals(Duration.ofMinutes(2), config.ackWait);
+        assertEquals(Duration.ofSeconds(12), config.ackWait);
     }
 
     @Test
@@ -207,7 +208,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(originalAckWait.toMillis())
+                .ackWait(originalAckWait)
                 .build();
 
         JetStreamSubjectConfiguration copy = original.copy("new.subject");
@@ -226,7 +227,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
-                .ackWait(originalAckWait.toMillis())
+                .ackWait(originalAckWait)
                 .maxMessagesToRead(100)
                 .build();
 
@@ -250,14 +251,14 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .build();
 
         assertEquals(config1, config2);
@@ -270,14 +271,14 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(30000)
+                .ackWait(Duration.ofSeconds(30))
                 .build();
 
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(60000)
+                .ackWait(Duration.ofSeconds(60))
                 .build();
 
         assertNotEquals(config1, config2);
@@ -294,7 +295,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .startTime(startTime)
                 .maxMessagesToRead(1000)
                 .ackBehavior(AckBehavior.AllButDoNotAck)
-                .ackWait(ackWait.toMillis())
+                .ackWait(ackWait)
                 .batchSize(50)
                 .thresholdPercent(80)
                 .build();
