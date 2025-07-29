@@ -154,7 +154,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .batchSize(JsonValueUtils.readInteger(jv, BATCH_SIZE, -1))
             .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.valueOf(JsonValueUtils.readString(jv, ACK_BEHAVIOR, AckBehavior.NoAck.toString())))
-            .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT, Duration.ZERO))
+            .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT))
             .build();
     }
 
@@ -168,7 +168,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .batchSize(YamlUtils.readInteger(map, BATCH_SIZE, -1))
             .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR, AckPolicy.None.toString())))
-            .ackWait(YamlUtils.readNanos(map, ACK_WAIT, Duration.ZERO))
+            .ackWait(YamlUtils.readNanos(map, ACK_WAIT))
             .build();
     }
 
