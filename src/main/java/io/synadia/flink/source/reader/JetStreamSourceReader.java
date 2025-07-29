@@ -168,7 +168,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             .ackPolicy(split.subjectConfig.ackBehavior.ackPolicy)
             .filterSubject(split.subjectConfig.subject);
 
-        if (!split.subjectConfig.ackWait.isZero()) {
+        if (split.subjectConfig.ackWait != null) {
             b.ackWait(split.subjectConfig.ackWait);
         }
 

@@ -34,7 +34,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertNull(config.startTime);
         assertEquals(-1, config.maxMessagesToRead);
         assertEquals(AckBehavior.NoAck, config.ackBehavior);
-        assertEquals(Duration.ZERO, config.ackWait);
+        assertNull(config.ackWait);
         assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, config.boundedness);
         assertNull(config.deliverPolicy);
     }
@@ -70,6 +70,21 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
+    public void testAckWaitMillisWithAllButDoNotAck() {
+        Duration ackWait = Duration.ofMinutes(2);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.AllButDoNotAck)
+                .ackWait(ackWait.toMillis())
+                .build();
+
+        assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
+        assertEquals(ackWait, config.ackWait);
+    }
+
+    @Test
     public void testAckWaitWithExplicitButDoNotAck() {
         Duration ackWait = Duration.ofSeconds(45);
 
@@ -78,6 +93,21 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .ackWait(ackWait)
+                .build();
+
+        assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
+        assertEquals(ackWait, config.ackWait);
+    }
+
+    @Test
+    public void testAckWaitMillisWithExplicitButDoNotAck() {
+        Duration ackWait = Duration.ofSeconds(45);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.ExplicitButDoNotAck)
+                .ackWait(ackWait.toMillis())
                 .build();
 
         assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
@@ -97,6 +127,18 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
+    public void testAckWaitMillisWithNoAckThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            JetStreamSubjectConfiguration.builder()
+                    .streamName(TEST_STREAM)
+                    .subject(TEST_SUBJECT)
+                    .ackBehavior(AckBehavior.NoAck)
+                    .ackWait(Duration.ofSeconds(30).toMillis())
+                    .build();
+        });
+    }
+
+    @Test
     public void testAckWaitZeroValueAllowed() {
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -105,20 +147,33 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .ackWait(Duration.ZERO)
                 .build();
 
-        assertEquals(Duration.ZERO, config.ackWait);
+        assertNull(config.ackWait);
         assertEquals(AckBehavior.NoAck, config.ackBehavior);
     }
 
     @Test
-    public void testAckWaitNegativeValueBecomesZero() {
+    public void testAckWaitMillisZeroValueAllowed() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.NoAck)
+                .ackWait(Duration.ZERO.toMillis())
+                .build();
+
+        assertNull(config.ackWait);
+        assertEquals(AckBehavior.NoAck, config.ackBehavior);
+    }
+
+    @Test
+    public void testAckWaitMillisNegativeValueBecomesZero() {
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.AckAll)
-                .ackWait(Duration.ofMillis(-1000))
+                .ackWait(Duration.ofMillis(-1000).toMillis())
                 .build();
 
-        assertEquals(Duration.ZERO, config.ackWait);
+        assertNull(config.ackWait);
     }
 
     @Test

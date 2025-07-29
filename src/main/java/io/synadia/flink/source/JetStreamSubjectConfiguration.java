@@ -93,7 +93,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             JsonUtils.addField(sb, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
 
-        if (!ackWait.isZero()) {
+        if (ackWait != null) {
             JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
         }
 
@@ -179,7 +179,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
         private AckBehavior ackBehavior = AckBehavior.NoAck;
-        private Duration ackWait = Duration.ZERO;
+        private Duration ackWait;
         private int batchSize = -1;
         private int thresholdPercent = -1;
 
@@ -287,11 +287,24 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the ack wait for the consumer.
          * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * @param millis the ack wait in milliseconds
+         * @return the builder
+         */
+        public Builder ackWait(long millis) {
+            this.ackWait = millis <= 0L ? null : Duration.ofMillis(millis);;
+            return this;
+        }
+
+        /**
+         * Sets the ack wait for the consumer.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
          * @param ackWait the ack wait in Duration
          * @return the builder
          */
         public Builder ackWait(Duration ackWait) {
-            if (ackWait != null && !ackWait.isZero() && !ackWait.isNegative()) {
+            if (ackWait == null || ackWait.isZero() || ackWait.isNegative()) {
+                this.ackWait = null;
+            } else {
                 this.ackWait = ackWait;
             }
 
@@ -339,7 +352,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 throw new IllegalArgumentException("Stream name is required.");
             }
 
-            if (ackBehavior == AckBehavior.NoAck && !ackWait.isZero()) {
+            if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
                 throw new IllegalArgumentException("ackWait cannot be set when ackBehavior is NoAck.");
             }
 

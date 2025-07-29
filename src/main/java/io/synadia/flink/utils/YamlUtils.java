@@ -185,9 +185,14 @@ public abstract class YamlUtils {
         return o instanceof Number ? ((Number)o).longValue() : dflt;
     }
 
+    public static Duration readNanos(Map<String, Object> map, String key) {
+        Long l = readLong(map, key);
+        return l == null? null : Duration.ofNanos(l);
+    }
+
     public static Duration readNanos(Map<String, Object> map, String key, Duration dflt) {
-        Object o = readObject(map, key);
-        return o instanceof Number ? Duration.ofNanos(((Number)o).longValue()) : dflt;
+        Long l = readLong(map, key);
+        return l == null ? dflt : Duration.ofNanos(l);
     }
 
     public static List<String> readStringList(Map<String, Object> map, String key) {
