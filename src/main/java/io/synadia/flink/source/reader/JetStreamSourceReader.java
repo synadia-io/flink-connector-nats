@@ -168,6 +168,10 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             .ackPolicy(split.subjectConfig.ackBehavior.ackPolicy)
             .filterSubject(split.subjectConfig.subject);
 
+        if (split.subjectConfig.ackWait != null) {
+            b.ackWait(split.subjectConfig.ackWait);
+        }
+
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
             b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);

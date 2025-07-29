@@ -13,6 +13,7 @@ import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +38,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
     public final AckBehavior ackBehavior;
+    public final Duration ackWait;
     public final SerializableConsumeOptions serializableConsumeOptions;
 
     public final Boundedness boundedness;
@@ -50,6 +52,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
         ackBehavior = Objects.requireNonNullElse(b.ackBehavior, AckBehavior.NoAck);
+        ackWait = b.ackWait;
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
         deliverPolicy = startSequence != -1
@@ -64,6 +67,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             startTime,
             maxMessagesToRead,
             ackBehavior,
+            ackWait,
             serializableConsumeOptions.getConsumeOptions().toJson()
         );
     }
@@ -88,6 +92,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
             JsonUtils.addField(sb, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
+
+        if (ackWait != null) {
+            JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
+        }
+
         return endJson(sb).toString();
     }
 
@@ -110,6 +119,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
             YamlUtils.addField(sb, indentLevel, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
+
+        if (ackWait != null) {
+            YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
+        }
+
         return sb.toString();
     }
 
@@ -140,6 +154,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .batchSize(JsonValueUtils.readInteger(jv, BATCH_SIZE, -1))
             .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.valueOf(JsonValueUtils.readString(jv, ACK_BEHAVIOR, AckBehavior.NoAck.toString())))
+            .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT))
             .build();
     }
 
@@ -153,6 +168,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .batchSize(YamlUtils.readInteger(map, BATCH_SIZE, -1))
             .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR, AckPolicy.None.toString())))
+            .ackWait(YamlUtils.readNanos(map, ACK_WAIT))
             .build();
     }
 
@@ -163,6 +179,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
         private AckBehavior ackBehavior = AckBehavior.NoAck;
+        private Duration ackWait;
         private int batchSize = -1;
         private int thresholdPercent = -1;
 
@@ -177,6 +194,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 .startTime(config.startTime)
                 .maxMessagesToRead(config.maxMessagesToRead)
                 .ackBehavior(config.ackBehavior)
+                .ackWait(config.ackWait)
                 .batchSize(config.serializableConsumeOptions.getConsumeOptions().getBatchSize())
                 .thresholdPercent(config.serializableConsumeOptions.getConsumeOptions().getThresholdPercent());
         }
@@ -267,6 +285,33 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         }
 
         /**
+         * Sets the ack wait for the consumer.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * @param millis the ack wait in milliseconds
+         * @return the builder
+         */
+        public Builder ackWait(long millis) {
+            this.ackWait = millis <= 0L ? null : Duration.ofMillis(millis);;
+            return this;
+        }
+
+        /**
+         * Sets the ack wait for the consumer.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * @param ackWait the ack wait in Duration
+         * @return the builder
+         */
+        public Builder ackWait(Duration ackWait) {
+            if (ackWait == null || ackWait.isZero() || ackWait.isNegative()) {
+                this.ackWait = null;
+            } else {
+                this.ackWait = ackWait;
+            }
+
+            return this;
+        }
+
+        /**
          * Sets the ack policy None for the consumer.
          * @return the builder
          */
@@ -305,6 +350,10 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             }
             if (MiscUtils.notProvided(streamName)) {
                 throw new IllegalArgumentException("Stream name is required.");
+            }
+
+            if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
+                throw new IllegalArgumentException("ackWait cannot be set when ackBehavior is NoAck.");
             }
 
             ConsumeOptions co = batchSize == -1 && thresholdPercent == -1

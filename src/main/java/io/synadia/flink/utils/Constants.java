@@ -28,6 +28,7 @@ public interface Constants {
     String START_TIME = "start_time";
     String MAX_MESSAGES_TO_READ = "max_messages_to_read";
     String ACK_BEHAVIOR = "ack_behavior";
+    String ACK_WAIT = "ack_wait";
     String BATCH_SIZE = "batch_size";
     String THRESHOLD_PERCENT = "threshold_percent";
 
