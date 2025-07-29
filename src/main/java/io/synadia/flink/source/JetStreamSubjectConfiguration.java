@@ -120,7 +120,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             YamlUtils.addField(sb, indentLevel, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
 
-        if (!ackWait.isZero()) {
+        if (ackWait != null) {
             YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
         }
 
