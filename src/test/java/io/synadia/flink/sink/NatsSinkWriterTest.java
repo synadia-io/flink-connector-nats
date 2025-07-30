@@ -39,31 +39,29 @@ class NatsSinkWriterTest extends TestBase {
      */
     @Test
     void writeMultipleSubjectsAndPublish() throws Exception {
-        runInServer((nc, url) -> {
-            String subject1 = subject();
-            String subject2 = subject();
-            List<String> subjects = Arrays.asList(subject1, subject2);
+        String subject1 = subject();
+        String subject2 = subject();
+        List<String> subjects = Arrays.asList(subject1, subject2);
 
-            Subscription sub1 = nc.subscribe(subject1);
-            Subscription sub2 = nc.subscribe(subject2);
-            nc.flush(Duration.ofSeconds(1));
+        Subscription sub1 = nc.subscribe(subject1);
+        Subscription sub2 = nc.subscribe(subject2);
+        nc.flush(Duration.ofSeconds(1));
 
-            NatsSinkWriter<String> writer = createWriter(url, subjects);
-            String testMessage = "Hello NATS!";
+        NatsSinkWriter<String> writer = createWriter(url, subjects);
+        String testMessage = "Hello NATS!";
 
-            writer.write(testMessage, mock(SinkWriter.Context.class));
-            writer.flush(false);
+        writer.write(testMessage, mock(SinkWriter.Context.class));
+        writer.flush(false);
 
-            Message msg1 = sub1.nextMessage(Duration.ofSeconds(1));
-            Message msg2 = sub2.nextMessage(Duration.ofSeconds(1));
+        Message msg1 = sub1.nextMessage(Duration.ofSeconds(1));
+        Message msg2 = sub2.nextMessage(Duration.ofSeconds(1));
 
-            assertNotNull(msg1, "Message should be received on subject1");
-            assertNotNull(msg2, "Message should be received on subject2");
-            assertEquals(testMessage, new String(msg1.getData()));
-            assertEquals(testMessage, new String(msg2.getData()));
+        assertNotNull(msg1, "Message should be received on subject1");
+        assertNotNull(msg2, "Message should be received on subject2");
+        assertEquals(testMessage, new String(msg1.getData()));
+        assertEquals(testMessage, new String(msg2.getData()));
 
-            writer.close();
-        });
+        writer.close();
     }
 
     /**

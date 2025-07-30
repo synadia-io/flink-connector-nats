@@ -67,6 +67,7 @@ class JetStreamSourceBuilderTest extends TestBase {
             validateSourceFileConstruction(jsonSource, manualSource);
         }
         else if (which.equals("Endless")) {
+            //noinspection deprecation
             JetStreamSource<String> manualSource = new JetStreamSourceBuilder<String>()
                 .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
                 .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)

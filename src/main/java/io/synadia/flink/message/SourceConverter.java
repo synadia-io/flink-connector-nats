@@ -17,6 +17,7 @@ import java.io.Serializable;
 public interface SourceConverter<OutputT> extends Serializable, ResultTypeQueryable<OutputT> {
     /**
      * Read a message and to create an instance of the output type.
+     * @param message the message
      * @return the output object
      */
     OutputT convert(Message message);

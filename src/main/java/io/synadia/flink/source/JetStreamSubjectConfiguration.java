@@ -5,7 +5,6 @@ package io.synadia.flink.source;
 
 import io.nats.client.BaseConsumeOptions;
 import io.nats.client.ConsumeOptions;
-import io.nats.client.api.AckPolicy;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
@@ -16,7 +15,6 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.nats.client.BaseConsumeOptions.DEFAULT_MESSAGE_COUNT;
 import static io.nats.client.BaseConsumeOptions.DEFAULT_THRESHOLD_PERCENT;
@@ -51,7 +49,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
-        ackBehavior = Objects.requireNonNullElse(b.ackBehavior, AckBehavior.NoAck);
+        ackBehavior = b.ackBehavior;
         ackWait = b.ackWait;
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
@@ -68,7 +66,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             maxMessagesToRead,
             ackBehavior,
             ackWait,
-            serializableConsumeOptions.getConsumeOptions().toJson()
+            serializableConsumeOptions.getConsumeOptions()
         );
     }
 
@@ -80,21 +78,15 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
-
-        if (ackBehavior != AckBehavior.NoAck) {
-            JsonUtils.addField(sb, ACK_BEHAVIOR, ackBehavior.toString());
-        }
+        JsonUtils.addEnumWhenNot(sb, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
+        JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
-            JsonUtils.addField(sb, BATCH_SIZE, co.getBatchSize());
+            JsonUtils.addFieldWhenGtZero(sb, BATCH_SIZE, co.getBatchSize());
         }
         if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
-            JsonUtils.addField(sb, THRESHOLD_PERCENT, co.getThresholdPercent());
-        }
-
-        if (ackWait != null) {
-            JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
+            JsonUtils.addFieldWhenGtZero(sb, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
 
         return endJson(sb).toString();
@@ -107,21 +99,15 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
-
-        if (ackBehavior != AckBehavior.NoAck) {
-            YamlUtils.addField(sb, indentLevel, ACK_BEHAVIOR, ackBehavior.toString());
-        }
+        YamlUtils.addEnumWhenNot(sb, indentLevel, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
+        YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
             YamlUtils.addFieldGtZero(sb, indentLevel, BATCH_SIZE, co.getBatchSize());
         }
         if (co.getThresholdPercent() != DEFAULT_THRESHOLD_PERCENT) {
-            YamlUtils.addField(sb, indentLevel, THRESHOLD_PERCENT, co.getThresholdPercent());
-        }
-
-        if (ackWait != null) {
-            YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
+            YamlUtils.addFieldGtZero(sb, indentLevel, THRESHOLD_PERCENT, co.getThresholdPercent());
         }
 
         return sb.toString();
@@ -153,7 +139,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
             .batchSize(JsonValueUtils.readInteger(jv, BATCH_SIZE, -1))
             .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
-            .ackBehavior(AckBehavior.valueOf(JsonValueUtils.readString(jv, ACK_BEHAVIOR, AckBehavior.NoAck.toString())))
+            .ackBehavior(AckBehavior.get(JsonValueUtils.readString(jv, ACK_BEHAVIOR)))
             .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT))
             .build();
     }
@@ -167,7 +153,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
             .batchSize(YamlUtils.readInteger(map, BATCH_SIZE, -1))
             .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
-            .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR, AckPolicy.None.toString())))
+            .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR)))
             .ackWait(YamlUtils.readNanos(map, ACK_WAIT))
             .build();
     }
@@ -277,46 +263,12 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Set the maximum number of messages to read.
          * This makes this configuration Boundedness BOUNDED if the value is greater than zero.
+         * @param maxMessagesToRead set the bound of max messages to read
          * @return the builder
          */
         public Builder maxMessagesToRead(long maxMessagesToRead) {
             this.maxMessagesToRead = maxMessagesToRead < 1 ? -1 : maxMessagesToRead;
             return this;
-        }
-
-        /**
-         * Sets the ack wait for the consumer.
-         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
-         * @param millis the ack wait in milliseconds
-         * @return the builder
-         */
-        public Builder ackWait(long millis) {
-            this.ackWait = millis <= 0L ? null : Duration.ofMillis(millis);;
-            return this;
-        }
-
-        /**
-         * Sets the ack wait for the consumer.
-         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
-         * @param ackWait the ack wait in Duration
-         * @return the builder
-         */
-        public Builder ackWait(Duration ackWait) {
-            if (ackWait == null || ackWait.isZero() || ackWait.isNegative()) {
-                this.ackWait = null;
-            } else {
-                this.ackWait = ackWait;
-            }
-
-            return this;
-        }
-
-        /**
-         * Sets the ack policy None for the consumer.
-         * @return the builder
-         */
-        public Builder ackBehavior() {
-            return ackBehavior(AckBehavior.NoAck);
         }
 
         /**
@@ -334,13 +286,64 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         }
 
         /**
+         * Sets the ack wait for the consumer.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * @param ackWaitMillis the ack wait in milliseconds
+         * @return the builder
+         */
+        public Builder ackWait(long ackWaitMillis) {
+            this.ackWait = ackWaitMillis <= 0L ? null : Duration.ofMillis(ackWaitMillis);;
+            return this;
+        }
+
+        /**
+         * Sets the ack wait for the consumer.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * @param ackWait the ack wait in Duration
+         * @return the builder
+         */
+        public Builder ackWait(Duration ackWait) {
+            if (ackWait == null || ackWait.isZero() || ackWait.isNegative()) {
+                this.ackWait = null;
+            }
+            else {
+                this.ackWait = ackWait;
+            }
+
+            return this;
+        }
+
+        /**
          * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
-         * ackMode false sets the policy to AckBehavior.NoAck.
-         * ackMode true sets the policy to AckBehavior.All
+         * This sets the AckBehavior to AckBehavior.All
+         * @return the builder
+         */
+        @Deprecated
+        public Builder ackMode() {
+            this.ackBehavior = AckBehavior.AckAll;
+            return this;
+        }
+
+        /**
+         /**
+         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
+         * @param ackMode false sets the policy to AckBehavior.NoAck. true sets the policy to AckBehavior.All
+         * @return the builder
          */
         @Deprecated
         public Builder ackMode(boolean ackMode) {
             this.ackBehavior = ackMode ? AckBehavior.AckAll : AckBehavior.NoAck;
+            return this;
+        }
+
+        /**
+         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
+         * Sets the ack policy None for the consumer.
+         * @return the builder
+         */
+        @Deprecated
+        public Builder ackBehavior() {
+            this.ackBehavior = AckBehavior.NoAck;
             return this;
         }
 
@@ -351,9 +354,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             if (MiscUtils.notProvided(streamName)) {
                 throw new IllegalArgumentException("Stream name is required.");
             }
-
             if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
-                throw new IllegalArgumentException("ackWait cannot be set when ackBehavior is NoAck.");
+                throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
             }
 
             ConsumeOptions co = batchSize == -1 && thresholdPercent == -1

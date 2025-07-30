@@ -59,6 +59,10 @@ public class ConnectionFactory implements Serializable {
     }
 
     private static JetStreamOptions getJetStreamOptions(Properties props) {
+        if (props == null) {
+            return JetStreamOptions.DEFAULT_JS_OPTIONS;
+        }
+
         JetStreamOptions.Builder b = JetStreamOptions.builder();
         String temp = PropertiesUtils.getStringProperty(props, Constants.JSO_PREFIX);
         if (temp != null) {

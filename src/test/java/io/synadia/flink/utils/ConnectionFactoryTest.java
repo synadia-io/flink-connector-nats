@@ -6,8 +6,10 @@ package io.synadia.flink.utils;
 import io.nats.client.Connection;
 import io.nats.client.Options;
 import io.synadia.flink.TestBase;
+import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +19,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Unit test for {@link ConnectionFactory}. */
+@Isolated
 class ConnectionFactoryTest extends TestBase {
 
     /**
@@ -29,19 +31,18 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectWithValidPropertiesShouldEstablishConnection() throws Exception {
-        runInServer((nc, url) -> {
-            ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
-            Connection connection = null;
-            try {
-                connection = factory.connect();
-                assertNotNull(connection);
-                assertSame(Connection.Status.CONNECTED, connection.getStatus());
-            } finally {
-                if (connection != null) {
-                    connection.close();
-                }
+        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
+        Connection connection = null;
+        try {
+            connection = factory.connect();
+            assertNotNull(connection);
+            assertSame(Connection.Status.CONNECTED, connection.getStatus());
+        }
+        finally {
+            if (connection != null) {
+                connection.close();
             }
-        });
+        }
     }
 
     /**
@@ -53,23 +54,22 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectWithValidPropertiesFileShouldEstablishConnection() throws Exception {
-        runInServer((nc, url) -> {
-            String propsFile = createTempPropertiesFile(defaultConnectionProperties(url));
+        String propsFile = createTempPropertiesFile(defaultConnectionProperties(url));
 
-            ConnectionFactory factory = new ConnectionFactory(propsFile);
-            assertEquals(propsFile, factory.getConnectionPropertiesFile());
+        ConnectionFactory factory = new ConnectionFactory(propsFile);
+        assertEquals(propsFile, factory.getConnectionPropertiesFile());
 
-            Connection connection = null;
-            try {
-                connection = factory.connect();
-                assertNotNull(connection);
-                assertSame(Connection.Status.CONNECTED, connection.getStatus());
-            } finally {
-                if (connection != null) {
-                    connection.close();
-                }
+        Connection connection = null;
+        try {
+            connection = factory.connect();
+            assertNotNull(connection);
+            assertSame(Connection.Status.CONNECTED, connection.getStatus());
+        }
+        finally {
+            if (connection != null) {
+                connection.close();
             }
-        });
+        }
     }
 
     /**
@@ -82,22 +82,21 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectionContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
-        runInServer(true, (nc, url) -> {
-            ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
-            ConnectionContext context = null;
-            try {
-                context = factory.getConnectionContext();
-                assertNotNull(context);
-                assertNotNull(context.js);
-                assertNotNull(context.jsm);
-                ConnectionContext finalContext = context;
-                assertDoesNotThrow(() -> finalContext.jsm.getStreams(), "JetStream operation should not throw an exception");
-            } finally {
-                if (context != null) {
-                    context.connection.close();
-                }
+        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
+        ConnectionContext context = null;
+        try {
+            context = factory.getConnectionContext();
+            assertNotNull(context);
+            assertNotNull(context.js);
+            assertNotNull(context.jsm);
+            ConnectionContext finalContext = context;
+            assertDoesNotThrow(() -> finalContext.jsm.getStreams(), "JetStream operation should not throw an exception");
+        }
+        finally {
+            if (context != null) {
+                context.connection.close();
             }
-        });
+        }
     }
 
     /**
@@ -133,20 +132,17 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testGetConnectionPropertiesWhenModifiedShouldNotAffectOriginal() throws Exception {
-        runInServer((nc, url) -> {
-            Properties originalProps = defaultConnectionProperties(url);
-            ConnectionFactory factory = new ConnectionFactory(originalProps);
+        Properties originalProps = defaultConnectionProperties(url);
+        ConnectionFactory factory = new ConnectionFactory(originalProps);
 
-            Properties returnedProps = factory.getConnectionProperties();
-            assertNotNull(returnedProps);
-            assertNotSame(originalProps, returnedProps);
+        Properties returnedProps = factory.getConnectionProperties();
+        assertNotNull(returnedProps);
+        assertNotSame(originalProps, returnedProps);
 
-            // Modify returned properties
-            returnedProps.setProperty("new.property", "value");
-            assertNull(originalProps.getProperty("new.property"));
-        });
+        // Modify returned properties
+        returnedProps.setProperty("new.property", "value");
+        assertNull(originalProps.getProperty("new.property"));
     }
-
 
     /**
      * Tests serialization/deserialization of ConnectionFactory.
@@ -158,22 +154,68 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
-        runInServer((nc, url) -> {
-            Properties props = defaultConnectionProperties(url);
-            ConnectionFactory originalFactory = new ConnectionFactory(props);
+        Properties props = defaultConnectionProperties(url);
+        ConnectionFactory originalFactory = new ConnectionFactory(props);
 
-            // Create multiple deserialized instances
-            ConnectionFactory deserialized = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
-            assertNotNull(deserialized);
+        // Create multiple deserialized instances
+        ConnectionFactory deserialized = (ConnectionFactory) javaSerializeDeserializeObject(originalFactory);
+        assertNotNull(deserialized);
 
-            // Verify each instance can create valid connections
-            for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {
-                try (Connection connection = factory.connect()) {
-                    assertNotNull(connection);
-                    assertSame(Connection.Status.CONNECTED, connection.getStatus());
-                }
+        // Verify each instance can create valid connections
+        for (ConnectionFactory factory : Arrays.asList(originalFactory, deserialized)) {
+            try (Connection connection = factory.connect()) {
+                assertNotNull(connection);
+                assertSame(Connection.Status.CONNECTED, connection.getStatus());
             }
-        });
+        }
+    }
+
+    @Test
+    void testCoverage() throws IOException {
+        try (NatsServerRunner runner = new NatsServerRunner(4222, false))
+        {
+            ConnectionFactory factory1 = new ConnectionFactory((Properties)null);
+            assertEquals("connectionProperties=null", factory1.toString()); // coverage
+            try (Connection conn = factory1.connect()) {
+                assertEquals(4222, conn.getServerInfo().getPort());
+            }
+            ConnectionFactory factory2 = factory1;
+            assertEquals(factory1, factory2);
+            assertEquals(factory1.hashCode(), factory2.hashCode());
+
+            factory2 = new ConnectionFactory((String)null);
+            try (Connection conn = factory2.connect()) {
+                assertEquals(4222, conn.getServerInfo().getPort());
+            }
+            assertEquals(factory1, factory2);
+
+            Properties p = new Properties();
+            p.setProperty("jso_prefix", "jso_prefix_value");
+            ConnectionFactory factory3 = new ConnectionFactory(p);
+            assertNotEquals(factory1, factory3);
+            assertNotEquals(factory1.hashCode(), factory3.hashCode());
+            assertNotNull(factory3.getConnectionProperties());
+            assertNotNull(factory3.toString());
+
+            factory3.getConnectionContext(); // COVERAGE uses jso properties
+
+            p.remove("jso_prefix");
+            p.setProperty("jso_domain", "jso_domain_value");
+            factory3 = new ConnectionFactory(p);
+            factory3.getConnectionContext(); // COVERAGE uses jso properties
+
+            ConnectionFactory factory4 = new ConnectionFactory("connectionPropertiesFile");
+            assertNotEquals(factory1, factory4);
+            assertNotEquals(factory1.hashCode(), factory4.hashCode());
+            assertNull(factory4.getConnectionProperties());
+            assertNotNull(factory4.toString());
+
+            //noinspection EqualsBetweenInconvertibleTypes,SimplifiableAssertion
+            assertFalse(factory1.equals("blah")); // COVERAGE
+        }
+        catch (Exception fail) {
+            fail();
+        }
     }
 
     /**

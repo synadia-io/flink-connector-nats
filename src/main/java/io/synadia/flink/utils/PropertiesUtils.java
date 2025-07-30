@@ -19,6 +19,8 @@ import static io.synadia.flink.utils.MiscUtils.getInputStream;
  */
 @Internal
 public abstract class PropertiesUtils {
+    private PropertiesUtils() {} /* ensures cannot be constructed */
+
     /**
      * Create and load a Properties object from a file.
      * @param propertiesFilePath a resolvable path to a file from the location the application is running, either relative or absolute
@@ -32,7 +34,7 @@ public abstract class PropertiesUtils {
     }
 
     /**
-     * Get a list for a key in the properties. Value should be comma delimited, i.e. a,b,c
+     * Get a list for a key in the properties. Value should be comma-delimited, i.e. a,b,c
      * The method returns an empty list if the property is not found.
      * @param properties the properties object
      * @param key the property key
@@ -104,7 +106,10 @@ public abstract class PropertiesUtils {
      */
     public static boolean getBooleanProperty(Properties properties, String key, boolean dflt) {
         String temp = getStringProperty(properties, key);
-        return "true".equalsIgnoreCase(temp) || "t".equalsIgnoreCase(temp) || "1".equals(temp) || dflt;
+        if (temp == null) {
+            return dflt;
+        }
+        return "true".equalsIgnoreCase(temp) || "t".equalsIgnoreCase(temp) || "1".equals(temp);
     }
 
     /**

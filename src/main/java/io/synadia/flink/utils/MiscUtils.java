@@ -4,6 +4,7 @@
 package io.synadia.flink.utils;
 
 import io.nats.client.NUID;
+import io.nats.client.support.JsonSerializable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,6 +33,8 @@ public abstract class MiscUtils {
 
     public static final String SEP = "--";
     public static final String NULL_SEGMENT = "na";
+
+    private MiscUtils() {} /* ensures cannot be constructed */
 
     /**
      * Current version of the library
@@ -123,9 +126,11 @@ public abstract class MiscUtils {
             if (o == null) {
                 sb.append(NULL_SEGMENT);
             }
+            else if (o instanceof JsonSerializable) {
+                sb.append(((JsonSerializable)o).toJson());
+            }
             else if (o instanceof ZonedDateTime) {
-                ZonedDateTime zdt = (ZonedDateTime)o;
-                sb.append(zdt.toEpochSecond());
+                sb.append(((ZonedDateTime)o).toEpochSecond());
             }
             else {
                 sb.append(o);

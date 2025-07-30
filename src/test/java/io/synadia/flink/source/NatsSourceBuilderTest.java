@@ -6,14 +6,17 @@ package io.synadia.flink.source;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.message.Utf8StringSourceConverter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import static io.synadia.flink.utils.Constants.UTF8_STRING_SOURCE_CONVERTER_CLASSNAME;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Unit test for {@link NatsSourceBuilder}. */
+@Isolated
 class NatsSourceBuilderTest extends TestBase {
 
     /**
@@ -36,17 +39,15 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testBuildWithMinimumRequiredSettings() throws Exception {
-        runInServer((nc, url) -> {
-            String subject = subject();
+        String subject = subject();
 
-            NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject)
-                .sourceConverter(new Utf8StringSourceConverter())
-                .connectionProperties(defaultConnectionProperties(url))
-                .build();
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .subjects(subject)
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(url))
+            .build();
 
-            assertNotNull(source, "Built source should not be null");
-        });
+        assertNotNull(source, "Built source should not be null");
     }
 
     /**
@@ -76,40 +77,38 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testSourceProperties_WithValidConfiguration() throws Exception {
-        runInServer((nc, url) -> {
-            Properties connectionProperties = defaultConnectionProperties(url);
-            String subject = subject();
+        Properties connectionProperties = defaultConnectionProperties(url);
+        String subject = subject();
 
-            NatsSource<String> source = new NatsSourceBuilder<String>()
-                .connectionProperties(connectionProperties)
-                .subjects(subject)
-                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
-                .build();
-            assertNotNull(source);
-            assertEquals(1, source.subjects.size());
-            assertEquals(subject, source.subjects.get(0));
-            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .connectionProperties(connectionProperties)
+            .subjects(subject)
+            .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
+            .build();
+        assertNotNull(source);
+        assertEquals(1, source.subjects.size());
+        assertEquals(subject, source.subjects.get(0));
+        assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
 
-            String propsFile = writeToTempFile("test", "yaml", source.toYaml());
-            source = new NatsSourceBuilder<String>()
-                .connectionProperties(connectionProperties)
-                .yamlConfigFile(propsFile)
-                .build();
-            assertNotNull(source);
-            assertEquals(1, source.subjects.size());
-            assertEquals(subject, source.subjects.get(0));
-            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
+        String propsFile = writeToTempFile("test", "yaml", source.toYaml());
+        source = new NatsSourceBuilder<String>()
+            .connectionProperties(connectionProperties)
+            .yamlConfigFile(propsFile)
+            .build();
+        assertNotNull(source);
+        assertEquals(1, source.subjects.size());
+        assertEquals(subject, source.subjects.get(0));
+        assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
 
-            propsFile = writeToTempFile("test", "json", source.toJson());
-            source = new NatsSourceBuilder<String>()
-                .connectionProperties(connectionProperties)
-                .jsonConfigFile(propsFile)
-                .build();
-            assertNotNull(source);
-            assertEquals(1, source.subjects.size());
-            assertEquals(subject, source.subjects.get(0));
-            assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
-        });
+        propsFile = writeToTempFile("test", "json", source.toJson());
+        source = new NatsSourceBuilder<String>()
+            .connectionProperties(connectionProperties)
+            .jsonConfigFile(propsFile)
+            .build();
+        assertNotNull(source);
+        assertEquals(1, source.subjects.size());
+        assertEquals(subject, source.subjects.get(0));
+        assertEquals(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME, getClassName(source.sourceConverter));
     }
 
     /**
@@ -139,28 +138,26 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testBuild_WithInvalidInputs() throws Exception {
-        runInServer((nc, url) -> {
-            Properties props = defaultConnectionProperties(url);
+        Properties props = defaultConnectionProperties(url);
 
-            // Test empty subjects
-            IllegalArgumentException emptySubjectsEx = assertThrows(
-                IllegalArgumentException.class,
-                () -> new NatsSourceBuilder<String>()
-                    .sourceConverter(new Utf8StringSourceConverter())
-                    .connectionProperties(defaultConnectionProperties(url))
-                    .build()
-            );
+        // Test empty subjects
+        IllegalArgumentException emptySubjectsEx = assertThrows(
+            IllegalArgumentException.class,
+            () -> new NatsSourceBuilder<String>()
+                .sourceConverter(new Utf8StringSourceConverter())
+                .connectionProperties(defaultConnectionProperties(url))
+                .build()
+        );
 
-            // Test null subjects
-            IllegalArgumentException nullSubjectsEx = assertThrows(
-                IllegalArgumentException.class,
-                () -> new NatsSourceBuilder<String>()
-                    .subjects((String[])null)
-                    .sourceConverter(new Utf8StringSourceConverter())
-                    .connectionProperties(props)
-                    .build()
-            );
-        });
+        // Test null subjects
+        IllegalArgumentException nullSubjectsEx = assertThrows(
+            IllegalArgumentException.class,
+            () -> new NatsSourceBuilder<String>()
+                .subjects((String[]) null)
+                .sourceConverter(new Utf8StringSourceConverter())
+                .connectionProperties(props)
+                .build()
+        );
     }
 
     /**
@@ -187,24 +184,22 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testBuilderMethods_ReturnSameInstance() throws Exception {
-        runInServer((nc, url) -> {
-            String subject = subject();
-            Properties props = defaultConnectionProperties(url);
+        String subject = subject();
+        Properties props = defaultConnectionProperties(url);
 
-            NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>();
+        NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>();
 
-            // Test that each method returns the same builder instance
-            assertSame(builder, builder.subjects(subject),
-                "subjects() should return same builder instance");
-            assertSame(builder, builder.sourceConverter(new Utf8StringSourceConverter()),
-                "sourceConverter() should return same builder instance");
-            assertSame(builder, builder.connectionProperties(props),
-                "connectionProperties() should return same builder instance");
+        // Test that each method returns the same builder instance
+        assertSame(builder, builder.subjects(subject),
+            "subjects() should return same builder instance");
+        assertSame(builder, builder.sourceConverter(new Utf8StringSourceConverter()),
+            "sourceConverter() should return same builder instance");
+        assertSame(builder, builder.connectionProperties(props),
+            "connectionProperties() should return same builder instance");
 
-            // Test that chained configuration works
-            NatsSource<String> source = builder.build();
-            assertNotNull(source, "Source built with chained methods should not be null");
-        });
+        // Test that chained configuration works
+        NatsSource<String> source = builder.build();
+        assertNotNull(source, "Source built with chained methods should not be null");
     }
 
     /**
@@ -232,17 +227,15 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testBuild_WithMessageReaderClass() throws Exception {
-        runInServer((nc, url) -> {
-            String subject = subject();
+        String subject = subject();
 
-            NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject)
-                .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
-                .connectionProperties(defaultConnectionProperties(url))
-                .build();
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .subjects(subject)
+            .sourceConverterClass(UTF8_STRING_SOURCE_CONVERTER_CLASSNAME)
+            .connectionProperties(defaultConnectionProperties(url))
+            .build();
 
-            assertNotNull(source, "Source with deserializer class should not be null");
-        });
+        assertNotNull(source, "Source with deserializer class should not be null");
     }
 
     /**
@@ -273,18 +266,46 @@ class NatsSourceBuilderTest extends TestBase {
      */
     @Test
     void testBuild_WithMultipleSubjects() throws Exception {
-        runInServer((nc, url) -> {
-            String subject1 = subject();
-            String subject2 = subject();
-            String subject3 = subject();
+        String subject1 = subject();
+        String subject2 = subject();
+        String subject3 = subject();
 
-            NatsSource<String> source = new NatsSourceBuilder<String>()
-                .subjects(subject1, subject2, subject3)
-                .sourceConverter(new Utf8StringSourceConverter())
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .subjects(subject1, subject2, subject3)
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(url))
+            .build();
+
+        assertNotNull(source, "Source with multiple subjects should not be null");
+    }
+
+    @Test
+    void testCoverage() {
+        assertThrows(IllegalArgumentException.class,
+            () -> new NatsSourceBuilder<String>()
+                .subjects("foo")
                 .connectionProperties(defaultConnectionProperties(url))
-                .build();
+                .build());
+        assertThrows(IllegalArgumentException.class,
+            () -> new NatsSourceBuilder<String>()
+                .subjects("foo")
+                .connectionProperties(defaultConnectionProperties(url))
+                .sourceConverterClass("not-a-class")
+                .build());
 
-            assertNotNull(source, "Source with multiple subjects should not be null");
-        });
+
+        // COVERAGE for no connectionProperties and subject(s) setters
+        List<String> hasNullAndEmpty = new ArrayList<>();
+        hasNullAndEmpty.add("");
+        hasNullAndEmpty.add(null);
+        new NatsSourceBuilder<String>()
+            .subjects((String)null)
+            .subjects(new String[0])
+            .subjects((List<String>)null)
+            .subjects(hasNullAndEmpty)
+            .subjects("foo")
+            .sourceConverter(new Utf8StringSourceConverter())
+            .build();
+
     }
 }

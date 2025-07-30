@@ -36,64 +36,62 @@ class JetStreamSinkWriterTest extends TestBase {
      */
     @Test
     void writeToJetStreamSubjects() throws Exception {
-        runInJsServer((nc, url) -> {
-            // Setup JetStream
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            String stream = stream();
-            String subject1 = subject();
-            String subject2 = subject();
-            List<String> subjects = Arrays.asList(subject1, subject2);
+        // Setup JetStream
+        JetStreamManagement jsm = nc.jetStreamManagement();
+        String stream = stream();
+        String subject1 = subject();
+        String subject2 = subject();
+        List<String> subjects = Arrays.asList(subject1, subject2);
 
-            // Create stream
-            StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(stream)
-                    .subjects(subjects)
-                    .storageType(StorageType.Memory)
-                    .build();
-            jsm.addStream(sc);
+        // Create stream
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .subjects(subjects)
+            .storageType(StorageType.Memory)
+            .build();
+        jsm.addStream(sc);
 
-            // Create subscriptions
-            JetStream js = nc.jetStream();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(stream).build();
-            Subscription sub1 = js.subscribe(subject1, pso);
-            Subscription sub2 = js.subscribe(subject2, pso);
-            nc.flush(Duration.ofSeconds(1));
+        // Create subscriptions
+        JetStream js = nc.jetStream();
+        PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(stream).build();
+        Subscription sub1 = js.subscribe(subject1, pso);
+        Subscription sub2 = js.subscribe(subject2, pso);
+        nc.flush(Duration.ofSeconds(1));
 
-            // Create and use writer
-            JetStreamSinkWriter<String> writer = createWriter(url, subjects);
+        // Create and use writer
+        JetStreamSinkWriter<String> writer = createWriter(url, subjects);
 
-            // Send multiple messages
-            String[] testMessages = {
-                    "Message 1",
-                    "Message 2",
-                    "Message 3"
-            };
+        // Send multiple messages
+        String[] testMessages = {
+            "Message 1",
+            "Message 2",
+            "Message 3"
+        };
 
-            for (String msg : testMessages) {
-                writer.write(msg, mock(SinkWriter.Context.class));
-            }
-            writer.flush(false);
+        for (String msg : testMessages) {
+            writer.write(msg, mock(SinkWriter.Context.class));
+        }
+        writer.flush(false);
 
-            // Verify messages on subject1
-            for (String expectedMsg : testMessages) {
-                Message msg = sub1.nextMessage(Duration.ofSeconds(1));
-                assertNotNull(msg, "Message should be received on subject1");
-                assertEquals(expectedMsg, new String(msg.getData()));
-            }
+        // Verify messages on subject1
+        for (String expectedMsg : testMessages) {
+            Message msg = sub1.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(msg, "Message should be received on subject1");
+            assertEquals(expectedMsg, new String(msg.getData()));
+        }
 
-            // Verify messages on subject2
-            for (String expectedMsg : testMessages) {
-                Message msg = sub2.nextMessage(Duration.ofSeconds(1));
-                assertNotNull(msg, "Message should be received on subject2");
-                assertEquals(expectedMsg, new String(msg.getData()));
-            }
+        // Verify messages on subject2
+        for (String expectedMsg : testMessages) {
+            Message msg = sub2.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(msg, "Message should be received on subject2");
+            assertEquals(expectedMsg, new String(msg.getData()));
+        }
 
-            // Verify no more messages
-            assertNull(sub1.nextMessage(Duration.ofMillis(500)), "Should not receive extra messages on subject1");
-            assertNull(sub2.nextMessage(Duration.ofMillis(500)), "Should not receive extra messages on subject2");
+        // Verify no more messages
+        assertNull(sub1.nextMessage(Duration.ofMillis(500)), "Should not receive extra messages on subject1");
+        assertNull(sub2.nextMessage(Duration.ofMillis(500)), "Should not receive extra messages on subject2");
 
-            writer.close();
-        });
+        writer.close();
     }
 
     /**
@@ -103,26 +101,24 @@ class JetStreamSinkWriterTest extends TestBase {
      */
     @Test
     void closeDisallowsWritesAndCleansUpResources() throws Exception {
-        runInJsServer((nc, url) -> {
-            // Setup JetStream
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            String stream = stream();
-            String subject = subject();
-            List<String> subjects = Arrays.asList(subject);
+        // Setup JetStream
+        JetStreamManagement jsm = nc.jetStreamManagement();
+        String stream = stream();
+        String subject = subject();
+        List<String> subjects = Arrays.asList(subject);
 
-            StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(stream)
-                    .subjects(subjects)
-                    .storageType(StorageType.Memory)
-                    .build();
-            jsm.addStream(sc);
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .subjects(subjects)
+            .storageType(StorageType.Memory)
+            .build();
+        jsm.addStream(sc);
 
-            JetStreamSinkWriter<String> writer = createWriter(url, subjects);
-            writer.close();
+        JetStreamSinkWriter<String> writer = createWriter(url, subjects);
+        writer.close();
 
-            assertThrows(Exception.class, () ->
-                    writer.write("Should fail", mock(SinkWriter.Context.class)));
-        });
+        assertThrows(Exception.class, () ->
+            writer.write("Should fail", mock(SinkWriter.Context.class)));
     }
 
     /**
@@ -140,33 +136,30 @@ class JetStreamSinkWriterTest extends TestBase {
      */
     @Test
     void toStringContainsEssentialInfo() throws Exception {
-        runInJsServer((nc, url) -> {
-            String subject = subject();
-            List<String> subjects = List.of(subject);
-            String sinkId = "test-sink";
+        String subject = subject();
+        List<String> subjects = List.of(subject);
+        String sinkId = "test-sink";
 
-            JetStreamSinkWriter<String> writer = new JetStreamSinkWriter<>(
-                    sinkId,
-                    subjects,
-                    new Utf8StringSinkConverter(),
-                    new ConnectionFactory(defaultConnectionProperties(url)),
-                    new MockWriterInitContext()
-            );
+        JetStreamSinkWriter<String> writer = new JetStreamSinkWriter<>(
+            sinkId,
+            subjects,
+            new Utf8StringSinkConverter(),
+            new ConnectionFactory(defaultConnectionProperties(url)),
+            new MockWriterInitContext()
+        );
 
-            String result = writer.toString();
-            assertTrue(result.contains("JetStreamSinkWriter"), "Should contain class name");
-            assertTrue(result.contains("id='" + writer.getId() + "'"), "Should contain id");
-            assertTrue(result.contains("subjects=" + subjects), "Should contain subjects");
+        String result = writer.toString();
+        assertTrue(result.contains("JetStreamSinkWriter"), "Should contain class name");
+        assertTrue(result.contains("id='" + writer.getId() + "'"), "Should contain id");
+        assertTrue(result.contains("subjects=" + subjects), "Should contain subjects");
 
-            writer.close();
-        });
+        writer.close();
     }
 
     /**
      * Helper method to create a JetStreamSinkWriter with a specific connection and subjects.
      */
     private JetStreamSinkWriter<String> createWriter(String url, List<String> subjects) throws Exception {
-
         return new JetStreamSinkWriter<>(
                 "test-sink",
                 subjects,

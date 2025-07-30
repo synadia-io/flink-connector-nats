@@ -157,7 +157,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         _config(new ConfigurationAdapter() {
             @Override
             public List<String> getList(String key) {
-                return YamlUtils.readStringList(map, key);
+                return YamlUtils.readArrayAsStrings(map, key);
             }
 
             @Override
