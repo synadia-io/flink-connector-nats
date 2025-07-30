@@ -336,17 +336,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             return this;
         }
 
-        /**
-         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
-         * Sets the ack policy None for the consumer.
-         * @return the builder
-         */
-        @Deprecated
-        public Builder ackBehavior() {
-            this.ackBehavior = AckBehavior.NoAck;
-            return this;
-        }
-
         public JetStreamSubjectConfiguration build() {
             if (MiscUtils.notProvided(subject)) {
                 throw new IllegalArgumentException("Subject is required.");
