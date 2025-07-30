@@ -10,24 +10,26 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.helpers.WordSubscriber;
+import io.synadia.flink.message.Utf8StringSinkConverter;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static io.synadia.flink.utils.MiscUtils.random;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class NatsSinkTest extends TestBase {
 
     @Test
     public void testBasic() throws Exception {
-        runInJsServer((nc, url) -> {
-            _testSink("testBasic", nc, defaultConnectionProperties(url), null);
-        });
+        _testSink("testBasic", nc, defaultConnectionProperties(url), null);
     }
 
     @Test
@@ -81,5 +83,33 @@ public class NatsSinkTest extends TestBase {
         dataStream.sinkTo(sink);
         env.execute(generatePrefixedId(jobName));
         sub.assertAllMessagesReceived();
+    }
+
+    @Test
+    void testCoverage() {
+        assertThrows(IllegalArgumentException.class,
+            () -> new NatsSinkBuilder<String>()
+                .subjects("foo")
+                .connectionProperties(defaultConnectionProperties(url))
+                .build());
+        assertThrows(IllegalArgumentException.class,
+            () -> new NatsSinkBuilder<String>()
+                .subjects("foo")
+                .connectionProperties(defaultConnectionProperties(url))
+                .sinkConverterClass("not-a-class")
+                .build());
+
+        // COVERAGE for no connectionProperties and subject(s) setters
+        List<String> hasNullAndEmpty = new ArrayList<>();
+        hasNullAndEmpty.add("");
+        hasNullAndEmpty.add(null);
+        new NatsSinkBuilder<String>()
+            .subjects((String)null)
+            .subjects(new String[0])
+            .subjects((List<String>)null)
+            .subjects(hasNullAndEmpty)
+            .subjects("foo")
+            .sinkConverter(new Utf8StringSinkConverter())
+            .build();
     }
 }

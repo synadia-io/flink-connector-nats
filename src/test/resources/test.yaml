@@ -1,0 +1,59 @@
+---
+string: Hello
+integer: 42
+long: 12345678901
+big_decimal: 123
+bool: true
+date: '2021-01-25T20:09:10.6225191Z'
+nanos: 1000000000
+base_64_basic: AGFiY2RlZgECBAg==
+base_64_url: AGFiY2RlZgECBAg
+map: {}
+array: []
+smap:
+  a: A
+  b: B
+  c: C
+mmap:
+  s: ss
+  i: 73
+slist:
+  - X
+  - "Y"
+  - Z
+mlist:
+  - Q
+  - R
+  - " "
+  - 98
+ilist:
+  - 42
+  - 73
+  - 99
+llist:
+  - 9223372036854776000
+  - 9223372036854776000
+  - 9223372036854776000
+nlist:
+  - 2000000000
+  - 3000000000
+  - 4000000000
+levels1:
+  string: Hello
+  integer: 42
+  long: 9223372036854776000
+  big_decimal: 123
+  bool: true
+  date: '2021-01-25T20:09:10.6225191Z'
+  nanos: 1000000000
+  base_64: AGFiY2RlZgECBAg=
+  map: {}
+  levels2:
+    - true
+    - '2021-01-25T20:09:10.6225191Z'
+    - 1000000000
+    - AGFiY2RlZgECBAg=
+    - - true
+      - '2021-01-25T20:09:10.6225191Z'
+      - 1000000000
+      - AGFiY2RlZgECBAg=

@@ -4,8 +4,9 @@
 package io.synadia.flink.utils;
 
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Encoding;
 import org.apache.flink.annotation.Internal;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -22,6 +23,7 @@ import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
  */
 @Internal
 public abstract class YamlUtils {
+    private YamlUtils() {} /* ensures cannot be constructed */
 
     static final String PAD = "                    ";
 
@@ -104,7 +106,14 @@ public abstract class YamlUtils {
         }
     }
 
-    public static void addStrings(StringBuilder sb, int indentLevel, String key, List<String> values) {
+    public static <E extends Enum<E>> void addEnumWhenNot(StringBuilder sb, int indentLevel, @NonNull String fieldName, @Nullable E e, @Nullable E dontAddIfThis) {
+        if (e != null && e != dontAddIfThis) {
+            _addField(sb, indentLevel, fieldName, e.toString());
+        }
+    }
+
+
+    public static void addStrings(StringBuilder sb, int indentLevel, String key, @NonNull List<String> values) {
         sb.append(getPad(indentLevel))
             .append(key)
             .append(":")
@@ -129,6 +138,18 @@ public abstract class YamlUtils {
         Object o = readObject(map, key);
         //noinspection unchecked
         return o instanceof ArrayList ? (ArrayList<Map<String, Object>>) o : null;
+    }
+
+    public static List<String> readArrayAsStrings(Map<String, Object> map, String key) {
+        Object o = readObject(map, key);
+        List<String> list = new ArrayList<>();
+        if (o instanceof ArrayList) {
+            List<?> l = (List<?>)o;
+            for (Object o2 : l) {
+                list.add(o2.toString());
+            }
+        }
+        return list;
     }
 
     public static String readString(Map<String, Object> map, String key) {
@@ -193,14 +214,5 @@ public abstract class YamlUtils {
     public static Duration readNanos(Map<String, Object> map, String key, Duration dflt) {
         Long l = readLong(map, key);
         return l == null ? dflt : Duration.ofNanos(l);
-    }
-
-    public static List<String> readStringList(Map<String, Object> map, String key) {
-        Object o = readObject(map, key);
-        if (o instanceof ArrayList) {
-            //noinspection unchecked
-            return (ArrayList<String>)o;
-        }
-        return new ArrayList<>();
     }
 }

@@ -21,6 +21,9 @@ import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -47,6 +50,34 @@ public class TestBase {
         for (String word : words) {
             WORD_COUNT_MAP.merge(word.toLowerCase(), 1, Integer::sum);
         }
+    }
+
+    protected static NatsServerRunner RUNNER;
+    protected static Connection nc;
+    protected static String url;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        RUNNER = new NatsServerRunner(false, true);
+        nc = Nats.connect(RUNNER.getURI());
+        url = getUrl(nc);
+    }
+
+    @AfterAll
+    public static void afterAll() throws Exception {
+        try {
+            nc.close();
+        }
+        catch (Exception ignore) {}
+        try {
+            RUNNER.close();
+        }
+        catch (Exception ignore) {}
+    }
+
+    @AfterEach
+    public void afterEach() throws Exception {
+        cleanupJs(nc);
     }
 
     public static void quiet() {
@@ -146,11 +177,11 @@ public class TestBase {
         }
     }
 
-    private static String getUrl(Connection nc) {
+    protected static String getUrl(Connection nc) {
         return "nats://localhost:" + nc.getServerInfo().getPort();
     }
 
-    private static void cleanupJs(Connection c)
+    protected static void cleanupJs(Connection c)
     {
         try {
             JetStreamManagement jsm = c.jetStreamManagement();
@@ -265,6 +296,18 @@ public class TestBase {
             //noinspection DataFlowIssue
             File file = new File(classLoader.getResource(fileName).getFile());
             return Files.readAllLines(file.toPath());
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String resourceAsString(String fileName) {
+        try {
+            ClassLoader classLoader = TestBase.class.getClassLoader();
+            //noinspection DataFlowIssue
+            File file = new File(classLoader.getResource(fileName).getFile());
+            return Files.readString(file.toPath());
         }
         catch (Exception e) {
             throw new RuntimeException(e);

@@ -23,6 +23,6 @@ public class ConnectionContext {
     public ConnectionContext(Connection connection, JetStreamOptions jso) throws IOException {
         this.connection = connection;
         this.jsm = connection.jetStreamManagement(jso);
-        this.js = jsm.jetStream();
+        this.js = connection.jetStream(jso);
     }
 }

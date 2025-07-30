@@ -11,6 +11,7 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -22,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("unchecked")
+@Isolated
 class NatsSourceReaderTest extends TestBase {
 
     /**
@@ -43,32 +46,31 @@ class NatsSourceReaderTest extends TestBase {
     @Test
     @Timeout(10)
     void testBasicMessageFlow() throws Exception {
-        runInServer((nc, url) -> {
-            String testSubject = subject();
-            ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
-            SourceReaderContext mockContext = mock(SourceReaderContext.class);
+        String testSubject = subject();
+        ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
+        SourceReaderContext mockContext = mock(SourceReaderContext.class);
 
-            NatsSourceReader<String> reader = createReader(url, mockContext);
+        NatsSourceReader<String> reader = createReader(url, mockContext);
 
-            try {
-                reader.start();
-                reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
-                Thread.sleep(100); // Brief pause for subscription to establish
+        try {
+            reader.start();
+            reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
+            Thread.sleep(100); // Brief pause for subscription to establish
 
-                String testMessage = "Hello, World!";
-                nc.publish(testSubject, testMessage.getBytes());
+            String testMessage = "Hello, World!";
+            nc.publish(testSubject, testMessage.getBytes());
 
-                // Poll until message is received
-                for (int i = 0; i < 10; i++) {
-                    reader.pollNext(mockOutput);
-                    Thread.sleep(50);
-                }
-
-                verify(mockOutput, timeout(500)).collect(eq(testMessage));
-            } finally {
-                reader.close();
+            // Poll until message is received
+            for (int i = 0; i < 10; i++) {
+                reader.pollNext(mockOutput);
+                Thread.sleep(50);
             }
-        });
+
+            verify(mockOutput, timeout(500)).collect(eq(testMessage));
+        }
+        finally {
+            reader.close();
+        }
     }
 
     /**
@@ -89,31 +91,30 @@ class NatsSourceReaderTest extends TestBase {
      */
     @Test
     void testSnapshotState() throws Exception {
-        runInServer((nc, url) -> {
-            String testSubject = subject();
-            NatsSourceReader<String> reader = createReader(url);
+        String testSubject = subject();
+        NatsSourceReader<String> reader = createReader(url);
 
-            try {
-                reader.start();
+        try {
+            reader.start();
 
-                // Create two distinct splits
-                NatsSubjectSplit split1 = new NatsSubjectSplit(testSubject);
-                NatsSubjectSplit split2 = new NatsSubjectSplit(subject());
-                List<NatsSubjectSplit> splits = Arrays.asList(split1, split2);
+            // Create two distinct splits
+            NatsSubjectSplit split1 = new NatsSubjectSplit(testSubject);
+            NatsSubjectSplit split2 = new NatsSubjectSplit(subject());
+            List<NatsSubjectSplit> splits = Arrays.asList(split1, split2);
 
-                reader.addSplits(splits);
-                Thread.sleep(100); // Wait for subscriptions
+            reader.addSplits(splits);
+            Thread.sleep(100); // Wait for subscriptions
 
-                // Take snapshot and verify
-                List<NatsSubjectSplit> snapshot = reader.snapshotState(1L);
-                assertEquals(2, snapshot.size(),
-                        String.format("Expected 2 splits but got %d splits in snapshot", snapshot.size()));
-                assertEquals(new HashSet<>(splits), new HashSet<>(snapshot),
-                        String.format("Snapshot splits don't match. Expected %s but got %s", splits, snapshot));
-            } finally {
-                reader.close();
-            }
-        });
+            // Take snapshot and verify
+            List<NatsSubjectSplit> snapshot = reader.snapshotState(1L);
+            assertEquals(2, snapshot.size(),
+                String.format("Expected 2 splits but got %d splits in snapshot", snapshot.size()));
+            assertEquals(new HashSet<>(splits), new HashSet<>(snapshot),
+                String.format("Snapshot splits don't match. Expected %s but got %s", splits, snapshot));
+        }
+        finally {
+            reader.close();
+        }
     }
 
     /**
@@ -134,30 +135,29 @@ class NatsSourceReaderTest extends TestBase {
      */
     @Test
     void testIsAvailable() throws Exception {
-        runInServer((nc, url) -> {
-            NatsSourceReader<String> reader = createReader(url);
-            ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
+        NatsSourceReader<String> reader = createReader(url);
+        ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
 
-            try {
-                reader.start();
-                String testSubject = subject();
-                reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
-                Thread.sleep(100);
+        try {
+            reader.start();
+            String testSubject = subject();
+            reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
+            Thread.sleep(100);
 
-                nc.publish(testSubject, "test".getBytes());
-                Thread.sleep(100); // Wait for message to be received
+            nc.publish(testSubject, "test".getBytes());
+            Thread.sleep(100); // Wait for message to be received
 
-                CompletableFuture<Void> future = reader.isAvailable();
-                assertNotNull(future, "Availability future should not be null");
-                assertTrue(future.isDone(), "Future should be completed since message is already available");
+            CompletableFuture<Void> future = reader.isAvailable();
+            assertNotNull(future, "Availability future should not be null");
+            assertTrue(future.isDone(), "Future should be completed since message is already available");
 
-                // Verify message can be read
-                reader.pollNext(mockOutput);
-                verify(mockOutput).collect("test");
-            } finally {
-                reader.close();
-            }
-        });
+            // Verify message can be read
+            reader.pollNext(mockOutput);
+            verify(mockOutput).collect("test");
+        }
+        finally {
+            reader.close();
+        }
     }
 
     /**
@@ -251,14 +251,13 @@ class NatsSourceReaderTest extends TestBase {
      */
     @Test
     void testNotifyNoMoreSplits() {
-        String sourceId = "test-source";
         NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
                 new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
         );
 
-        assertDoesNotThrow(() -> reader.notifyNoMoreSplits(),
+        assertDoesNotThrow(reader::notifyNoMoreSplits,
                 "notifyNoMoreSplits should not throw exceptions");
     }
 

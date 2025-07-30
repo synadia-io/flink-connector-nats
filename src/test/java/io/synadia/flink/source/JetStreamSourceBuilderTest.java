@@ -94,7 +94,7 @@ class JetStreamSourceBuilderTest extends TestBase {
                     JetStreamSubjectConfiguration.builder()
                         .streamName("StreamAM")
                         .subject("SubjectAM")
-                        .ackBehavior()
+                        .ackBehavior(AckBehavior.NoAck)
                         .build(),
                     JetStreamSubjectConfiguration.builder()
                         .streamName("StreamMany")
