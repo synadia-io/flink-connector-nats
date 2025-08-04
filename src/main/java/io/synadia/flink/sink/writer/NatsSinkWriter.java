@@ -75,7 +75,7 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
         ctx.connection.close();
     }
 
-    protected void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         ctx = connectionFactory.getConnectionContext();
     }

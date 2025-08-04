@@ -163,8 +163,6 @@ public class SerializersDeserializersTests extends TestBase {
         assertTrue(splits.contains(nss2));
     }
 
-
-
     @Test
     public void testStringPayload() throws Exception {
         // validate works from construction

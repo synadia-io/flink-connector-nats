@@ -7,6 +7,7 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.helpers.MockWriterInitContext;
 import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.writer.JetStreamSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.synadia.flink.utils.MiscUtils.random;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
@@ -138,14 +140,14 @@ class JetStreamSinkWriterTest extends TestBase {
     void toStringContainsEssentialInfo() throws Exception {
         String subject = subject();
         List<String> subjects = List.of(subject);
-        String sinkId = "test-sink";
+        String sinkId = random("test-to-string");
 
         JetStreamSinkWriter<String> writer = new JetStreamSinkWriter<>(
             sinkId,
             subjects,
             new Utf8StringSinkConverter(),
             new ConnectionFactory(defaultConnectionProperties(url)),
-            new MockWriterInitContext()
+            new MockWriterInitContext(sinkId)
         );
 
         String result = writer.toString();
@@ -156,16 +158,20 @@ class JetStreamSinkWriterTest extends TestBase {
         writer.close();
     }
 
+    private JetStreamSinkWriter<String> createWriter(String url, List<String> subjects) throws Exception {
+        return createWriter(random(), url, subjects);
+    }
+
     /**
      * Helper method to create a JetStreamSinkWriter with a specific connection and subjects.
      */
-    private JetStreamSinkWriter<String> createWriter(String url, List<String> subjects) throws Exception {
+    private JetStreamSinkWriter<String> createWriter(String id, String url, List<String> subjects) throws Exception {
         return new JetStreamSinkWriter<>(
-                "test-sink",
+                id,
                 subjects,
                 new Utf8StringSinkConverter(),
                 new ConnectionFactory(defaultConnectionProperties(url)),
-                new MockWriterInitContext()
+                new MockWriterInitContext(id)
         );
     }
 }
