@@ -14,7 +14,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * source and creates a SinkMessage by converting
  * the string to a byte array using the provided Charset
  */
-abstract class AbstractStringSinkConverter implements SinkConverter<String> {
+public abstract class AbstractStringSinkConverter implements SinkConverter<String> {
     private static final long serialVersionUID = 1L;
 
     private transient Charset charset;

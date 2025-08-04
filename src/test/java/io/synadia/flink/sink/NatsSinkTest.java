@@ -21,9 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import static io.synadia.flink.utils.Constants.SINK_CONVERTER_CLASS_NAME;
+import static io.synadia.flink.utils.Constants.SUBJECTS;
 import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 import static io.synadia.flink.utils.MiscUtils.random;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsSinkTest extends TestBase {
 
@@ -67,17 +69,39 @@ public class NatsSinkTest extends TestBase {
         String subject = random();
         WordSubscriber sub = new WordSubscriber(nc, subject);
         Sink<String> sink = newNatsStringSink(subject, connectionProperties, connectionPropertiesFile);
-        __testSink(jobName + "-TestCoreSink", sink, sub);
+        __testSink(jobName + "-TestCoreSink", sink, sub, subject);
 
         subject = random();
         nc.jetStreamManagement().addStream(StreamConfiguration.builder()
             .name(subject).storageType(StorageType.Memory).build());
         sub = new WordSubscriber(nc, subject, true);
-        sink = newNatsJetStreamSink(subject, connectionProperties, connectionPropertiesFile);
-        __testSink(jobName + "-TestJsSink", sink, sub);
+        JetStreamSink<String> jsSink = newNatsJetStreamSink(subject, connectionProperties, connectionPropertiesFile);
+        __testSink(jobName + "-TestJsSink", jsSink, sub, subject);
     }
 
-    private static void __testSink(String jobName, Sink<String> sink, WordSubscriber sub) throws Exception {
+    private static void __testSink(String jobName, Sink<String> sink, WordSubscriber sub, String subject) throws Exception {
+        String s = sink.toString(); // toString COVERAGE
+        assertTrue(s.contains(sink.getClass().getSimpleName()));
+        assertTrue(s.contains(subject));
+
+        NatsSink<String> baseSink = (NatsSink<String>)sink;
+        s = baseSink.toJson();
+        assertTrue(s.contains(SINK_CONVERTER_CLASS_NAME));
+        assertTrue(s.contains("Utf8StringSinkConverter"));
+        assertTrue(s.contains(SUBJECTS));
+        assertTrue(s.contains(subject));
+
+        s = baseSink.toYaml();
+        assertTrue(s.contains(SINK_CONVERTER_CLASS_NAME));
+        assertTrue(s.contains("Utf8StringSinkConverter"));
+        assertTrue(s.contains(SUBJECTS));
+        assertTrue(s.contains(subject));
+
+        assertTrue(baseSink.getSubjects().contains(subject));
+
+        //noinspection deprecation
+        assertNotNull(sink.createWriter((Sink.InitContext)null)); // COVERAGE
+
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> dataStream = getPayloadDataStream(env);
         dataStream.sinkTo(sink);

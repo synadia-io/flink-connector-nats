@@ -1,7 +1,7 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
 // See LICENSE and NOTICE file for details.
 
-package io.synadia.flink.sink;
+package io.synadia.flink.helpers;
 
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
@@ -16,8 +16,13 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.io.Serializable;
 import java.util.OptionalLong;
 
-class MockWriterInitContext implements WriterInitContext, Serializable {
+public class MockWriterInitContext implements WriterInitContext, Serializable {
     private static final long serialVersionUID = 1L;
+    private final String id;
+
+    public MockWriterInitContext(String id) {
+        this.id = id;
+    }
 
     @Override
     public UserCodeClassLoader getUserCodeClassLoader() {
@@ -67,5 +72,9 @@ class MockWriterInitContext implements WriterInitContext, Serializable {
     @Override
     public TaskInfo getTaskInfo() {
         return null;
+    }
+
+    public String getId() {
+        return id;
     }
 }
