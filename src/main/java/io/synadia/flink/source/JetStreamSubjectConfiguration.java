@@ -10,6 +10,7 @@ import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -32,6 +33,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final String id;
     public final String streamName;
     public final String subject;
+    public final String consumerName;
     public final long startSequence;
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
@@ -46,6 +48,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         serializableConsumeOptions = new SerializableConsumeOptions(consumeOptions);
         subject = b.subject;
         streamName = b.streamName;
+        consumerName = b.consumerName;
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
@@ -61,6 +64,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         id = checksum(subject,
             streamName,
+            consumerName,
             startSequence,
             startTime,
             maxMessagesToRead,
@@ -75,6 +79,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, STREAM_NAME, streamName);
         JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, CONSUMER_NAME, consumerName);
         JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
@@ -96,6 +101,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
         indentLevel++;
         YamlUtils.addField(sb, indentLevel, SUBJECT, subject);
+        YamlUtils.addField(sb, indentLevel, CONSUMER_NAME, consumerName);
         YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
@@ -134,6 +140,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
             .subject(JsonValueUtils.readString(jv, SUBJECT))
+            .consumerName(JsonValueUtils.readString(jv, CONSUMER_NAME))
             .startSequence(JsonValueUtils.readLong(jv, START_SEQUENCE, -1))
             .startTime(JsonValueUtils.readDate(jv, START_TIME))
             .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
@@ -148,6 +155,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(YamlUtils.readString(map, STREAM_NAME))
             .subject(YamlUtils.readString(map, SUBJECT))
+            .consumerName(YamlUtils.readString(map, CONSUMER_NAME))
             .startSequence(YamlUtils.readLong(map, START_SEQUENCE, -1))
             .startTime(YamlUtils.readDate(map, START_TIME))
             .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
@@ -161,6 +169,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public static class Builder {
         private String streamName;
         private String subject;
+        private String consumerName;
         private long startSequence = -1;
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
@@ -170,7 +179,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private int thresholdPercent = -1;
 
         /**
-         * Copies all the configuration except the subject
+         * Copies all the configuration except the subject & consumer name.
          * @param config the config to use as a basis for the new config
          * @return the builder
          */
@@ -202,6 +211,16 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          */
         public Builder subject(String subject) {
             this.subject = subject;
+            return this;
+        }
+
+        /**
+         * Sets the consumer name
+         * @param consumerName the consumer name
+         * @return the builder
+         */
+        public Builder consumerName(String consumerName) {
+            this.consumerName = consumerName;
             return this;
         }
 
@@ -292,7 +311,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder ackWait(long ackWaitMillis) {
-            this.ackWait = ackWaitMillis <= 0L ? null : Duration.ofMillis(ackWaitMillis);;
+            this.ackWait = ackWaitMillis <= 0L ? null : Duration.ofMillis(ackWaitMillis);
             return this;
         }
 
@@ -345,6 +364,9 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             }
             if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
                 throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
+            }
+            if (ackBehavior == AckBehavior.NoAck && !Strings.isNullOrEmpty(consumerName)) {
+                throw new IllegalArgumentException("Consumer Name cannot be set when Ack Behavior is NoAck.");
             }
 
             ConsumeOptions co = batchSize == -1 && thresholdPercent == -1
