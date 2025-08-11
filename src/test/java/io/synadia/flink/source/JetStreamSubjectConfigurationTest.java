@@ -453,10 +453,6 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertEquals(Boundedness.BOUNDED, config2.boundedness);
     }
 
-    // ================================
-    // Consumer Name Tests
-    // ================================
-
     @Test
     public void testConsumerNameWithValidAckBehavior() {
         String consumerName = "test-consumer";

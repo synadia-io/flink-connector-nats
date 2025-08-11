@@ -179,7 +179,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private int thresholdPercent = -1;
 
         /**
-         * Copies all the configuration except the subject & consumer name.
+         * Copies all the configuration except the subject and consumer name.
          * @param config the config to use as a basis for the new config
          * @return the builder
          */
