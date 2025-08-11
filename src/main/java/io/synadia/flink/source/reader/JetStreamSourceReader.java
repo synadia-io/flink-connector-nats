@@ -15,11 +15,11 @@ import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.MiscUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
@@ -169,7 +169,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             .ackPolicy(split.subjectConfig.ackBehavior.ackPolicy)
             .filterSubject(split.subjectConfig.subject);
 
-        if  (!Strings.isNullOrEmpty(split.subjectConfig.consumerName)) {
+        if  (!MiscUtils.notProvided(split.subjectConfig.consumerName)) {
             b.name(split.subjectConfig.consumerName);
             b.durable(split.subjectConfig.consumerName);
         }

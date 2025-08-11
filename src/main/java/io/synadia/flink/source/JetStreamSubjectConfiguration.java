@@ -10,7 +10,6 @@ import io.nats.client.support.*;
 import io.synadia.flink.utils.MiscUtils;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -365,7 +364,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
                 throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
             }
-            if (ackBehavior == AckBehavior.NoAck && !Strings.isNullOrEmpty(consumerName)) {
+            if (ackBehavior == AckBehavior.NoAck && !MiscUtils.notProvided(consumerName)) {
                 throw new IllegalArgumentException("Consumer Name cannot be set when Ack Behavior is NoAck.");
             }
 
