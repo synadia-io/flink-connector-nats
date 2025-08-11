@@ -677,12 +677,12 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals("new.subject", copy.subject);
         assertEquals(TEST_STREAM, copy.streamName);
-        assertEquals(originalConsumerName, copy.consumerName);
+        assertNull(copy.consumerName);
         assertEquals(AckBehavior.AckAll, copy.ackBehavior);
     }
 
     @Test
-    public void testBuilderCopyMethodPreservesConsumerName() {
+    public void testBuilderCopyMethodExcludesConsumerName() {
         String originalConsumerName = "builder-copy-consumer";
 
         JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
@@ -700,7 +700,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals("copied.subject", copy.subject);
         assertEquals(TEST_STREAM, copy.streamName);
-        assertEquals(originalConsumerName, copy.consumerName);
+        assertNull(copy.consumerName);
         assertEquals(AckBehavior.ExplicitButDoNotAck, copy.ackBehavior);
         assertEquals(100, copy.maxMessagesToRead);
     }
