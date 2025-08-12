@@ -364,7 +364,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
                 throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
             }
-            if (ackBehavior == AckBehavior.NoAck && !MiscUtils.notProvided(consumerName)) {
+            if (ackBehavior == AckBehavior.NoAck && MiscUtils.provided(consumerName)) {
                 throw new IllegalArgumentException("Consumer Name cannot be set when Ack Behavior is NoAck.");
             }
 
