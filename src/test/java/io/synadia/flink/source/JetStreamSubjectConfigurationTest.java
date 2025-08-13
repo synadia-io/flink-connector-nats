@@ -461,6 +461,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -476,6 +477,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AllButDoNotAck)
                 .build();
 
@@ -491,6 +493,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .build();
 
@@ -556,6 +559,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -584,6 +588,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofSeconds(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .build();
 
@@ -599,6 +604,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
                 + "\"consumer_name\":\"" + consumerName + "\","
+                + "\"inactive_threshold\":10000,"
                 + "\"ack_behavior\":\"AckAll\""
                 + "}";
 
@@ -634,6 +640,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         map.put("subject", TEST_SUBJECT);
         map.put("consumer_name", consumerName);
         map.put("ack_behavior", "AllButDoNotAck");
+        map.put("inactive_threshold", 5000);
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
 
@@ -659,13 +666,14 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testCopyMethodPreservesConsumerName() {
+    public void testCopyMethodNotPreservesConsumerName() {
         String originalConsumerName = "original-consumer";
 
         JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
                 .consumerName(originalConsumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -685,6 +693,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
                 .consumerName(originalConsumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .maxMessagesToRead(100)
                 .build();
@@ -709,6 +718,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -716,6 +726,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -729,6 +740,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName("consumer-1")
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -736,6 +748,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName("consumer-2")
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -748,6 +761,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName("test-consumer")
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -771,6 +785,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .startTime(startTime)
                 .maxMessagesToRead(1000)
                 .ackBehavior(AckBehavior.AllButDoNotAck)
@@ -801,6 +816,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName1)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -808,10 +824,380 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName2)
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
         // Different consumer names should result in different IDs (checksums)
+        assertNotEquals(config1.id, config2.id);
+    }
+
+    @Test
+    public void testInactiveThresholdBasicFunctionality() {
+        Duration inactiveThreshold = Duration.ofHours(24);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertEquals(inactiveThreshold, config.inactiveThreshold);
+    }
+
+    @Test
+    public void testInactiveThresholdWithNullValue() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(null)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertNull(config.inactiveThreshold);
+    }
+
+    @Test
+    public void testInactiveThresholdWithZeroDuration() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(Duration.ZERO)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertNull(config.inactiveThreshold);
+    }
+
+    @Test
+    public void testInactiveThresholdWithNegativeDuration() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(Duration.ofMinutes(-30))
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertNull(config.inactiveThreshold);
+    }
+
+    @Test
+    public void testInactiveThresholdVariousDurations() {
+        // Test minutes
+        Duration minutesThreshold = Duration.ofMinutes(30);
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(minutesThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+        assertEquals(minutesThreshold, config1.inactiveThreshold);
+
+        // Test hours
+        Duration hoursThreshold = Duration.ofHours(12);
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(hoursThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+        assertEquals(hoursThreshold, config2.inactiveThreshold);
+
+        // Test days
+        Duration daysThreshold = Duration.ofDays(7);
+        JetStreamSubjectConfiguration config3 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(daysThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+        assertEquals(daysThreshold, config3.inactiveThreshold);
+    }
+
+    @Test
+    public void testJsonSerializationWithInactiveThreshold() {
+        Duration inactiveThreshold = Duration.ofHours(6);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        String json = config.toJson();
+        assertTrue(json.contains("\"inactive_threshold\":" + inactiveThreshold.toNanos()));
+    }
+
+    @Test
+    public void testJsonSerializationWithoutInactiveThreshold() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        String json = config.toJson();
+        assertTrue(json.contains("\"inactive_threshold\":null") || !json.contains("inactive_threshold"));
+    }
+
+    @Test
+    public void testYamlSerializationWithInactiveThreshold() {
+        Duration inactiveThreshold = Duration.ofDays(1);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AllButDoNotAck)
+                .build();
+
+        String yaml = config.toYaml(0);
+        assertTrue(yaml.contains("inactive_threshold: " + inactiveThreshold.toNanos()));
+    }
+
+    @Test
+    public void testJsonDeserializationWithInactiveThreshold() throws JsonParseException {
+        Duration inactiveThreshold = Duration.ofHours(8);
+        String json = "{"
+                + "\"stream_name\":\"" + TEST_STREAM + "\","
+                + "\"subject\":\"" + TEST_SUBJECT + "\","
+                + "\"inactive_threshold\":" + inactiveThreshold.toNanos() + ","
+                + "\"ack_behavior\":\"AckAll\""
+                + "}";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromJson(json);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertEquals(inactiveThreshold, config.inactiveThreshold);
+        assertEquals(AckBehavior.AckAll, config.ackBehavior);
+    }
+
+    @Test
+    public void testJsonDeserializationWithoutInactiveThreshold() throws JsonParseException {
+        String json = "{"
+                + "\"stream_name\":\"" + TEST_STREAM + "\","
+                + "\"subject\":\"" + TEST_SUBJECT + "\","
+                + "\"ack_behavior\":\"AckAll\""
+                + "}";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromJson(json);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertNull(config.inactiveThreshold);
+        assertEquals(AckBehavior.AckAll, config.ackBehavior);
+    }
+
+    @Test
+    public void testMapDeserializationWithInactiveThreshold() {
+        Duration inactiveThreshold = Duration.ofMinutes(45);
+        Map<String, Object> map = new HashMap<>();
+        map.put("stream_name", TEST_STREAM);
+        map.put("subject", TEST_SUBJECT);
+        map.put("inactive_threshold", inactiveThreshold.toNanos());
+        map.put("ack_behavior", "ExplicitButDoNotAck");
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertEquals(inactiveThreshold, config.inactiveThreshold);
+        assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
+    }
+
+    @Test
+    public void testMapDeserializationWithoutInactiveThreshold() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("stream_name", TEST_STREAM);
+        map.put("subject", TEST_SUBJECT);
+        map.put("ack_behavior", "AckAll");
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertNull(config.inactiveThreshold);
+        assertEquals(AckBehavior.AckAll, config.ackBehavior);
+    }
+
+    @Test
+    public void testCopyMethodPreservesInactiveThreshold() {
+        Duration originalInactiveThreshold = Duration.ofHours(2);
+
+        JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject("original.subject")
+                .inactiveThreshold(originalInactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        JetStreamSubjectConfiguration copy = original.copy("new.subject");
+
+        assertEquals("new.subject", copy.subject);
+        assertEquals(TEST_STREAM, copy.streamName);
+        assertEquals(originalInactiveThreshold, copy.inactiveThreshold);
+        assertEquals(AckBehavior.AckAll, copy.ackBehavior);
+    }
+
+    @Test
+    public void testBuilderCopyMethodPreservesInactiveThreshold() {
+        Duration originalInactiveThreshold = Duration.ofDays(3);
+
+        JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject("original.subject")
+                .inactiveThreshold(originalInactiveThreshold)
+                .ackBehavior(AckBehavior.AllButDoNotAck)
+                .maxMessagesToRead(500)
+                .build();
+
+        JetStreamSubjectConfiguration copy = JetStreamSubjectConfiguration.builder()
+                .copy(original)
+                .subject("copied.subject")
+                .build();
+
+        assertEquals("copied.subject", copy.subject);
+        assertEquals(TEST_STREAM, copy.streamName);
+        assertEquals(originalInactiveThreshold, copy.inactiveThreshold);
+        assertEquals(AckBehavior.AllButDoNotAck, copy.ackBehavior);
+        assertEquals(500, copy.maxMessagesToRead);
+    }
+
+    @Test
+    public void testEqualsAndHashCodeWithInactiveThreshold() {
+        Duration inactiveThreshold = Duration.ofHours(4);
+
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertEquals(config1, config2);
+        assertEquals(config1.hashCode(), config2.hashCode());
+    }
+
+    @Test
+    public void testNotEqualsWithDifferentInactiveThreshold() {
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(Duration.ofHours(1))
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(Duration.ofHours(2))
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertNotEquals(config1, config2);
+    }
+
+    @Test
+    public void testNotEqualsWithOneNullInactiveThreshold() {
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(Duration.ofMinutes(30))
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(null)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertNotEquals(config1, config2);
+    }
+
+    @Test
+    public void testCompleteConfigurationWithInactiveThreshold() {
+        ZonedDateTime startTime = ZonedDateTime.now().minusHours(1);
+        Duration ackWait = Duration.ofSeconds(30);
+        Duration inactiveThreshold = Duration.ofHours(12);
+        String consumerName = "complete-consumer";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .consumerName(consumerName)
+                .startTime(startTime)
+                .maxMessagesToRead(1000)
+                .ackBehavior(AckBehavior.ExplicitButDoNotAck)
+                .ackWait(ackWait)
+                .inactiveThreshold(inactiveThreshold)
+                .batchSize(100)
+                .thresholdPercent(75)
+                .build();
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertEquals(consumerName, config.consumerName);
+        assertEquals(startTime, config.startTime);
+        assertEquals(1000, config.maxMessagesToRead);
+        assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
+        assertEquals(ackWait, config.ackWait);
+        assertEquals(inactiveThreshold, config.inactiveThreshold);
+        assertEquals(Boundedness.BOUNDED, config.boundedness);
+        assertEquals(DeliverPolicy.ByStartTime, config.deliverPolicy);
+        assertEquals(100, config.serializableConsumeOptions.getConsumeOptions().getBatchSize());
+        assertEquals(75, config.serializableConsumeOptions.getConsumeOptions().getThresholdPercent());
+    }
+
+    @Test
+    public void testInactiveThresholdWithConsumerNameCompatibility() {
+        Duration inactiveThreshold = Duration.ofHours(6);
+        String consumerName = "threshold-consumer";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .consumerName(consumerName)
+                .inactiveThreshold(inactiveThreshold)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        assertEquals(consumerName, config.consumerName);
+        assertEquals(inactiveThreshold, config.inactiveThreshold);
+        assertEquals(AckBehavior.AckAll, config.ackBehavior);
+    }
+
+    @Test
+    public void testInactiveThresholdIsIncludedInChecksum() {
+        Duration inactiveThreshold1 = Duration.ofHours(1);
+        Duration inactiveThreshold2 = Duration.ofHours(2);
+
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold1)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .inactiveThreshold(inactiveThreshold2)
+                .ackBehavior(AckBehavior.AckAll)
+                .build();
+
+        // Different inactive thresholds should result in different IDs (checksums)
         assertNotEquals(config1.id, config2.id);
     }
 }

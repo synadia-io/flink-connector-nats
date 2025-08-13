@@ -174,8 +174,12 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             b.ackWait(split.subjectConfig.ackWait);
         }
 
+        if (split.subjectConfig.inactiveThreshold != null) {
+            b.inactiveThreshold(split.subjectConfig.inactiveThreshold);
+        }
+
         if (MiscUtils.provided(split.subjectConfig.consumerName)) {
-            // Add Flink prefix to consumer name for identification
+            // added flink prefix to consumer name for identification
             String prefixedConsumerName = FLINK_CONSUMER_PREFIX + split.subjectConfig.consumerName;
 
             b.name(prefixedConsumerName);

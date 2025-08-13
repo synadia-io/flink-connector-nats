@@ -25,6 +25,7 @@ public interface Constants {
     String STREAM_NAME = "stream_name";
     String SUBJECT = "subject";
     String CONSUMER_NAME = "consumer_name";
+    String INACTIVE_THRESHOLD = "inactive_threshold";
     String START_SEQUENCE = "start_sequence";
     String START_TIME = "start_time";
     String MAX_MESSAGES_TO_READ = "max_messages_to_read";
