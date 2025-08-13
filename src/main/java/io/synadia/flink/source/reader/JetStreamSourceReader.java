@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.synadia.flink.utils.Constants.FLINK_CONSUMER_PREFIX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -169,13 +170,21 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             .ackPolicy(split.subjectConfig.ackBehavior.ackPolicy)
             .filterSubject(split.subjectConfig.subject);
 
-        if  (MiscUtils.provided(split.subjectConfig.consumerName)) {
-            b.name(split.subjectConfig.consumerName);
-            b.durable(split.subjectConfig.consumerName);
-        }
-
         if (split.subjectConfig.ackWait != null) {
             b.ackWait(split.subjectConfig.ackWait);
+        }
+
+        if (MiscUtils.provided(split.subjectConfig.consumerName)) {
+            // Add Flink prefix to consumer name for identification
+            String prefixedConsumerName = FLINK_CONSUMER_PREFIX + split.subjectConfig.consumerName;
+
+            b.name(prefixedConsumerName);
+            b.durable(prefixedConsumerName);
+
+            // delivery policy is not set for durable consumers
+            // once created, it cannot be changed
+            // nats server maintains the last delivered sequence
+            sc.createOrUpdateConsumer(b.build());
         }
 
         long lastSeq = split.lastEmittedStreamSequence.get();

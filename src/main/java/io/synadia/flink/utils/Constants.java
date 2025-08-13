@@ -51,4 +51,9 @@ public interface Constants {
     String LAST_EMITTED_SEQ = "last_emitted_seq";
     String MESSAGES = "messages";
     String SUBJECT_CONFIG = "subject_config";
+
+    // ===================================================================================
+    // Consumer Name Constants
+    // ===================================================================================
+    String FLINK_CONSUMER_PREFIX = "flink-";
 }
