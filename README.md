@@ -19,6 +19,7 @@
 * [Converters](#converters) 
 * [Sinks](#sinks)
 * [Sources](#sources)
+* [Durable Consumers](#durable-consumers)
 * [Getting the Library](#getting-the-library)
 * [License](#license)
  
@@ -347,6 +348,48 @@ Here are
 the [JSON](src/examples/resources/core-source-config.json) 
 and [YAML](src/examples/resources/core-source-config.yaml)
 configuration files used in the examples
+
+## Durable Consumers
+
+Durable consumers are named JetStream consumers that persist across application restarts. They maintain their position in the stream, allowing applications to resume processing from where they left off, even after failures or planned shutdowns.
+
+### Key Features
+
+- **Named Consumers**: Assign specific names to consumers for persistence
+- **State Persistence**: Consumer position and configuration survive restarts
+- **Mandatory Inactive Threshold**: Named consumers must specify an inactive threshold for proper lifecycle management
+
+### Configuration
+
+#### Creating a Durable Consumer
+
+```java
+JetStreamSubjectConfiguration config = new JetStreamSubjectConfiguration.Builder()
+    .streamName("orders-stream")
+    .subject("orders.processed")
+    .consumerName("order-processor-consumer")  // Makes this durable
+    .inactiveThreshold(Duration.ofMinutes(15)) // Required for named consumers
+    .ackBehavior(AckBehavior.AckAll)
+    .build();
+```
+
+#### Ephemeral Consumer (No Name)
+
+```java
+JetStreamSubjectConfiguration config = new JetStreamSubjectConfiguration.Builder()
+    .streamName("events-stream")
+    .subject("events.temp")
+    // No consumerName - creates ephemeral consumer
+    .ackBehavior(AckBehavior.AckAll)
+    .build();
+```
+
+### Lifecycle Management
+
+1. **Creation**: When a named consumer is first created, JetStream persists its configuration
+2. **Restart Behavior**: On application restart, the consumer resumes from its last acknowledged position
+3. **Cleanup**: Consumers become eligible for cleanup after exceeding their inactive threshold
+4. **Manual Management**: Named consumers can be managed through NATS CLI or management APIs
 
 ## Getting the Library
 

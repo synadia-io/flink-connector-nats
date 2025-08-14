@@ -32,11 +32,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final String id;
     public final String streamName;
     public final String subject;
+    public final String consumerName;
     public final long startSequence;
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
     public final AckBehavior ackBehavior;
     public final Duration ackWait;
+    public final Duration inactiveThreshold;
     public final SerializableConsumeOptions serializableConsumeOptions;
 
     public final Boundedness boundedness;
@@ -46,11 +48,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         serializableConsumeOptions = new SerializableConsumeOptions(consumeOptions);
         subject = b.subject;
         streamName = b.streamName;
+        consumerName = b.consumerName;
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
         ackBehavior = b.ackBehavior;
         ackWait = b.ackWait;
+        inactiveThreshold = b.inactiveThreshold;
 
         boundedness = maxMessagesToRead > 0 ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
         deliverPolicy = startSequence != -1
@@ -61,11 +65,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         id = checksum(subject,
             streamName,
+            consumerName,
             startSequence,
             startTime,
             maxMessagesToRead,
             ackBehavior,
             ackWait,
+            inactiveThreshold,
             serializableConsumeOptions.getConsumeOptions()
         );
     }
@@ -75,11 +81,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, STREAM_NAME, streamName);
         JsonUtils.addField(sb, SUBJECT, subject);
+        JsonUtils.addField(sb, CONSUMER_NAME, consumerName);
         JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
         JsonUtils.addEnumWhenNot(sb, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
+        JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
@@ -96,11 +104,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
         indentLevel++;
         YamlUtils.addField(sb, indentLevel, SUBJECT, subject);
+        YamlUtils.addField(sb, indentLevel, CONSUMER_NAME, consumerName);
         YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
         YamlUtils.addEnumWhenNot(sb, indentLevel, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
         YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
+        YamlUtils.addFieldAsNanos(sb, indentLevel, INACTIVE_THRESHOLD, inactiveThreshold);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
@@ -134,6 +144,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
             .subject(JsonValueUtils.readString(jv, SUBJECT))
+            .consumerName(JsonValueUtils.readString(jv, CONSUMER_NAME))
             .startSequence(JsonValueUtils.readLong(jv, START_SEQUENCE, -1))
             .startTime(JsonValueUtils.readDate(jv, START_TIME))
             .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
@@ -141,6 +152,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .thresholdPercent(JsonValueUtils.readInteger(jv, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.get(JsonValueUtils.readString(jv, ACK_BEHAVIOR)))
             .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT))
+            .inactiveThreshold(JsonValueUtils.readNanos(jv, INACTIVE_THRESHOLD))
             .build();
     }
 
@@ -148,6 +160,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(YamlUtils.readString(map, STREAM_NAME))
             .subject(YamlUtils.readString(map, SUBJECT))
+            .consumerName(YamlUtils.readString(map, CONSUMER_NAME))
             .startSequence(YamlUtils.readLong(map, START_SEQUENCE, -1))
             .startTime(YamlUtils.readDate(map, START_TIME))
             .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
@@ -155,12 +168,14 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .thresholdPercent(YamlUtils.readInteger(map, THRESHOLD_PERCENT, -1))
             .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR)))
             .ackWait(YamlUtils.readNanos(map, ACK_WAIT))
+            .inactiveThreshold(YamlUtils.readNanos(map, INACTIVE_THRESHOLD))
             .build();
     }
 
     public static class Builder {
         private String streamName;
         private String subject;
+        private String consumerName;
         private long startSequence = -1;
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
@@ -168,9 +183,10 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private Duration ackWait;
         private int batchSize = -1;
         private int thresholdPercent = -1;
+        private Duration inactiveThreshold;
 
         /**
-         * Copies all the configuration except the subject
+         * Copies all the configuration except the subject and consumer name.
          * @param config the config to use as a basis for the new config
          * @return the builder
          */
@@ -181,6 +197,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 .maxMessagesToRead(config.maxMessagesToRead)
                 .ackBehavior(config.ackBehavior)
                 .ackWait(config.ackWait)
+                .inactiveThreshold(config.inactiveThreshold)
                 .batchSize(config.serializableConsumeOptions.getConsumeOptions().getBatchSize())
                 .thresholdPercent(config.serializableConsumeOptions.getConsumeOptions().getThresholdPercent());
         }
@@ -202,6 +219,16 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          */
         public Builder subject(String subject) {
             this.subject = subject;
+            return this;
+        }
+
+        /**
+         * Sets the consumer name
+         * @param consumerName the consumer name
+         * @return the builder
+         */
+        public Builder consumerName(String consumerName) {
+            this.consumerName = consumerName;
             return this;
         }
 
@@ -292,7 +319,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder ackWait(long ackWaitMillis) {
-            this.ackWait = ackWaitMillis <= 0L ? null : Duration.ofMillis(ackWaitMillis);;
+            this.ackWait = ackWaitMillis <= 0L ? null : Duration.ofMillis(ackWaitMillis);
             return this;
         }
 
@@ -310,6 +337,30 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 this.ackWait = ackWait;
             }
 
+            return this;
+        }
+
+        /**
+         * Sets the inactive threshold for the consumer.
+         * This defines how long a consumer can be inactive before it's considered eligible for cleanup.
+         * Valid values are between 5 and 120 minutes inclusive.
+         * @param inactiveThreshold the inactive threshold as Duration
+         * @return the builder
+         */
+        public Builder inactiveThreshold(Duration inactiveThreshold) {
+            if (inactiveThreshold == null || inactiveThreshold.isZero() || inactiveThreshold.isNegative()) {
+                this.inactiveThreshold = null;
+            }
+            else {
+                Duration minThreshold = Duration.ofMinutes(5);
+                Duration maxThreshold = Duration.ofHours(2);
+
+                if (inactiveThreshold.compareTo(minThreshold) < 0 || inactiveThreshold.compareTo(maxThreshold) > 0) {
+                    throw new IllegalArgumentException("Inactive Threshold must be between 5 and 120 minutes inclusive.");
+                }
+
+                this.inactiveThreshold = inactiveThreshold;
+            }
             return this;
         }
 
@@ -345,6 +396,15 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             }
             if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
                 throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
+            }
+            if (ackBehavior == AckBehavior.NoAck && MiscUtils.provided(consumerName)) {
+                throw new IllegalArgumentException("Consumer Name cannot be set when Ack Behavior is NoAck.");
+            }
+            if (ackBehavior == AckBehavior.NoAck && inactiveThreshold != null) {
+                throw new IllegalArgumentException("Inactive Threshold cannot be set when Ack Behavior is NoAck.");
+            }
+            if (MiscUtils.provided(consumerName) && inactiveThreshold == null) {
+                throw new IllegalArgumentException("Inactive Threshold must be set when Consumer Name is provided.");
             }
 
             ConsumeOptions co = batchSize == -1 && thresholdPercent == -1
