@@ -588,7 +588,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .consumerName(consumerName)
-                .inactiveThreshold(Duration.ofSeconds(10))
+                .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .build();
 
@@ -604,7 +604,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
                 + "\"consumer_name\":\"" + consumerName + "\","
-                + "\"inactive_threshold\":10000,"
+                + "\"inactive_threshold\":" + Duration.ofMinutes(10).toNanos() +","
                 + "\"ack_behavior\":\"AckAll\""
                 + "}";
 
@@ -640,7 +640,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         map.put("subject", TEST_SUBJECT);
         map.put("consumer_name", consumerName);
         map.put("ack_behavior", "AllButDoNotAck");
-        map.put("inactive_threshold", 5000);
+        map.put("inactive_threshold", Duration.ofMinutes(10).toNanos());
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
 
@@ -834,7 +834,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testInactiveThresholdBasicFunctionality() {
-        Duration inactiveThreshold = Duration.ofHours(24);
+        Duration inactiveThreshold = Duration.ofHours(2);
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -895,7 +895,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertEquals(minutesThreshold, config1.inactiveThreshold);
 
         // Test hours
-        Duration hoursThreshold = Duration.ofHours(12);
+        Duration hoursThreshold = Duration.ofHours(2);
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
@@ -905,7 +905,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertEquals(hoursThreshold, config2.inactiveThreshold);
 
         // Test days
-        Duration daysThreshold = Duration.ofDays(7);
+        Duration daysThreshold = Duration.ofHours(1);
         JetStreamSubjectConfiguration config3 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
@@ -917,7 +917,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testJsonSerializationWithInactiveThreshold() {
-        Duration inactiveThreshold = Duration.ofHours(6);
+        Duration inactiveThreshold = Duration.ofHours(1);
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -944,7 +944,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testYamlSerializationWithInactiveThreshold() {
-        Duration inactiveThreshold = Duration.ofDays(1);
+        Duration inactiveThreshold = Duration.ofMinutes(20);
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -959,7 +959,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testJsonDeserializationWithInactiveThreshold() throws JsonParseException {
-        Duration inactiveThreshold = Duration.ofHours(8);
+        Duration inactiveThreshold = Duration.ofHours(1);
         String json = "{"
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
@@ -1044,7 +1044,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testBuilderCopyMethodPreservesInactiveThreshold() {
-        Duration originalInactiveThreshold = Duration.ofDays(3);
+        Duration originalInactiveThreshold = Duration.ofMinutes(30);
 
         JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -1068,7 +1068,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testEqualsAndHashCodeWithInactiveThreshold() {
-        Duration inactiveThreshold = Duration.ofHours(4);
+        Duration inactiveThreshold = Duration.ofHours(1);
 
         JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
@@ -1130,7 +1130,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     public void testCompleteConfigurationWithInactiveThreshold() {
         ZonedDateTime startTime = ZonedDateTime.now().minusHours(1);
         Duration ackWait = Duration.ofSeconds(30);
-        Duration inactiveThreshold = Duration.ofHours(12);
+        Duration inactiveThreshold = Duration.ofHours(1);
         String consumerName = "complete-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
@@ -1162,7 +1162,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testInactiveThresholdWithConsumerNameCompatibility() {
-        Duration inactiveThreshold = Duration.ofHours(6);
+        Duration inactiveThreshold = Duration.ofHours(1);
         String consumerName = "threshold-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()

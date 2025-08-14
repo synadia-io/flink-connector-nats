@@ -343,6 +343,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         /**
          * Sets the inactive threshold for the consumer.
          * This defines how long a consumer can be inactive before it's considered eligible for cleanup.
+         * Valid values are between 5 and 120 minutes inclusive.
          * @param inactiveThreshold the inactive threshold as Duration
          * @return the builder
          */
@@ -351,6 +352,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 this.inactiveThreshold = null;
             }
             else {
+                Duration minThreshold = Duration.ofMinutes(5);
+                Duration maxThreshold = Duration.ofHours(2);
+
+                if (inactiveThreshold.compareTo(minThreshold) < 0 || inactiveThreshold.compareTo(maxThreshold) > 0) {
+                    throw new IllegalArgumentException("Inactive Threshold must be between 5 and 120 minutes inclusive.");
+                }
+
                 this.inactiveThreshold = inactiveThreshold;
             }
             return this;
