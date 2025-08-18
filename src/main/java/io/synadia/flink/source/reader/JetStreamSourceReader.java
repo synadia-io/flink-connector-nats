@@ -15,6 +15,7 @@ import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
+import io.synadia.flink.utils.MiscUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -29,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.synadia.flink.utils.Constants.FLINK_CONSUMER_PREFIX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -170,6 +172,23 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
         if (split.subjectConfig.ackWait != null) {
             b.ackWait(split.subjectConfig.ackWait);
+        }
+
+        if (split.subjectConfig.inactiveThreshold != null) {
+            b.inactiveThreshold(split.subjectConfig.inactiveThreshold);
+        }
+
+        if (MiscUtils.provided(split.subjectConfig.consumerName)) {
+            // added flink prefix to consumer name for identification
+            String prefixedConsumerName = FLINK_CONSUMER_PREFIX + split.subjectConfig.consumerName;
+
+            b.name(prefixedConsumerName);
+            b.durable(prefixedConsumerName);
+
+            // delivery policy is not set for durable consumers
+            // once created, it cannot be changed
+            // nats server maintains the last delivered sequence
+            sc.createOrUpdateConsumer(b.build());
         }
 
         long lastSeq = split.lastEmittedStreamSequence.get();
