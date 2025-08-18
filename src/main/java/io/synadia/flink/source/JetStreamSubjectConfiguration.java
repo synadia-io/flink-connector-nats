@@ -352,13 +352,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 this.inactiveThreshold = null;
             }
             else {
-                Duration minThreshold = Duration.ofMinutes(5);
-                Duration maxThreshold = Duration.ofHours(2);
-
-                if (inactiveThreshold.compareTo(minThreshold) < 0 || inactiveThreshold.compareTo(maxThreshold) > 0) {
-                    throw new IllegalArgumentException("Inactive Threshold must be between 5 and 120 minutes inclusive.");
-                }
-
                 this.inactiveThreshold = inactiveThreshold;
             }
             return this;
