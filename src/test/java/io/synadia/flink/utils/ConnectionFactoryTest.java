@@ -6,10 +6,13 @@ package io.synadia.flink.utils;
 import io.nats.client.Connection;
 import io.nats.client.Options;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import nats.io.NatsServerRunner;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,8 +22,23 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Isolated
 class ConnectionFactoryTest extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        cleanupJs(ctx.nc);
+    }
 
     /**
      * Tests basic connection creation using Properties.
@@ -31,7 +49,7 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectWithValidPropertiesShouldEstablishConnection() throws Exception {
-        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
+        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(ctx.url));
         Connection connection = null;
         try {
             connection = factory.connect();
@@ -54,21 +72,14 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectWithValidPropertiesFileShouldEstablishConnection() throws Exception {
-        String propsFile = createTempPropertiesFile(defaultConnectionProperties(url));
+        String propsFile = createTempPropertiesFile(defaultConnectionProperties(ctx.url));
 
         ConnectionFactory factory = new ConnectionFactory(propsFile);
         assertEquals(propsFile, factory.getConnectionPropertiesFile());
 
-        Connection connection = null;
-        try {
-            connection = factory.connect();
+        try (Connection connection = factory.connect()) {
             assertNotNull(connection);
             assertSame(Connection.Status.CONNECTED, connection.getStatus());
-        }
-        finally {
-            if (connection != null) {
-                connection.close();
-            }
         }
     }
 
@@ -82,7 +93,7 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testConnectionContextWithJetStreamShouldCreateJetStreamContext() throws Exception {
-        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(url));
+        ConnectionFactory factory = new ConnectionFactory(defaultConnectionProperties(ctx.url));
         ConnectionContext context = null;
         try {
             context = factory.getConnectionContext();
@@ -131,8 +142,8 @@ class ConnectionFactoryTest extends TestBase {
      * 3. Original properties remain unchanged
      */
     @Test
-    void testGetConnectionPropertiesWhenModifiedShouldNotAffectOriginal() throws Exception {
-        Properties originalProps = defaultConnectionProperties(url);
+    void testGetConnectionPropertiesWhenModifiedShouldNotAffectOriginal() {
+        Properties originalProps = defaultConnectionProperties(ctx.url);
         ConnectionFactory factory = new ConnectionFactory(originalProps);
 
         Properties returnedProps = factory.getConnectionProperties();
@@ -154,7 +165,7 @@ class ConnectionFactoryTest extends TestBase {
      */
     @Test
     void testSerializationWithValidFactoryShouldMaintainState() throws Exception {
-        Properties props = defaultConnectionProperties(url);
+        Properties props = defaultConnectionProperties(ctx.url);
         ConnectionFactory originalFactory = new ConnectionFactory(props);
 
         // Create multiple deserialized instances
@@ -171,7 +182,7 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     @Test
-    void testCoverage() throws IOException {
+    void testCoverage() {
         try (NatsServerRunner runner = new NatsServerRunner(4222, false))
         {
             ConnectionFactory factory1 = new ConnectionFactory((Properties)null);
@@ -225,7 +236,7 @@ class ConnectionFactoryTest extends TestBase {
      * 2. Exception message contains the invalid file path
      */
     @Test
-    void testConnectWithInvalidPropertiesFileShouldThrowIOException() throws IOException {
+    void testConnectWithInvalidPropertiesFileShouldThrowIOException() {
         String nonExistentFile = "nonexistent.properties";
         ConnectionFactory factory = new ConnectionFactory(nonExistentFile);
         assertThrows(IOException.class, factory::connect);

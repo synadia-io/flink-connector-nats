@@ -6,6 +6,7 @@ package io.synadia.flink.sink;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import io.synadia.flink.helpers.MockWriterInitContext;
 import io.synadia.flink.message.SinkConverter;
 import io.synadia.flink.message.SinkMessage;
@@ -15,6 +16,9 @@ import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -28,6 +32,22 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class NatsSinkWriterTest extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() throws Exception {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() throws Exception {
+        cleanupJs(ctx.nc);
+    }
 
     /**
      * Tests NatsSinkWriter.write() publishes messages to multiple subjects.
@@ -49,11 +69,11 @@ class NatsSinkWriterTest extends TestBase {
         String subject2 = subject();
         List<String> subjects = Arrays.asList(subject1, subject2);
 
-        Subscription sub1 = nc.subscribe(subject1);
-        Subscription sub2 = nc.subscribe(subject2);
-        nc.flush(Duration.ofSeconds(1));
+        Subscription sub1 = ctx.nc.subscribe(subject1);
+        Subscription sub2 = ctx.nc.subscribe(subject2);
+        ctx.nc.flush(Duration.ofSeconds(1));
 
-        NatsSinkWriter<String> writer = createWriter(url, subjects);
+        NatsSinkWriter<String> writer = createWriter(ctx.url, subjects);
         String testMessage = "Hello NATS!";
 
         writer.write(testMessage, mock(SinkWriter.Context.class));
@@ -86,7 +106,7 @@ class NatsSinkWriterTest extends TestBase {
     void closeDisallowsWritesAndCleansUpResources() throws Exception {
         runInServer((nc, url) -> {
             String subject = subject();
-            List<String> subjects = Arrays.asList(subject);
+            List<String> subjects = List.of(subject);
 
             NatsSinkWriter<String> writer = createWriter(url, subjects);
             writer.close();
@@ -183,7 +203,7 @@ class NatsSinkWriterTest extends TestBase {
         assertNotNull(writer.getSinkConverter());
         assertNotNull(writer.getCtx());
         WriterInitContext initCtx = writer.getWriterInitContext();
-        assertTrue(initCtx instanceof MockWriterInitContext);
+        assertInstanceOf(MockWriterInitContext.class, initCtx);
         assertNotNull(initCtx);
         assertEquals(id, ((MockWriterInitContext)initCtx).getId());
     }

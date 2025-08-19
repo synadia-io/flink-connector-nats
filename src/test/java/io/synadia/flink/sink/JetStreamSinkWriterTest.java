@@ -7,11 +7,15 @@ import io.nats.client.*;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import io.synadia.flink.helpers.MockWriterInitContext;
 import io.synadia.flink.message.Utf8StringSinkConverter;
 import io.synadia.flink.sink.writer.JetStreamSinkWriter;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -22,14 +26,28 @@ import static io.synadia.flink.utils.MiscUtils.random;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-
 class JetStreamSinkWriterTest extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        cleanupJs(ctx.nc);
+    }
 
     /**
      * Tests JetStreamSinkWriter.write() publishes messages to JetStream subjects.
      * Verifies that multiple messages are correctly published to all configured 
      * JetStream subjects.
-     *
      * Flow:
      * 1. Creates JetStream stream and subjects
      * 2. Creates JetStream subscriptions
@@ -39,7 +57,7 @@ class JetStreamSinkWriterTest extends TestBase {
     @Test
     void writeToJetStreamSubjects() throws Exception {
         // Setup JetStream
-        JetStreamManagement jsm = nc.jetStreamManagement();
+        JetStreamManagement jsm = ctx.nc.jetStreamManagement();
         String stream = stream();
         String subject1 = subject();
         String subject2 = subject();
@@ -54,14 +72,14 @@ class JetStreamSinkWriterTest extends TestBase {
         jsm.addStream(sc);
 
         // Create subscriptions
-        JetStream js = nc.jetStream();
+        JetStream js = ctx.nc.jetStream();
         PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(stream).build();
         Subscription sub1 = js.subscribe(subject1, pso);
         Subscription sub2 = js.subscribe(subject2, pso);
-        nc.flush(Duration.ofSeconds(1));
+        ctx.nc.flush(Duration.ofSeconds(1));
 
         // Create and use writer
-        JetStreamSinkWriter<String> writer = createWriter(url, subjects);
+        JetStreamSinkWriter<String> writer = createWriter(subjects);
 
         // Send multiple messages
         String[] testMessages = {
@@ -104,19 +122,18 @@ class JetStreamSinkWriterTest extends TestBase {
     @Test
     void closeDisallowsWritesAndCleansUpResources() throws Exception {
         // Setup JetStream
-        JetStreamManagement jsm = nc.jetStreamManagement();
         String stream = stream();
         String subject = subject();
-        List<String> subjects = Arrays.asList(subject);
+        List<String> subjects = List.of(subject);
 
         StreamConfiguration sc = StreamConfiguration.builder()
             .name(stream)
             .subjects(subjects)
             .storageType(StorageType.Memory)
             .build();
-        jsm.addStream(sc);
+        ctx.jsm.addStream(sc);
 
-        JetStreamSinkWriter<String> writer = createWriter(url, subjects);
+        JetStreamSinkWriter<String> writer = createWriter(subjects);
         writer.close();
 
         assertThrows(Exception.class, () ->
@@ -142,13 +159,7 @@ class JetStreamSinkWriterTest extends TestBase {
         List<String> subjects = List.of(subject);
         String sinkId = random("test-to-string");
 
-        JetStreamSinkWriter<String> writer = new JetStreamSinkWriter<>(
-            sinkId,
-            subjects,
-            new Utf8StringSinkConverter(),
-            new ConnectionFactory(defaultConnectionProperties(url)),
-            new MockWriterInitContext(sinkId)
-        );
+        JetStreamSinkWriter<String> writer = createWriter(sinkId, subjects);
 
         String result = writer.toString();
         assertTrue(result.contains("JetStreamSinkWriter"), "Should contain class name");
@@ -158,20 +169,20 @@ class JetStreamSinkWriterTest extends TestBase {
         writer.close();
     }
 
-    private JetStreamSinkWriter<String> createWriter(String url, List<String> subjects) throws Exception {
-        return createWriter(random(), url, subjects);
+    private JetStreamSinkWriter<String> createWriter(List<String> subjects) throws Exception {
+        return createWriter(random(), subjects);
     }
 
     /**
      * Helper method to create a JetStreamSinkWriter with a specific connection and subjects.
      */
-    private JetStreamSinkWriter<String> createWriter(String id, String url, List<String> subjects) throws Exception {
+    private JetStreamSinkWriter<String> createWriter(String sinkId, List<String> subjects) throws Exception {
         return new JetStreamSinkWriter<>(
-                id,
-                subjects,
-                new Utf8StringSinkConverter(),
-                new ConnectionFactory(defaultConnectionProperties(url)),
-                new MockWriterInitContext(id)
+            sinkId,
+            subjects,
+            new Utf8StringSinkConverter(),
+            new ConnectionFactory(defaultConnectionProperties(ctx.url)),
+            new MockWriterInitContext(sinkId)
         );
     }
 }

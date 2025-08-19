@@ -13,7 +13,6 @@ import io.synadia.flink.sink.JetStreamSink;
 import io.synadia.flink.sink.JetStreamSinkBuilder;
 import io.synadia.flink.sink.NatsSink;
 import io.synadia.flink.sink.NatsSinkBuilder;
-import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.file.src.FileSource;
@@ -21,14 +20,10 @@ import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.logging.Level;
 
 import static io.synadia.flink.utils.MiscUtils.random;
 
@@ -40,9 +35,6 @@ public class TestBase {
     public static final Map<String, Integer> WORD_COUNT_MAP = new HashMap<>();
 
     static {
-        NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
-        quiet();
-
         UTF8_TEST_STRINGS.addAll(resourceAsLines("utf8-test-strings.txt"));
         WORD_COUNT_JSONS.addAll(resourceAsLines("word-count-jsons.txt"));
 
@@ -52,39 +44,22 @@ public class TestBase {
         }
     }
 
-    protected static NatsServerRunner RUNNER;
-    protected static Connection nc;
-    protected static String url;
-
-    @BeforeAll
-    public static void beforeAll() throws Exception {
-        RUNNER = new NatsServerRunner(false, true);
-        nc = Nats.connect(RUNNER.getURI());
-        url = getUrl(nc);
-    }
-
-    @AfterAll
-    public static void afterAll() throws Exception {
-        try {
-            nc.close();
+    protected static TestServerContext createContext(TestServerContext ctx) throws Exception {
+        if (ctx == null) {
+            ctx = new TestServerContext();
         }
-        catch (Exception ignore) {}
-        try {
-            RUNNER.close();
+        return ctx;
+    }
+
+    protected static TestServerContext shutdownContext(TestServerContext ctx) {
+        if (ctx != null) {
+            ctx.shutdown();
         }
-        catch (Exception ignore) {}
-    }
-
-    @AfterEach
-    public void afterEach() throws Exception {
-        cleanupJs(nc);
-    }
-
-    public static void quiet() {
-        NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
+        return null;
     }
 
     public static StreamExecutionEnvironment getStreamExecutionEnvironment() {
+        //noinspection UnnecessaryLocalVariable
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         //env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         return env;
@@ -113,7 +88,6 @@ public class TestBase {
         }
 
         public TestStream(JetStreamManagement jsm, String... subjects) throws JetStreamApiException, IOException {
-
             stream = stream();
             this.subjects = subjects;
             subject = subjects[0];
@@ -177,7 +151,7 @@ public class TestBase {
         }
     }
 
-    protected static String getUrl(Connection nc) {
+    public static String getUrl(Connection nc) {
         return "nats://localhost:" + nc.getServerInfo().getPort();
     }
 
