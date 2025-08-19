@@ -15,7 +15,6 @@ import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
-import io.synadia.flink.utils.MiscUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -30,7 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.synadia.flink.utils.Constants.FLINK_CONSUMER_PREFIX;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -178,30 +176,31 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             b.inactiveThreshold(split.subjectConfig.inactiveThreshold);
         }
 
-        if (MiscUtils.provided(split.subjectConfig.consumerName)) {
-            // added flink prefix to consumer name for identification
-            String prefixedConsumerName = FLINK_CONSUMER_PREFIX + split.subjectConfig.consumerName;
-
-            b.name(prefixedConsumerName);
-            b.durable(prefixedConsumerName);
-
-            // delivery policy is not set for durable consumers
-            // once created, it cannot be changed
-            // nats server maintains the last delivered sequence
-            sc.createOrUpdateConsumer(b.build());
-        }
-
-        long lastSeq = split.lastEmittedStreamSequence.get();
-        if (lastSeq > 0) {
-            b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
+        if (split.subjectConfig.durableName != null) {
+            b.durable(split.subjectConfig.durableName);
         }
         else {
-            b.deliverPolicy(split.subjectConfig.deliverPolicy);
-            if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartSequence) {
-                b.startSequence(split.subjectConfig.startSequence);
+            if (split.subjectConfig.consumerNamePrefix != null) {
+                b.name(split.subjectConfig.consumerNamePrefix + "-" + NUID.nextGlobal());
             }
-            else if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartTime) {
-                b.startTime(split.subjectConfig.startTime);
+
+            // Delivery policy is only set for non-durable consumers
+            // since the durable consumer will already track the sequence.
+            // For non-durable we might need to start at the last checkpoint
+
+            //noinspection DuplicatedCode it must be duplicated b/c classes don't share a common interface but have the same method names
+            long lastSeq = split.lastEmittedStreamSequence.get();
+            if (lastSeq > 0) {
+                b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
+            }
+            else {
+                b.deliverPolicy(split.subjectConfig.deliverPolicy);
+                if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartSequence) {
+                    b.startSequence(split.subjectConfig.startSequence);
+                }
+                else if (split.subjectConfig.deliverPolicy == DeliverPolicy.ByStartTime) {
+                    b.startTime(split.subjectConfig.startTime);
+                }
             }
         }
         return sc.createOrUpdateConsumer(b.build());
@@ -209,7 +208,10 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private BaseConsumerContext createOrderedConsumer(JetStreamSplit split, StreamContext sc) throws JetStreamApiException, IOException {
         OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
+            .consumerNamePrefix(split.subjectConfig.consumerNamePrefix) // builder handles if this is null
             .filterSubject(split.subjectConfig.subject);
+
+        //noinspection DuplicatedCode it must be duplicated b/c classes don't share a common interface but have the same method names
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
             ocConfig.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
@@ -236,12 +238,11 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
-                // AckBehavior.AckAll is the only behavior that we ack.
+                // AckBehavior.AckAll is the only behavior that we currently ack (isCheckpointAck).
                 // All other behaviors are either AckPolicy.None or left for the sink to deal with.
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader
-                // This is probably not perfect, but the whole acking thing is questionable anyway...
                 scheduler.execute(() -> connectionContext.connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
             }
         }

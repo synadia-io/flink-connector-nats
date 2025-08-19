@@ -9,12 +9,16 @@ import io.nats.client.Options;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import io.synadia.flink.helpers.WordSubscriber;
 import io.synadia.flink.message.Utf8StringSinkConverter;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -28,10 +32,26 @@ import static io.synadia.flink.utils.MiscUtils.random;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsSinkTest extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        cleanupJs(ctx.nc);
+    }
 
     @Test
     public void testBasic() throws Exception {
-        _testSink("testBasic", nc, defaultConnectionProperties(url), null);
+        _testSink("testBasic", ctx.nc, defaultConnectionProperties(ctx.url), null);
     }
 
     @Test
@@ -114,12 +134,12 @@ public class NatsSinkTest extends TestBase {
         assertThrows(IllegalArgumentException.class,
             () -> new NatsSinkBuilder<String>()
                 .subjects("foo")
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionProperties(defaultConnectionProperties(ctx.url))
                 .build());
         assertThrows(IllegalArgumentException.class,
             () -> new NatsSinkBuilder<String>()
                 .subjects("foo")
-                .connectionProperties(defaultConnectionProperties(url))
+                .connectionProperties(defaultConnectionProperties(ctx.url))
                 .sinkConverterClass("not-a-class")
                 .build());
 

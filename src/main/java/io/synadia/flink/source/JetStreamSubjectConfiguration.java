@@ -7,7 +7,6 @@ import io.nats.client.BaseConsumeOptions;
 import io.nats.client.ConsumeOptions;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.*;
-import io.synadia.flink.utils.MiscUtils;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 
@@ -32,7 +31,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public final String id;
     public final String streamName;
     public final String subject;
-    public final String consumerName;
+    public final String consumerNamePrefix;
+    public final String durableName;
     public final long startSequence;
     public final ZonedDateTime startTime;
     public final long maxMessagesToRead;
@@ -48,7 +48,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         serializableConsumeOptions = new SerializableConsumeOptions(consumeOptions);
         subject = b.subject;
         streamName = b.streamName;
-        consumerName = b.consumerName;
+        consumerNamePrefix = b.consumerNamePrefix;
+        durableName = b.durableName;
         startSequence = b.startSequence;
         startTime = b.startTime;
         maxMessagesToRead = b.maxMessagesToRead;
@@ -65,7 +66,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         id = checksum(subject,
             streamName,
-            consumerName,
+            consumerNamePrefix,
+            durableName,
             startSequence,
             startTime,
             maxMessagesToRead,
@@ -81,7 +83,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, STREAM_NAME, streamName);
         JsonUtils.addField(sb, SUBJECT, subject);
-        JsonUtils.addField(sb, CONSUMER_NAME, consumerName);
+        JsonUtils.addField(sb, CONSUMER_NAME_PREFIX, consumerNamePrefix);
+        JsonUtils.addField(sb, DURABLE_NAME, durableName);
         JsonUtils.addField(sb, START_SEQUENCE, startSequence);
         JsonUtils.addField(sb, START_TIME, startTime);
         JsonUtils.addField(sb, MAX_MESSAGES_TO_READ, maxMessagesToRead);
@@ -104,7 +107,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
         indentLevel++;
         YamlUtils.addField(sb, indentLevel, SUBJECT, subject);
-        YamlUtils.addField(sb, indentLevel, CONSUMER_NAME, consumerName);
+        YamlUtils.addField(sb, indentLevel, CONSUMER_NAME_PREFIX, consumerNamePrefix);
+        YamlUtils.addField(sb, indentLevel, DURABLE_NAME, durableName);
         YamlUtils.addField(sb, indentLevel, START_SEQUENCE, startSequence);
         YamlUtils.addField(sb, indentLevel, START_TIME, startTime);
         YamlUtils.addField(sb, indentLevel, MAX_MESSAGES_TO_READ, maxMessagesToRead);
@@ -144,7 +148,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
             .subject(JsonValueUtils.readString(jv, SUBJECT))
-            .consumerName(JsonValueUtils.readString(jv, CONSUMER_NAME))
+            .consumerNamePrefix(JsonValueUtils.readString(jv, CONSUMER_NAME_PREFIX))
+            .durableName(JsonValueUtils.readString(jv, DURABLE_NAME))
             .startSequence(JsonValueUtils.readLong(jv, START_SEQUENCE, -1))
             .startTime(JsonValueUtils.readDate(jv, START_TIME))
             .maxMessagesToRead(JsonValueUtils.readLong(jv, MAX_MESSAGES_TO_READ, -1))
@@ -160,7 +165,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return new Builder()
             .streamName(YamlUtils.readString(map, STREAM_NAME))
             .subject(YamlUtils.readString(map, SUBJECT))
-            .consumerName(YamlUtils.readString(map, CONSUMER_NAME))
+            .consumerNamePrefix(YamlUtils.readString(map, CONSUMER_NAME_PREFIX))
+            .durableName(YamlUtils.readString(map, DURABLE_NAME))
             .startSequence(YamlUtils.readLong(map, START_SEQUENCE, -1))
             .startTime(YamlUtils.readDate(map, START_TIME))
             .maxMessagesToRead(YamlUtils.readLong(map, MAX_MESSAGES_TO_READ, -1))
@@ -175,7 +181,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     public static class Builder {
         private String streamName;
         private String subject;
-        private String consumerName;
+        private String consumerNamePrefix;
+        private String durableName;
         private long startSequence = -1;
         private ZonedDateTime startTime;
         private long maxMessagesToRead = -1;
@@ -186,12 +193,13 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         private Duration inactiveThreshold;
 
         /**
-         * Copies all the configuration except the subject and consumer name.
+         * Copies all the configuration except the subject and durable name.
          * @param config the config to use as a basis for the new config
          * @return the builder
          */
         public Builder copy(JetStreamSubjectConfiguration config) {
             return streamName(config.streamName)
+                .consumerNamePrefix(config.consumerNamePrefix)
                 .startSequence(config.startSequence)
                 .startTime(config.startTime)
                 .maxMessagesToRead(config.maxMessagesToRead)
@@ -208,7 +216,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder streamName(String streamName) {
-            this.streamName = streamName;
+            this.streamName = Validator.emptyAsNull(streamName);
             return this;
         }
 
@@ -218,28 +226,57 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder subject(String subject) {
-            this.subject = subject;
+            this.subject = Validator.emptyAsNull(subject);
             return this;
         }
 
         /**
-         * Sets the consumer name
-         * @param consumerName the consumer name
+         * Sets the consumer name prefix for non-durable consumers. This allows visibility in logs.
+         * This setting is not compatible with setting the durable name
+         * @param consumerNamePrefix the consumer name prefix
          * @return the builder
          */
-        public Builder consumerName(String consumerName) {
-            this.consumerName = consumerName;
+        public Builder consumerNamePrefix(String consumerNamePrefix) {
+            this.consumerNamePrefix = Validator.emptyAsNull(consumerNamePrefix);
             return this;
         }
 
         /**
-         * Set the initial Consume batch size in messages.
-         * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT} when bytes are not specified.
+         * Sets the durable name for the consumer, which makes the consumer durable
+         * This setting is not compatible with AckBehavior.NoAck but is allowed on all other AckBehaviors
+         * It is also not compatible with setting a consumer name prefix
+         * @param durableName the durable name
+         * @return the builder
+         */
+        public Builder durableName(String durableName) {
+            this.durableName = Validator.emptyAsNull(durableName);
+            return this;
+        }
+
+        /**
+         * Sets the inactive threshold for the consumer.
+         * This defines how long a consumer can be inactive before it's considered eligible for cleanup.
+         * @param inactiveThreshold the inactive threshold as Duration
+         * @return the builder
+         */
+        public Builder inactiveThreshold(Duration inactiveThreshold) {
+            if (inactiveThreshold == null || inactiveThreshold.isZero() || inactiveThreshold.isNegative()) {
+                this.inactiveThreshold = null;
+            }
+            else {
+                this.inactiveThreshold = inactiveThreshold;
+            }
+            return this;
+        }
+
+        /**
+         * Set the simplified consume batch size in messages.
+         * <p>Less than 1 means default of {@value BaseConsumeOptions#DEFAULT_MESSAGE_COUNT}
          * @param batchSize the batch size in messages.
          * @return the builder
          */
         public Builder batchSize(int batchSize) {
-            this.batchSize = batchSize;
+            this.batchSize = batchSize < 1 ? -1 : batchSize;
             return this;
         }
 
@@ -252,7 +289,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder thresholdPercent(int thresholdPercent) {
-            this.thresholdPercent = thresholdPercent;
+            this.thresholdPercent = thresholdPercent < 1 ? -1 : Math.min(100, thresholdPercent);
             return this;
         }
 
@@ -262,15 +299,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder startSequence(long startSequence) {
-            if (startSequence < 1) {
-                this.startSequence = -1;
-            }
-            else if (startTime != null) {
-                throw new IllegalArgumentException("Cannot set both start sequence and start time.");
-            }
-            else {
-                this.startSequence = startSequence;
-            }
+            this.startSequence = startSequence < 1 ? -1 : startSequence;
             return this;
         }
 
@@ -280,9 +309,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * @return the builder
          */
         public Builder startTime(ZonedDateTime startTime) {
-            if (startTime != null && startSequence != -1) {
-                throw new IllegalArgumentException("Cannot set both start sequence and start time.");
-            }
             this.startTime = startTime;
             return this;
         }
@@ -314,7 +340,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         /**
          * Sets the ack wait for the consumer.
-         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck or AckBehavior.NoAckUnordered
          * @param ackWaitMillis the ack wait in milliseconds
          * @return the builder
          */
@@ -325,8 +351,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
 
         /**
          * Sets the ack wait for the consumer.
-         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck
-         * @param ackWait the ack wait in Duration
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck or AckBehavior.NoAckUnordered
+         * @param ackWait the ack wait as a Duration
          * @return the builder
          */
         public Builder ackWait(Duration ackWait) {
@@ -337,30 +363,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 this.ackWait = ackWait;
             }
 
-            return this;
-        }
-
-        /**
-         * Sets the inactive threshold for the consumer.
-         * This defines how long a consumer can be inactive before it's considered eligible for cleanup.
-         * Valid values are between 5 and 120 minutes inclusive.
-         * @param inactiveThreshold the inactive threshold as Duration
-         * @return the builder
-         */
-        public Builder inactiveThreshold(Duration inactiveThreshold) {
-            if (inactiveThreshold == null || inactiveThreshold.isZero() || inactiveThreshold.isNegative()) {
-                this.inactiveThreshold = null;
-            }
-            else {
-                Duration minThreshold = Duration.ofMinutes(5);
-                Duration maxThreshold = Duration.ofHours(2);
-
-                if (inactiveThreshold.compareTo(minThreshold) < 0 || inactiveThreshold.compareTo(maxThreshold) > 0) {
-                    throw new IllegalArgumentException("Inactive Threshold must be between 5 and 120 minutes inclusive.");
-                }
-
-                this.inactiveThreshold = inactiveThreshold;
-            }
             return this;
         }
 
@@ -376,7 +378,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         }
 
         /**
-         /**
          * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
          * @param ackMode false sets the policy to AckBehavior.NoAck. true sets the policy to AckBehavior.All
          * @return the builder
@@ -387,26 +388,37 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             return this;
         }
 
+        /**
+         * Build the JetStreamSubjectConfiguration
+         * @return the JetStreamSubjectConfiguration instance
+         */
         public JetStreamSubjectConfiguration build() {
-            if (MiscUtils.notProvided(subject)) {
-                throw new IllegalArgumentException("Subject is required.");
-            }
-            if (MiscUtils.notProvided(streamName)) {
+            // All strings are already coerced to be null if they were empty, so it's safe to check for null
+            if (streamName == null) {
                 throw new IllegalArgumentException("Stream name is required.");
             }
-            if (ackBehavior == AckBehavior.NoAck && ackWait != null) {
-                throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior is NoAck.");
-            }
-            if (ackBehavior == AckBehavior.NoAck && MiscUtils.provided(consumerName)) {
-                throw new IllegalArgumentException("Consumer Name cannot be set when Ack Behavior is NoAck.");
-            }
-            if (ackBehavior == AckBehavior.NoAck && inactiveThreshold != null) {
-                throw new IllegalArgumentException("Inactive Threshold cannot be set when Ack Behavior is NoAck.");
-            }
-            if (MiscUtils.provided(consumerName) && inactiveThreshold == null) {
-                throw new IllegalArgumentException("Inactive Threshold must be set when Consumer Name is provided.");
+            if (subject == null) {
+                throw new IllegalArgumentException("Subject is required.");
             }
 
+            if (startTime != null && startSequence != -1) {
+                throw new IllegalArgumentException("Cannot set both start sequence and start time.");
+            }
+
+            if (ackBehavior.isNoAck) {
+                if (ackWait != null) {
+                    throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior does not ack.");
+                }
+                if (ackBehavior == AckBehavior.NoAck && durableName != null) {
+                    throw new IllegalArgumentException("Durable name cannot be set when Ack Behavior is NoAck.");
+                }
+            }
+
+            if (consumerNamePrefix != null && durableName != null) {
+                throw new IllegalArgumentException("Durable Name and Consumer Name Prefix cannot both be set.");
+            }
+
+            // All numbers are already coerced to be -1 if the input was out of range
             ConsumeOptions co = batchSize == -1 && thresholdPercent == -1
                 ? ConsumeOptions.DEFAULT_CONSUME_OPTIONS
                 : ConsumeOptions.builder().batchSize(batchSize).thresholdPercent(thresholdPercent).build();

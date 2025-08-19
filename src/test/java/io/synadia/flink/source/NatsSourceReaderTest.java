@@ -1,6 +1,7 @@
 package io.synadia.flink.source;
 
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import io.synadia.flink.message.Utf8StringSourceConverter;
 import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.source.split.NatsSubjectSplit;
@@ -9,9 +10,7 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.api.*;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -24,23 +23,35 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SuppressWarnings("unchecked")
-@Isolated
 class NatsSourceReaderTest extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        cleanupJs(ctx.nc);
+    }
 
     /**
      * Validates core message flow functionality from NATS to Flink.
-     *
      * Example scenario:
      * 1. Establishes NATS connection
      * 2. Creates subscription for test subject
      * 3. Publishes test message
      * 4. Verifies message delivery and deserialization
-     *
      * Key assertions:
      * - Message is received and deserialized correctly
      * - Timing constraints are met
      * - Proper cleanup occurs on close
-     *
      * @throws Exception if any NATS operations fail
      */
     @Test
@@ -50,15 +61,13 @@ class NatsSourceReaderTest extends TestBase {
         ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
         SourceReaderContext mockContext = mock(SourceReaderContext.class);
 
-        NatsSourceReader<String> reader = createReader(url, mockContext);
-
-        try {
+        try (NatsSourceReader<String> reader = createReader(ctx.url, mockContext)) {
             reader.start();
             reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
             Thread.sleep(100); // Brief pause for subscription to establish
 
             String testMessage = "Hello, World!";
-            nc.publish(testSubject, testMessage.getBytes());
+            ctx.nc.publish(testSubject, testMessage.getBytes());
 
             // Poll until message is received
             for (int i = 0; i < 10; i++) {
@@ -68,33 +77,26 @@ class NatsSourceReaderTest extends TestBase {
 
             verify(mockOutput, timeout(500)).collect(eq(testMessage));
         }
-        finally {
-            reader.close();
-        }
     }
 
     /**
      * Validates split state management and persistence capabilities.
-     *
      * Example scenario:
      * 1. Creates multiple splits with unique subjects
      * 2. Adds splits to reader
      * 3. Takes state snapshot
      * 4. Verifies snapshot contents
-     *
      * Key assertions:
      * - All splits are tracked correctly
      * - Snapshot contains expected splits
      * - Split equality is maintained
-     *
      * @throws Exception if any NATS operations fail
      */
     @Test
     void testSnapshotState() throws Exception {
         String testSubject = subject();
-        NatsSourceReader<String> reader = createReader(url);
 
-        try {
+        try (NatsSourceReader<String> reader = createReader(ctx.url)) {
             reader.start();
 
             // Create two distinct splits
@@ -112,39 +114,32 @@ class NatsSourceReaderTest extends TestBase {
             assertEquals(new HashSet<>(splits), new HashSet<>(snapshot),
                 String.format("Snapshot splits don't match. Expected %s but got %s", splits, snapshot));
         }
-        finally {
-            reader.close();
-        }
     }
 
     /**
      * Demonstrates message availability signaling behavior.
-     *
      * Example scenario:
      * 1. Gets availability future before messages
      * 2. Verifies initial not-done state
      * 3. Publishes message
      * 4. Confirms future completion
-     *
      * Key assertions:
      * - Future state transitions correctly
      * - Message becomes available after signal
      * - Proper timing of state changes
-     *
      * @throws Exception if any NATS operations fail
      */
     @Test
     void testIsAvailable() throws Exception {
-        NatsSourceReader<String> reader = createReader(url);
-        ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
 
-        try {
+        try (NatsSourceReader<String> reader = createReader(ctx.url)) {
+            ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
             reader.start();
             String testSubject = subject();
             reader.addSplits(Collections.singletonList(new NatsSubjectSplit(testSubject)));
             Thread.sleep(100);
 
-            nc.publish(testSubject, "test".getBytes());
+            ctx.nc.publish(testSubject, "test".getBytes());
             Thread.sleep(100); // Wait for message to be received
 
             CompletableFuture<Void> future = reader.isAvailable();
@@ -155,26 +150,21 @@ class NatsSourceReaderTest extends TestBase {
             reader.pollNext(mockOutput);
             verify(mockOutput).collect("test");
         }
-        finally {
-            reader.close();
-        }
     }
 
     /**
      * Demonstrates error handling for connection failures.
-     *
      * Example scenario:
      * 1. Configures mock factory to simulate failure
      * 2. Attempts connection establishment
      * 3. Verifies error propagation
-     *
      * Key assertions:
      * - Correct exception hierarchy
      * - Error context preservation
      * - Single connection attempt
      */
     @Test
-    void testErrorHandling() {
+    void testErrorHandling() throws Exception{
         // Setup mock factory with simulated failure
         ConnectionFactory failingFactory = mock(ConnectionFactory.class);
         try {
@@ -183,82 +173,78 @@ class NatsSourceReaderTest extends TestBase {
             fail("Mock setup failed", e);
         }
 
-        NatsSourceReader<String> reader = new NatsSourceReader<>(
+        try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             failingFactory,
                 new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
-        );
-
-        // Verify error propagation
-        FlinkRuntimeException thrown = assertThrows(
+        )) {
+            // Verify error propagation
+            FlinkRuntimeException thrown = assertThrows(
                 FlinkRuntimeException.class,
                 reader::start,
                 "Should throw FlinkRuntimeException when connection fails"
-        );
+            );
 
-        // Verify exception chain and context
-        assertNotNull(thrown.getCause(),
+            // Verify exception chain and context
+            assertNotNull(thrown.getCause(),
                 "Exception should preserve cause");
-        assertTrue(thrown.getCause() instanceof IOException,
-                "Original IOException should be preserved in cause");
-        assertEquals("Simulated connection error", thrown.getCause().getMessage(),
+            assertInstanceOf(IOException.class, thrown.getCause(), "Original IOException should be preserved in cause");
+            assertEquals("Simulated connection error", thrown.getCause().getMessage(),
                 "Error message should be preserved");
 
-        // Verify mock interactions
-        try {
-            verify(failingFactory, times(1)).connect();
-        } catch (IOException e) {
-            fail("Mock verification failed", e);
+            // Verify mock interactions
+            try {
+                //noinspection resource
+                verify(failingFactory, times(1)).connect();
+            }
+            catch (IOException e) {
+                fail("Mock verification failed", e);
+            }
         }
     }
 
     /**
      * Demonstrates source event handling behavior.
-     *
      * Example scenario:
      * 1. Creates reader with mock dependencies
      * 2. Sends test event
      * 3. Verifies logging occurs
-     *
      * Key assertions:
      * - No exceptions during event handling
      * - Event processing completes
      */
     @Test
-    void testSourceEvents() {
-        String sourceId = "test-source";
-        NatsSourceReader<String> reader = new NatsSourceReader<>(
+    void testSourceEvents() throws Exception {
+        try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
                 new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
-        );
-
-        assertDoesNotThrow(() -> reader.handleSourceEvents(mock(SourceEvent.class)),
+        )) {
+            assertDoesNotThrow(() -> reader.handleSourceEvents(mock(SourceEvent.class)),
                 "Event handling should not throw exceptions");
+        }
     }
 
     /**
      * Demonstrates split completion notification handling.
-     *
      * Example scenario:
      * 1. Creates reader with mock dependencies
      * 2. Sends completion notification
      * 3. Verifies logging behavior
-     *
      * Key assertions:
      * - No exceptions during notification
      * - Notification is processed
      */
     @Test
-    void testNotifyNoMoreSplits() {
-        NatsSourceReader<String> reader = new NatsSourceReader<>(
+    void testNotifyNoMoreSplits() throws Exception {
+        try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
                 new Utf8StringSourceConverter(),
                 mock(SourceReaderContext.class)
-        );
-
-        assertDoesNotThrow(reader::notifyNoMoreSplits,
+        )) {
+            assertDoesNotThrow(reader::notifyNoMoreSplits,
                 "notifyNoMoreSplits should not throw exceptions");
+        }
     }
 
     // Helper method to create reader with default context

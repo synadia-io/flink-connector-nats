@@ -7,6 +7,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.synadia.flink.TestBase;
+import io.synadia.flink.TestServerContext;
 import io.synadia.flink.helpers.Publisher;
 import io.synadia.flink.message.ByteArraySourceConverter;
 import io.synadia.flink.message.Utf8StringSinkConverter;
@@ -16,8 +17,10 @@ import io.synadia.flink.sink.NatsSinkBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,8 +30,23 @@ import java.util.Properties;
 import static io.synadia.flink.utils.MiscUtils.random;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Isolated
 public class NatsSourceTests extends TestBase {
+    static TestServerContext ctx;
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        ctx = createContext(ctx);
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        ctx = shutdownContext(ctx);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        cleanupJs(ctx.nc);
+    }
 
     @Test
     public void testSourceWithString() throws Exception {
@@ -38,15 +56,15 @@ public class NatsSourceTests extends TestBase {
         String sinkSubject = random();
 
         // listen to the sink output
-        Dispatcher d = nc.createDispatcher();
+        Dispatcher d = ctx.nc.createDispatcher();
         d.subscribe(sinkSubject, syncList::add);
 
         // publish to the source's subjects
-        Publisher publisher = new Publisher(nc, sourceSubject1, sourceSubject2);
+        Publisher publisher = new Publisher(ctx.nc, sourceSubject1, sourceSubject2);
         new Thread(publisher).start();
 
         // --------------------------------------------------------------------------------
-        Properties connectionProperties = defaultConnectionProperties(url);
+        Properties connectionProperties = defaultConnectionProperties(ctx.url);
         Utf8StringSourceConverter sourceConverter = new Utf8StringSourceConverter();
         NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
             .subjects(sourceSubject1, sourceSubject2)
@@ -79,15 +97,15 @@ public class NatsSourceTests extends TestBase {
         String sinkSubject = random();
 
         // listen to the sink output
-        Dispatcher d = nc.createDispatcher();
+        Dispatcher d = ctx.nc.createDispatcher();
         d.subscribe(sinkSubject, syncList::add);
 
         // publish to the source's subjects
-        Publisher publisher = new Publisher(nc, sourceSubject1, sourceSubject2);
+        Publisher publisher = new Publisher(ctx.nc, sourceSubject1, sourceSubject2);
         new Thread(publisher).start();
 
         // --------------------------------------------------------------------------------
-        Properties connectionProperties = defaultConnectionProperties(url);
+        Properties connectionProperties = defaultConnectionProperties(ctx.url);
         ByteArraySourceConverter sourceConverter = new ByteArraySourceConverter();
         NatsSourceBuilder<Byte[]> builder = new NatsSourceBuilder<Byte[]>()
             .subjects(sourceSubject1, sourceSubject2)
@@ -147,11 +165,11 @@ public class NatsSourceTests extends TestBase {
         String sinkSubject = random();
 
         // listen to the sink output
-        Dispatcher d = nc.createDispatcher();
+        Dispatcher d = ctx.nc.createDispatcher();
         d.subscribe(sinkSubject, syncList::add);
 
         // publish to the source's subjects
-        Publisher publisher = new Publisher(nc,
+        Publisher publisher = new Publisher(ctx.nc,
             (subject, num) -> {
                 Headers h = new Headers();
                 h.put("subject", subject);
@@ -162,7 +180,7 @@ public class NatsSourceTests extends TestBase {
         new Thread(publisher).start();
 
         // --------------------------------------------------------------------------------
-        Properties connectionProperties = defaultConnectionProperties(url);
+        Properties connectionProperties = defaultConnectionProperties(ctx.url);
         HeaderAwareStringSourceConverter sourceConverter = new HeaderAwareStringSourceConverter();
         NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
             .subjects(sourceSubject1, sourceSubject2)

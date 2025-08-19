@@ -24,7 +24,8 @@ public interface Constants {
     // ===================================================================================
     String STREAM_NAME = "stream_name";
     String SUBJECT = "subject";
-    String CONSUMER_NAME = "consumer_name";
+    String DURABLE_NAME = "durable_name";
+    String CONSUMER_NAME_PREFIX = "consumer_name_prefix";
     String INACTIVE_THRESHOLD = "inactive_threshold";
     String START_SEQUENCE = "start_sequence";
     String START_TIME = "start_time";
@@ -52,9 +53,4 @@ public interface Constants {
     String LAST_EMITTED_SEQ = "last_emitted_seq";
     String MESSAGES = "messages";
     String SUBJECT_CONFIG = "subject_config";
-
-    // ===================================================================================
-    // Consumer Name Constants
-    // ===================================================================================
-    String FLINK_CONSUMER_PREFIX = "flink-";
 }
