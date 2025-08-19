@@ -188,7 +188,6 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .build();
 
         String json = config.toJson();
-        System.out.println(json);
         assertTrue(json.contains("\"ack_wait\":" + ackWait.toNanos()));
         assertTrue(json.contains("\"ack_behavior\":\"AckAll\""));
     }
@@ -454,122 +453,137 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testConsumerNameWithValidAckBehavior() {
-        String consumerName = "test-consumer";
+    public void testDurableNameWithValidAckBehavior() {
+        String durableName = "test-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
     }
 
     @Test
-    public void testConsumerNameWithAllButDoNotAck() {
-        String consumerName = "my-consumer";
+    public void testDurableNameWithAllButDoNotAck() {
+        String durableName = "my-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AllButDoNotAck)
                 .build();
 
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
     }
 
     @Test
-    public void testConsumerNameWithExplicitButDoNotAck() {
-        String consumerName = "explicit-consumer";
+    public void testDurableNameWithExplicitButDoNotAck() {
+        String durableName = "explicit-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .build();
 
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
     }
 
     @Test
-    public void testConsumerNameWithNoAckThrowsException() {
+    public void testDurableNameWithNoAckThrowsException() {
         assertThrows(IllegalArgumentException.class, () -> {
             JetStreamSubjectConfiguration.builder()
                     .streamName(TEST_STREAM)
                     .subject(TEST_SUBJECT)
-                    .consumerName("test-consumer")
+                    .durableName("test-consumer")
                     .ackBehavior(AckBehavior.NoAck)
                     .build();
         }, "Consumer Name cannot be set when Ack Behavior is NoAck.");
     }
 
     @Test
-    public void testConsumerNameWithDefaultNoAckThrowsException() {
+    public void testDurableNameWithDefaultNoAckThrowsException() {
         // Default ack behavior is NoAck
         assertThrows(IllegalArgumentException.class, () -> {
             JetStreamSubjectConfiguration.builder()
                     .streamName(TEST_STREAM)
                     .subject(TEST_SUBJECT)
-                    .consumerName("test-consumer")
+                    .durableName("test-consumer")
                     .build();
         }, "Consumer Name cannot be set when Ack Behavior is NoAck.");
     }
 
     @Test
-    public void testConsumerNameNullWithNoAckAllowed() {
+    public void testDurableNameNullWithNoAckAllowed() {
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(null)
+                .durableName(null)
                 .ackBehavior(AckBehavior.NoAck)
                 .build();
 
-        assertNull(config.consumerName);
+        assertNull(config.durableName);
         assertEquals(AckBehavior.NoAck, config.ackBehavior);
     }
 
     @Test
-    public void testConsumerNameEmptyWithNoAckAllowed() {
+    public void testDurableNameEmptyWithNoAckAllowed() {
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName("")
+                .durableName("")
                 .ackBehavior(AckBehavior.NoAck)
                 .build();
 
-        assertEquals("", config.consumerName);
+        assertNull(config.durableName);
         assertEquals(AckBehavior.NoAck, config.ackBehavior);
     }
 
     @Test
-    public void testJsonSerializationWithConsumerName() {
-        String consumerName = "json-test-consumer";
+    public void testJsonSerializationWithNonDurablePrefix() {
+        String prefix = "prefix";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
-                .streamName(TEST_STREAM)
-                .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
-                .inactiveThreshold(Duration.ofMinutes(10))
-                .ackBehavior(AckBehavior.AckAll)
-                .build();
+            .streamName(TEST_STREAM)
+            .subject(TEST_SUBJECT)
+            .consumerNamePrefix(prefix)
+            .inactiveThreshold(Duration.ofMinutes(10))
+            .build();
 
         String json = config.toJson();
-        assertTrue(json.contains("\"consumer_name\":\"" + consumerName + "\""));
+        assertTrue(json.contains("\"consumer_name_prefix\":\"" + prefix + "\""));
+    }
+
+    @Test
+    public void testJsonSerializationWithDurableName() {
+        String durableName = "json-test-consumer";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+            .streamName(TEST_STREAM)
+            .subject(TEST_SUBJECT)
+            .durableName(durableName)
+            .inactiveThreshold(Duration.ofMinutes(10))
+            .ackBehavior(AckBehavior.AckAll)
+            .build();
+
+        String json = config.toJson();
+        assertTrue(json.contains("\"durable_name\":\"" + durableName + "\""));
         assertTrue(json.contains("\"ack_behavior\":\"AckAll\""));
     }
 
     @Test
-    public void testJsonSerializationWithoutConsumerName() {
+    public void testJsonSerializationWithoutNameOrPrefix() {
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
@@ -577,33 +591,49 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .build();
 
         String json = config.toJson();
-        assertTrue(json.contains("\"consumer_name\":null") || !json.contains("consumer_name"));
+        assertFalse(json.contains("\"consumer_name_prefix\""));
+        assertFalse(json.contains("\"durable_name\""));
     }
 
     @Test
-    public void testYamlSerializationWithConsumerName() {
-        String consumerName = "yaml-test-consumer";
+    public void testYamlSerializationWithNonDurablePrefix() {
+        String prefix = "prefix";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
-                .streamName(TEST_STREAM)
-                .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
-                .inactiveThreshold(Duration.ofMinutes(10))
-                .ackBehavior(AckBehavior.ExplicitButDoNotAck)
-                .build();
+            .streamName(TEST_STREAM)
+            .subject(TEST_SUBJECT)
+            .consumerNamePrefix(prefix)
+            .inactiveThreshold(Duration.ofMinutes(10))
+            .build();
 
         String yaml = config.toYaml(0);
-        assertTrue(yaml.contains("consumer_name: " + consumerName));
+        assertTrue(yaml.contains("consumer_name_prefix: " + prefix));
+    }
+
+    @Test
+    public void testYamlSerializationWithDurableName() {
+        String durableName = "yaml-test-consumer";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+            .streamName(TEST_STREAM)
+            .subject(TEST_SUBJECT)
+            .durableName(durableName)
+            .inactiveThreshold(Duration.ofMinutes(10))
+            .ackBehavior(AckBehavior.ExplicitButDoNotAck)
+            .build();
+
+        String yaml = config.toYaml(0);
+        assertTrue(yaml.contains("durable_name: " + durableName));
         assertTrue(yaml.contains("ack_behavior: ExplicitButDoNotAck"));
     }
 
     @Test
-    public void testJsonDeserializationWithConsumerName() throws JsonParseException {
-        String consumerName = "deserialized-consumer";
+    public void testJsonDeserializationWithDurableName() throws JsonParseException {
+        String durableName = "deserialized-consumer";
         String json = "{"
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
-                + "\"consumer_name\":\"" + consumerName + "\","
+                + "\"durable_name\":\"" + durableName + "\","
                 + "\"inactive_threshold\":" + Duration.ofMinutes(10).toNanos() +","
                 + "\"ack_behavior\":\"AckAll\""
                 + "}";
@@ -612,12 +642,12 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
     }
 
     @Test
-    public void testJsonDeserializationWithoutConsumerName() throws JsonParseException {
+    public void testJsonDeserializationWithoutDurableName() throws JsonParseException {
         String json = "{"
                 + "\"stream_name\":\"" + TEST_STREAM + "\","
                 + "\"subject\":\"" + TEST_SUBJECT + "\","
@@ -628,17 +658,17 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertNull(config.consumerName);
+        assertNull(config.durableName);
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
     }
 
     @Test
-    public void testMapDeserializationWithConsumerName() {
-        String consumerName = "map-test-consumer";
+    public void testMapDeserializationWithDurableName() {
+        String durableName = "map-test-consumer";
         Map<String, Object> map = new HashMap<>();
         map.put("stream_name", TEST_STREAM);
         map.put("subject", TEST_SUBJECT);
-        map.put("consumer_name", consumerName);
+        map.put("durable_name", durableName);
         map.put("ack_behavior", "AllButDoNotAck");
         map.put("inactive_threshold", Duration.ofMinutes(10).toNanos());
 
@@ -646,12 +676,12 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
     }
 
     @Test
-    public void testMapDeserializationWithoutConsumerName() {
+    public void testMapDeserializationWithoutDurableName() {
         Map<String, Object> map = new HashMap<>();
         map.put("stream_name", TEST_STREAM);
         map.put("subject", TEST_SUBJECT);
@@ -661,18 +691,18 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertNull(config.consumerName);
+        assertNull(config.durableName);
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
     }
 
     @Test
-    public void testCopyMethodNotPreservesConsumerName() {
-        String originalConsumerName = "original-consumer";
+    public void testCopyMethodNotPreservesDurableName() {
+        String originalDurableName = "original-consumer";
 
         JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
-                .consumerName(originalConsumerName)
+                .durableName(originalDurableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -681,18 +711,18 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals("new.subject", copy.subject);
         assertEquals(TEST_STREAM, copy.streamName);
-        assertNull(copy.consumerName);
+        assertNull(copy.durableName);
         assertEquals(AckBehavior.AckAll, copy.ackBehavior);
     }
 
     @Test
-    public void testBuilderCopyMethodExcludesConsumerName() {
-        String originalConsumerName = "builder-copy-consumer";
+    public void testBuilderCopyMethodExcludesDurableName() {
+        String originalDurableName = "builder-copy-consumer";
 
         JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject("original.subject")
-                .consumerName(originalConsumerName)
+                .durableName(originalDurableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
                 .maxMessagesToRead(100)
@@ -705,19 +735,19 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals("copied.subject", copy.subject);
         assertEquals(TEST_STREAM, copy.streamName);
-        assertNull(copy.consumerName);
+        assertNull(copy.durableName);
         assertEquals(AckBehavior.ExplicitButDoNotAck, copy.ackBehavior);
         assertEquals(100, copy.maxMessagesToRead);
     }
 
     @Test
-    public void testEqualsAndHashCodeWithConsumerName() {
-        String consumerName = "equals-test-consumer";
+    public void testEqualsAndHashCodeWithDurableName() {
+        String durableName = "equals-test-consumer";
 
         JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -725,7 +755,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -735,11 +765,11 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testNotEqualsWithDifferentConsumerName() {
+    public void testNotEqualsWithDifferentDurableName() {
         JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName("consumer-1")
+                .durableName("consumer-1")
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -747,7 +777,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName("consumer-2")
+                .durableName("consumer-2")
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -756,11 +786,11 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testNotEqualsWithOneNullConsumerName() {
+    public void testNotEqualsWithOneNullDurableName() {
         JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName("test-consumer")
+                .durableName("test-consumer")
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -768,7 +798,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(null)
+                .durableName(null)
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
@@ -776,15 +806,15 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testCompleteConfigurationWithConsumerName() {
+    public void testCompleteConfigurationWithDurableName() {
         ZonedDateTime startTime = ZonedDateTime.now().minusHours(1);
         Duration ackWait = Duration.ofSeconds(90);
-        String consumerName = "complete-test-consumer";
+        String durableName = "complete-test-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .startTime(startTime)
                 .maxMessagesToRead(1000)
@@ -796,7 +826,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(startTime, config.startTime);
         assertEquals(1000, config.maxMessagesToRead);
         assertEquals(AckBehavior.AllButDoNotAck, config.ackBehavior);
@@ -808,14 +838,14 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testConsumerNameIsIncludedInChecksum() {
-        String consumerName1 = "consumer-1";
-        String consumerName2 = "consumer-2";
+    public void testDurableNameIsIncludedInChecksum() {
+        String durableName1 = "consumer-1";
+        String durableName2 = "consumer-2";
 
         JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName1)
+                .durableName(durableName1)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -823,7 +853,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName2)
+                .durableName(durableName2)
                 .inactiveThreshold(Duration.ofMinutes(10))
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
@@ -1131,12 +1161,12 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         ZonedDateTime startTime = ZonedDateTime.now().minusHours(1);
         Duration ackWait = Duration.ofSeconds(30);
         Duration inactiveThreshold = Duration.ofHours(1);
-        String consumerName = "complete-consumer";
+        String durableName = "complete-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .startTime(startTime)
                 .maxMessagesToRead(1000)
                 .ackBehavior(AckBehavior.ExplicitButDoNotAck)
@@ -1148,7 +1178,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertEquals(TEST_STREAM, config.streamName);
         assertEquals(TEST_SUBJECT, config.subject);
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(startTime, config.startTime);
         assertEquals(1000, config.maxMessagesToRead);
         assertEquals(AckBehavior.ExplicitButDoNotAck, config.ackBehavior);
@@ -1161,19 +1191,19 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     }
 
     @Test
-    public void testInactiveThresholdWithConsumerNameCompatibility() {
+    public void testInactiveThresholdWithDurableNameCompatibility() {
         Duration inactiveThreshold = Duration.ofHours(1);
-        String consumerName = "threshold-consumer";
+        String durableName = "threshold-consumer";
 
         JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
-                .consumerName(consumerName)
+                .durableName(durableName)
                 .inactiveThreshold(inactiveThreshold)
                 .ackBehavior(AckBehavior.AckAll)
                 .build();
 
-        assertEquals(consumerName, config.consumerName);
+        assertEquals(durableName, config.durableName);
         assertEquals(inactiveThreshold, config.inactiveThreshold);
         assertEquals(AckBehavior.AckAll, config.ackBehavior);
     }
