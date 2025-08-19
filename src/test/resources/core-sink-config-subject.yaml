@@ -1,0 +1,3 @@
+---
+sink_converter_class_name: io.synadia.flink.message.Utf8StringSinkConverter
+subject: subject1

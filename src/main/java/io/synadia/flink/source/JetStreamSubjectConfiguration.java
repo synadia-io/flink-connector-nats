@@ -409,8 +409,8 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 if (ackWait != null) {
                     throw new IllegalArgumentException("Ack Wait cannot be set when Ack Behavior does not ack.");
                 }
-                if (ackBehavior == AckBehavior.NoAck && durableName != null) {
-                    throw new IllegalArgumentException("Durable name cannot be set when Ack Behavior is NoAck.");
+                if (durableName != null) {
+                    throw new IllegalArgumentException("Durable name cannot be set when Ack Behavior does not ack.");
                 }
             }
 

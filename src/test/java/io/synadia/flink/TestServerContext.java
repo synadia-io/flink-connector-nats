@@ -10,10 +10,13 @@ import io.nats.client.Nats;
 import nats.io.ConsoleOutput;
 import nats.io.NatsServerRunner;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.logging.Level;
 
 public class TestServerContext {
     static {
+        NatsServerRunner.DEFAULT_RUN_CHECK_TRIES = 0; // checking myself
         NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
         quiet();
     }
@@ -25,8 +28,33 @@ public class TestServerContext {
     public final JetStream js;
 
     public TestServerContext() throws Exception {
-        runner = new NatsServerRunner(false, true);
+        String[] configInserts = new String[3];
+        String dir = Files.createTempDirectory("fcj").toString();
+        if (File.separatorChar == '\\') {
+            dir = dir.replace("\\", "\\\\").replace("/", "\\\\");
+        }
+        else {
+            dir = dir.replace("\\", "/");
+        }
+        configInserts[0] = "jetstream {";
+        configInserts[1] = "    store_dir=" + dir;
+        configInserts[2] = "}";
+
+        runner = new NatsServerRunner(-1, false, true, null, configInserts, null);
         nc = Nats.connect(runner.getURI());
+        int retries = 100; // 100 * 50 == 5000 5 seconds
+        while (retries > 0) {
+            if (nc.getStatus().equals(Connection.Status.CONNECTED)) {
+                break;
+            }
+            Thread.sleep(50);
+            retries--;
+        }
+        if (retries == 0) {
+            runner.close();
+            throw new IllegalStateException("Could not connect to nats server");
+        }
+
         url = TestBase.getUrl(nc);
         jsm = nc.jetStreamManagement();
         js = nc.jetStream();

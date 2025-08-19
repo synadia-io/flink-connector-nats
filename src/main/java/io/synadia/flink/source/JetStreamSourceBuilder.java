@@ -148,7 +148,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         beforeBuild();
 
         if (configById.isEmpty()) {
-            throw new IllegalArgumentException("At least 1 managed subject configuration is required");
+            throw new IllegalArgumentException("At least 1 managed subject configuration is required.");
         }
 
         // check all the consume options of all the subject configs to

@@ -18,7 +18,7 @@ import java.nio.charset.UnsupportedCharsetException;
  * and copies it to a Byte[] object for output to a sink.
  * It must be subclasses to provide the Charset to use
  */
-abstract class AbstractStringSourceConverter implements SourceConverter<String> {
+public abstract class AbstractStringSourceConverter implements SourceConverter<String> {
     private static final long serialVersionUID = 1L;
 
     private transient Charset charset;
@@ -56,7 +56,7 @@ abstract class AbstractStringSourceConverter implements SourceConverter<String> 
     @Override
     public String convert(Message message) {
         byte[] input = message.getData();
-        if (input == null || input.length == 0) {
+        if (input.length == 0) {
             return "";
         }
         return new String(input, charset);

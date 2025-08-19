@@ -21,7 +21,7 @@ public class ByteArraySourceConverter implements SourceConverter<Byte[]> {
     @Override
     public Byte[] convert(Message message) {
         byte[] data = message.getData();
-        int len = data == null ? 0 : data.length;
+        int len = data.length;
         Byte[] object = new Byte[len];
         for (int x = 0; x < len; x++) {
             object[x] = data[x];
