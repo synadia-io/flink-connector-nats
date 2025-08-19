@@ -415,7 +415,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             }
 
             if (consumerNamePrefix != null && durableName != null) {
-                throw new IllegalArgumentException("Durable name and non-durable prefix cannot both be set.");
+                throw new IllegalArgumentException("Durable Name and Consumer Name Prefix cannot both be set.");
             }
 
             // All numbers are already coerced to be -1 if the input was out of range

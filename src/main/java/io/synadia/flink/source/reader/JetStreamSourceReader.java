@@ -184,10 +184,11 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                 b.name(split.subjectConfig.consumerNamePrefix + "-" + NUID.nextGlobal());
             }
 
-            // delivery policy is only set for non-durable consumers
-            // since the durable consumer will already track the sequence,
-            // but non-durable we might need to start at the last checkpoint
-            //noinspection DuplicatedCode it must be duplciated b/c classes don't share a common interface but have the same method names
+            // Delivery policy is only set for non-durable consumers
+            // since the durable consumer will already track the sequence.
+            // For non-durable we might need to start at the last checkpoint
+
+            //noinspection DuplicatedCode it must be duplicated b/c classes don't share a common interface but have the same method names
             long lastSeq = split.lastEmittedStreamSequence.get();
             if (lastSeq > 0) {
                 b.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
@@ -209,7 +210,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
             .consumerNamePrefix(split.subjectConfig.consumerNamePrefix) // builder handles if this is null
             .filterSubject(split.subjectConfig.subject);
-        //noinspection DuplicatedCode it must be duplciated b/c classes don't share a common interface but have the same method names
+
+        //noinspection DuplicatedCode it must be duplicated b/c classes don't share a common interface but have the same method names
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
             ocConfig.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
@@ -235,7 +237,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         ConnectionContext connectionContext  = getConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
-            if (snapshot != null && srSplit.split.subjectConfig.ackBehavior.isCheckpointAck) {
+            if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
                 // AckBehavior.AckAll is the only behavior that we currently ack (isCheckpointAck).
                 // All other behaviors are either AckPolicy.None or left for the sink to deal with.
                 // Manual ack since we don't have the message.
