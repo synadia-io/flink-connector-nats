@@ -249,7 +249,10 @@ class NatsSourceReaderTest extends TestBase {
 
     // Helper method to create reader with default context
     private NatsSourceReader<String> createReader(String url) {
-        return createReader(url, mock(SourceReaderContext.class));
+        NatsSourceReader<String> reader = createReader(url, mock(SourceReaderContext.class));
+        String s = reader.toString();
+        assertTrue(s.contains("NatsSourceReader")); // COVERAGE
+        return reader;
     }
 
     // Helper method to create reader with specific context

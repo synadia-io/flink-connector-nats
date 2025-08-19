@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static io.synadia.flink.utils.MiscUtils.random;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsSourceTests extends TestBase {
     static TestServerContext ctx;
@@ -72,6 +72,18 @@ public class NatsSourceTests extends TestBase {
             .connectionProperties(connectionProperties);
 
         NatsSource<String> natsSource = builder.build();
+
+        // some coverage
+        assertNotNull(natsSource.getSubjects());
+        assertEquals(2, natsSource.getSubjects().size());
+        assertTrue(natsSource.getSubjects().contains(sourceSubject1));
+        assertTrue(natsSource.getSubjects().contains(sourceSubject2));
+        String s = natsSource.toString();
+        assertTrue(s.contains("NatsSource"));
+        assertTrue(s.contains(sourceSubject1));
+        assertTrue(s.contains(sourceSubject2));
+        assertTrue(s.contains("Utf8StringSourceConverter"));
+
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-string-input");
 
@@ -191,10 +203,10 @@ public class NatsSourceTests extends TestBase {
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> ds = env.fromSource(natsSource, WatermarkStrategy.noWatermarks(), "nats-source-headers-input");
 
-        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
+        final Utf8StringSinkConverter converter = new Utf8StringSinkConverter();
         NatsSinkBuilder<String> sinkBuilder = new NatsSinkBuilder<String>()
             .subjects(sinkSubject)
-            .sinkConverter(serializer);
+            .sinkConverter(converter);
         sinkBuilder.connectionProperties(connectionProperties);
 
         NatsSink<String> sink = sinkBuilder.build();

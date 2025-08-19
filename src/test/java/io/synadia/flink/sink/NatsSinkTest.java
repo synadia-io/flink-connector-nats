@@ -12,6 +12,7 @@ import io.synadia.flink.TestBase;
 import io.synadia.flink.TestServerContext;
 import io.synadia.flink.helpers.WordSubscriber;
 import io.synadia.flink.message.Utf8StringSinkConverter;
+import io.synadia.flink.utils.MiscUtils;
 import nats.io.NatsServerRunner;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -130,7 +132,7 @@ public class NatsSinkTest extends TestBase {
     }
 
     @Test
-    void testCoverage() {
+    void testSinkBuilderCoverage() throws IOException {
         assertThrows(IllegalArgumentException.class,
             () -> new NatsSinkBuilder<String>()
                 .subjects("foo")
@@ -147,13 +149,105 @@ public class NatsSinkTest extends TestBase {
         List<String> hasNullAndEmpty = new ArrayList<>();
         hasNullAndEmpty.add("");
         hasNullAndEmpty.add(null);
-        new NatsSinkBuilder<String>()
-            .subjects((String)null)
+
+        final Utf8StringSinkConverter converter = new Utf8StringSinkConverter();
+
+        NatsSink<String> sink = new NatsSinkBuilder<String>()
+            .subjects((String) null)
             .subjects(new String[0])
-            .subjects((List<String>)null)
+            .subjects((List<String>) null)
             .subjects(hasNullAndEmpty)
-            .subjects("foo")
-            .sinkConverter(new Utf8StringSinkConverter())
+            .subjects("subject1", "subject2")
+            .sinkConverter(converter)
             .build();
+
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(2, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+        assertTrue(sink.subjects.contains("subject2"));
+
+        sink = new NatsSinkBuilder<String>()
+            .jsonConfigFile("src/test/resources/core-sink-config.json")
+            .build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(2, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+        assertTrue(sink.subjects.contains("subject2"));
+
+        sink = new NatsSinkBuilder<String>()
+            .yamlConfigFile("src/test/resources/core-sink-config.yaml")
+            .build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(2, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+        assertTrue(sink.subjects.contains("subject2"));
+
+
+
+
+
+
+        sink = new NatsSinkBuilder<String>()
+            .jsonConfigFile("src/test/resources/core-sink-config-subject.json")
+            .build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(1, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+
+        sink = new NatsSinkBuilder<String>()
+            .yamlConfigFile("src/test/resources/core-sink-config-subject.yaml")
+            .build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(1, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+    }
+
+    @Test
+    void testJsSinkBuilderCoverage() throws IOException {
+        final Utf8StringSinkConverter converter = new Utf8StringSinkConverter();
+
+        JetStreamSinkBuilder<String> builder = new JetStreamSinkBuilder<String>()
+            .subjects("subject1", "subject2")
+            .sinkConverter(converter);
+        JetStreamSink<String> sink = builder.build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(2, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+        assertTrue(sink.subjects.contains("subject2"));
+
+        List<String> subjects = new ArrayList<>();
+        subjects.add("subject1");
+        subjects.add("subject2");
+        builder = new JetStreamSinkBuilder<String>()
+            .subjects(subjects)
+            .sinkConverterClass(MiscUtils.getClassName(converter));
+        sink = builder.build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(2, sink.subjects.size());
+        assertTrue(sink.subjects.contains("subject1"));
+        assertTrue(sink.subjects.contains("subject2"));
+
+        builder = new JetStreamSinkBuilder<String>()
+            .jsonConfigFile("src/test/resources/js-sink-config.json");
+        sink = builder.build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(1, sink.subjects.size());
+        assertTrue(sink.subjects.contains("uk"));
+
+        builder = new JetStreamSinkBuilder<String>()
+            .yamlConfigFile("src/test/resources/js-sink-config.yaml");
+        sink = builder.build();
+        assertEquals(converter.getClass(), sink.sinkConverter.getClass());
+        assertNotNull(sink.subjects);
+        assertEquals(1, sink.subjects.size());
+        assertTrue(sink.subjects.contains("uk"));
     }
 }

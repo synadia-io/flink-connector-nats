@@ -203,10 +203,10 @@ public class TestBase {
     }
 
     public static NatsSink<String> newNatsStringSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
+        final Utf8StringSinkConverter converter = new Utf8StringSinkConverter();
         NatsSinkBuilder<String> builder = new NatsSinkBuilder<String>()
             .subjects(subject)
-            .sinkConverter(serializer);
+            .sinkConverter(converter);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);
@@ -218,10 +218,10 @@ public class TestBase {
     }
 
     public static NatsSink<Byte[]> newNatsByteArraySink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final ByteArraySinkConverter serializer = new ByteArraySinkConverter();
+        final ByteArraySinkConverter converter = new ByteArraySinkConverter();
         NatsSinkBuilder<Byte[]> builder = new NatsSinkBuilder<Byte[]>()
             .subjects(subject)
-            .sinkConverter(serializer);
+            .sinkConverter(converter);
 
         if (connectionProperties == null) {
             if (connectionPropertiesFile != null) {
@@ -235,10 +235,10 @@ public class TestBase {
     }
 
     public static JetStreamSink<String> newNatsJetStreamSink(String subject, Properties connectionProperties, String connectionPropertiesFile) {
-        final Utf8StringSinkConverter serializer = new Utf8StringSinkConverter();
+        final Utf8StringSinkConverter converter = new Utf8StringSinkConverter();
         JetStreamSinkBuilder<String> builder = new JetStreamSinkBuilder<String>()
             .subjects(subject)
-            .sinkConverter(serializer);
+            .sinkConverter(converter);
 
         if (connectionProperties == null) {
             builder.connectionPropertiesFile(connectionPropertiesFile);

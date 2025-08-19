@@ -46,6 +46,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
             .startTime(VALIDATION_DATE_TIME)
             .maxMessagesToRead(1000)
             .ackBehavior(AckBehavior.AllButDoNotAck)
+            .ackWait(0) // coverage
             .ackWait(VALIDATION_ACK_WAIT)
             .batchSize(50)
             .thresholdPercent(80)
@@ -326,49 +327,75 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
     @Test
     public void testBuildValidation() {
         // Missing subject
-        assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .build());
+        assertTrue(iae.getMessage().contains("Subject is required."));
 
         // Missing stream name
-        assertThrows(IllegalArgumentException.class,
+        iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .subject(TEST_SUBJECT)
                 .build());
+        assertTrue(iae.getMessage().contains("Stream name is required."));
 
         // Setting start sequence and start time should throw
-        assertThrows(IllegalArgumentException.class,
+        iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .startTime(VALIDATION_DATE_TIME)
                 .startSequence(100)
                 .build());
+        assertTrue(iae.getMessage().contains("Cannot set both start sequence and start time."));
 
         // Setting ack wait and no ack
-        assertThrows(IllegalArgumentException.class,
+        iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.NoAck)
                 .ackWait(VALIDATION_ACK_WAIT)
                 .build());
+        assertTrue(iae.getMessage().contains("Ack Wait cannot be set when Ack Behavior does not ack."));
 
-        assertThrows(IllegalArgumentException.class,
+        iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(AckBehavior.NoAckUnordered)
                 .ackWait(VALIDATION_ACK_WAIT)
                 .build());
+        assertTrue(iae.getMessage().contains("Ack Wait cannot be set when Ack Behavior does not ack."));
 
-        assertThrows(IllegalArgumentException.class,
+        iae = assertThrows(IllegalArgumentException.class,
             () -> JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.NoAck)
+                .durableName("D")
+                .build());
+        assertTrue(iae.getMessage().contains("Durable name cannot be set when Ack Behavior does not ack."));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.NoAckUnordered)
+                .durableName("D")
+                .build());
+        assertTrue(iae.getMessage().contains("Durable name cannot be set when Ack Behavior does not ack."));
+
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .ackBehavior(AckBehavior.AckAll)
                 .consumerNamePrefix("P")
                 .durableName("D")
                 .build());
+        assertTrue(iae.getMessage().contains("Durable Name and Consumer Name Prefix cannot both be set."));
     }
 
     @Test
