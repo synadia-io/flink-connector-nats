@@ -211,7 +211,6 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             .consumerNamePrefix(split.subjectConfig.consumerNamePrefix) // builder handles if this is null
             .filterSubject(split.subjectConfig.subject);
 
-        //noinspection DuplicatedCode it must be duplicated b/c classes don't share a common interface but have the same method names
         long lastSeq = split.lastEmittedStreamSequence.get();
         if (lastSeq > 0) {
             ocConfig.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(lastSeq + 1);
@@ -238,7 +237,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
-                // AckBehavior.AckAll is the only behavior that we currently ack (isCheckpointAck).
+                // AckBehavior.AckAll is the only behavior that we currently ack.
                 // All other behaviors are either AckPolicy.None or left for the sink to deal with.
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
