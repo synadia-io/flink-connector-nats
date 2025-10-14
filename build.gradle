@@ -7,8 +7,8 @@ plugins {
     id 'maven-publish'
     id 'jacoco'
     id 'com.github.kt3k.coveralls' version '2.12.0'
-    id 'biz.aQute.bnd.builder' version '5.1.2'
-    id "org.gradle.test-retry" version "1.1.9"
+    id 'biz.aQute.bnd.builder' version '7.1.0'
+    id "org.gradle.test-retry" version "1.6.4"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
     id 'signing'
 }
@@ -23,8 +23,8 @@ def isRelease = System.getenv("BUILD_EVENT") == "release"
 version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 repositories {
@@ -41,9 +41,8 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.28.0'
     implementation 'commons-io:commons-io:2.18.0'
 
-    ext.flinkVersion='1.20.0'
+    ext.flinkVersion='2.1.0'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
-    implementation "org.apache.flink:flink-java:${flinkVersion}"
     implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
@@ -77,19 +76,21 @@ sourceSets {
     }
 }
 
-task bundle(type: Bundle) {
+tasks.register('bundle', Bundle) {
     from sourceSets.main.output
     exclude("io/synadia/examples/**")
 }
 
 jar {
     manifest {
-        attributes('Automatic-Module-Name': 'io.synadia.flink-connector-nats')
+        attributes(
+                'Automatic-Module-Name': 'io.synadia.flink-connector-nats',
+                'Implementation-Title': 'Flink Connector Nats',
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'synadia.io'
+        )
     }
-    bnd (['Implementation-Title': 'Flink Connector Nats',
-          'Implementation-Version': jarVersion,
-          'Implementation-Vendor': 'synadia.io']
-    )
+
     exclude("io/synadia/examples/**")
 }
 
@@ -131,7 +132,7 @@ javadoc {
     }
 }
 
-task examplesJar(type: Jar) {
+tasks.register('examplesJar', Jar) {
     archiveClassifier.set('examples')
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
@@ -143,24 +144,24 @@ task examplesJar(type: Jar) {
     }
 }
 
-task javadocJar(type: Jar) {
+tasks.register('javadocJar', Jar) {
     archiveClassifier.set('javadoc')
     from javadoc
 }
 
-task sourcesJar(type: Jar) {
+tasks.register('sourcesJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allSource
 }
 
 jacoco {
-    toolVersion = "0.8.6"
+    toolVersion = "0.8.12"
 }
 
 jacocoTestReport {
     reports {
-        xml.enabled = true // coveralls plugin depends on xml format report
-        html.enabled = true
+        xml.required = true // coveralls plugin depends on xml format report
+        html.required = true
     }
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
@@ -198,7 +199,7 @@ publishing {
                 name = rootProject.name
                 packaging = 'jar'
                 groupId = group
-                artifactId = archivesBaseName
+                artifactId = project.name
                 description = 'Synadia Communications Inc. Java Flink Connector To Nats'
                 url = 'https://github.com/synadia-io/flink-connector-nats'
                 licenses {

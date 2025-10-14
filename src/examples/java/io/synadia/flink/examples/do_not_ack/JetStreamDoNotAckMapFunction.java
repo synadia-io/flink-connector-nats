@@ -8,8 +8,8 @@ import io.nats.client.impl.AckType;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.synadia.flink.examples.support.ExampleUtils;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
 
 // =====================================================================================================================================
@@ -22,7 +22,7 @@ public class JetStreamDoNotAckMapFunction extends RichMapFunction<String, String
     private transient Connection natsCtx;
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         try {
             this.natsCtx = ExampleUtils.connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
         }

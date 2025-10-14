@@ -60,14 +60,6 @@ public class NatsSink<InputT> implements Sink<InputT> {
         return subjects;
     }
 
-    @SuppressWarnings("deprecation")
-    @Override
-    public SinkWriter<InputT> createWriter(InitContext context) throws IOException {
-        // THIS IS DEPRECATED and won't be called, createWriter(WriterInitContext context) is called
-        // Docs said to implement anyway, so this is what I implemented
-        return createWriter((WriterInitContext)null);
-    }
-
     @Override
     public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
         return new NatsSinkWriter<>(id, subjects, sinkConverter, connectionFactory, context);
