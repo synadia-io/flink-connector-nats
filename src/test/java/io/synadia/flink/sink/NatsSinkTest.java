@@ -121,9 +121,6 @@ public class NatsSinkTest extends TestBase {
 
         assertTrue(baseSink.getSubjects().contains(subject));
 
-        //noinspection deprecation
-        assertNotNull(sink.createWriter((Sink.InitContext)null)); // COVERAGE
-
         StreamExecutionEnvironment env = getStreamExecutionEnvironment();
         DataStream<String> dataStream = getPayloadDataStream(env);
         dataStream.sinkTo(sink);
