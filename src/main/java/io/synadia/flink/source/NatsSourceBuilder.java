@@ -91,6 +91,6 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      */
     public NatsSource<OutputT> build() {
         beforeBuild();
-        return new NatsSource<>(sourceConverter, connectionFactory, subjects);
+        return new NatsSource<>(subjects, sourceConverter, connectionFactory);
     }
 }

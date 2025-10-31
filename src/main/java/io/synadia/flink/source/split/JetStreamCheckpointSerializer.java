@@ -21,6 +21,9 @@ import java.util.List;
 @Internal
 public class JetStreamCheckpointSerializer implements SimpleVersionedSerializer<Collection<JetStreamSplit>> {
 
+    /**
+     * The current version constant
+     */
     public static final int CURRENT_VERSION = 1;
 
     @Override

@@ -19,23 +19,49 @@ import java.util.Properties;
  */
 @Internal
 public class ConnectionFactory implements Serializable {
+    /**
+     * The properties
+     */
     private final Properties connectionProperties;
+
+    /**
+     * the file specification for the properties file
+     */
     private final String connectionPropertiesFile;
 
+    /**
+     * Construct a connection factory
+     * @param connectionProperties properties to use for constructions
+     */
     public ConnectionFactory(Properties connectionProperties) {
         this.connectionProperties = connectionProperties;
         this.connectionPropertiesFile = null;
     }
 
+    /**
+     /**
+     * Construct a connection factory
+     * @param connectionPropertiesFile the file specification for the properties file
+     */
     public ConnectionFactory(String connectionPropertiesFile) {
         this.connectionProperties = null;
         this.connectionPropertiesFile = connectionPropertiesFile;
     }
 
+    /**
+     * connect / get the connection
+     * @return the connection
+     * @throws IOException if an IO error getting the connection
+     */
     public Connection connect() throws IOException {
         return getConnectionContext().connection;
     }
 
+    /**
+     * get the connection context
+     * @return the connection context
+     * @throws IOException if an IO error getting the connection
+     */
     public ConnectionContext getConnectionContext() throws IOException {
         try {
             Properties props = connectionProperties;

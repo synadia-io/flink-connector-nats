@@ -12,6 +12,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class Utf8StringSinkConverter extends AbstractStringSinkConverter {
 
+    /**
+     * Construct a Utf8StringSinkConverter
+     */
     public Utf8StringSinkConverter() {
         super(StandardCharsets.UTF_8);
     }

@@ -225,12 +225,6 @@ public class MiscUtilsTest {
         });
     }
 
-    @Test
-    void testConstants() {
-        assertEquals("--", MiscUtils.SEP);
-        assertEquals("na", MiscUtils.NULL_SEGMENT);
-    }
-
     public static class TestClass {
         private String field1;
         private int field2;

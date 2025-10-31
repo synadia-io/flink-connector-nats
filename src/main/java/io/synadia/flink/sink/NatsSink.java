@@ -27,11 +27,32 @@ import static io.synadia.flink.utils.MiscUtils.getClassName;
  * @param <InputT> the type of object from the source to convert for publishing
  */
 public class NatsSink<InputT> implements Sink<InputT> {
+    /**
+     * The id
+     */
     protected final String id;
+
+    /**
+     * The list of subjects
+     */
     protected final List<String> subjects;
+
+    /**
+     * The sink converter
+     */
     protected final SinkConverter<InputT> sinkConverter;
+
+    /**
+     * The connection factory
+     */
     protected final ConnectionFactory connectionFactory;
 
+    /**
+     * Construct the Sink. Used by subclasses
+     * @param subjects the subjects
+     * @param sinkConverter the converter
+     * @param connectionFactory the connection factory
+     */
     protected NatsSink(List<String> subjects,
              SinkConverter<InputT> sinkConverter,
              ConnectionFactory connectionFactory)
@@ -42,6 +63,10 @@ public class NatsSink<InputT> implements Sink<InputT> {
         this.connectionFactory = connectionFactory;
     }
 
+    /**
+     * Get the JSON representation of the sink configuration
+     * @return the JSON
+     */
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, SINK_CONVERTER_CLASS_NAME, getClassName(sinkConverter));
@@ -49,6 +74,10 @@ public class NatsSink<InputT> implements Sink<InputT> {
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the YAML representation of the sink configuration
+     * @return the YAML
+     */
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SINK_CONVERTER_CLASS_NAME, getClassName(sinkConverter));
@@ -56,6 +85,10 @@ public class NatsSink<InputT> implements Sink<InputT> {
         return sb.toString();
     }
 
+    /**
+     * Get the list of subjects
+     * @return the list
+     */
     public List<String> getSubjects() {
         return subjects;
     }

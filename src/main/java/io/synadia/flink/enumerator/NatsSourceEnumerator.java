@@ -23,6 +23,11 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
     private final Queue<SplitT> remainingSplits;
     private List<List<SplitT>> precomputedSplitAssignments;
 
+    /**
+     * Construct the NatsSourceEnumerator
+     * @param context the context
+     * @param splits the splits
+     */
     public NatsSourceEnumerator(SplitEnumeratorContext<SplitT> context,
                                 Collection<SplitT> splits) {
         this.context = checkNotNull(context);

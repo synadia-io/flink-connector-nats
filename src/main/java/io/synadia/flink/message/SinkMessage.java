@@ -10,7 +10,14 @@ import io.nats.client.impl.Headers;
  * for the message published by the Sink
  */
 public class SinkMessage {
+    /**
+     * The message payload
+     */
     public final byte[] payload;
+
+    /**
+     * The message headers
+     */
     public final Headers headers;
 
     /**

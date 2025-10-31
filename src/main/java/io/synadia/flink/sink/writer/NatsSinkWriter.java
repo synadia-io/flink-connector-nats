@@ -14,6 +14,7 @@ import org.apache.flink.api.connector.sink2.WriterInitContext;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -26,15 +27,50 @@ import static io.synadia.flink.utils.MiscUtils.generatePrefixedId;
 @Internal
 public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable {
 
+    /**
+     * The sink id
+     */
     protected final String sinkId;
+
+    /**
+     * The subjects
+     */
     protected final List<String> subjects;
+
+    /**
+     * The connection factory
+     */
     protected final ConnectionFactory connectionFactory;
+
+    /**
+     * The sink converter
+     */
     protected final SinkConverter<InputT> sinkConverter;
+
+    /**
+     * The flink context. Not used.
+     */
     protected final WriterInitContext writerInitContext;
 
+    /**
+     * The sink writer's id
+     */
     protected final String id;
+
+    /**
+     * The connection context
+     */
     protected transient ConnectionContext ctx;
 
+    /**
+     * Create a NatsSinkWriter
+     * @param sinkId the id for the sink
+     * @param subjects the subjects
+     * @param sinkConverter the converter
+     * @param connectionFactory the connection factory
+     * @param writerInitContext the context, unused
+     * @throws IOException if there is an IO exception getting the connection context
+     */
     public NatsSinkWriter(String sinkId,
                           List<String> subjects,
                           SinkConverter<InputT> sinkConverter,
@@ -49,6 +85,10 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
         this.ctx = connectionFactory.getConnectionContext();
     }
 
+    /**
+     * Get the id
+     * @return the id
+     */
     public String getId() {
         return id;
     }
@@ -75,6 +115,10 @@ public class NatsSinkWriter<InputT> implements SinkWriter<InputT>, Serializable 
         ctx.connection.close();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Serial
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         ctx = connectionFactory.getConnectionContext();

@@ -11,6 +11,9 @@ import java.nio.charset.StandardCharsets;
  * the string is an ASCII string
  */
 public class AsciiStringSinkConverter extends AbstractStringSinkConverter {
+    /**
+     * Construct an AsciiStringSinkConverter
+     */
     public AsciiStringSinkConverter() {
         super(StandardCharsets.US_ASCII);
     }

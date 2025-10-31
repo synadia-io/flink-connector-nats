@@ -31,11 +31,34 @@ public class JetStreamSource<OutputT> implements
     Source<OutputT, JetStreamSplit, Collection<JetStreamSplit>>,
     ResultTypeQueryable<OutputT>
 {
+    /**
+     * the boundedness
+     */
     public final Boundedness boundedness;
+
+    /**
+     * the config by id map
+     */
     public final Map<String, JetStreamSubjectConfiguration> configById;
+
+    /**
+     * the source converter
+     */
     public final SourceConverter<OutputT> sourceConverter;
+
+    /**
+     * the connection factory
+     */
     public final ConnectionFactory connectionFactory;
 
+    /**
+     *
+     * Construct a JetStreamSourceReader
+     * @param boundedness the boundedness
+     * @param configById the config by id map
+     * @param sourceConverter the source converter
+     * @param connectionFactory the connection factory
+     */
     JetStreamSource(Boundedness boundedness,
                     Map<String, JetStreamSubjectConfiguration> configById,
                     SourceConverter<OutputT> sourceConverter,
@@ -100,6 +123,10 @@ public class JetStreamSource<OutputT> implements
             '}';
     }
 
+    /**
+     * Get the JSON representation of the source
+     * @return the JSON
+     */
     public String toJson() {
         JsonValueUtils.ArrayBuilder ba = JsonValueUtils.arrayBuilder();
         for (String id : configById.keySet()) {
@@ -111,6 +138,10 @@ public class JetStreamSource<OutputT> implements
         return bm.jv.toJson();
     }
 
+    /**
+     * Get the YAML representation of the source
+     * @return the YAML
+     */
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));

@@ -197,7 +197,7 @@ class JetStreamSourceBuilderTest extends TestBase {
     }
 
     @Test
-    void testConstructionErrors() throws Exception {
+    void testConstructionErrors() {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> new JetStreamSourceBuilder<String>()
                 .build());

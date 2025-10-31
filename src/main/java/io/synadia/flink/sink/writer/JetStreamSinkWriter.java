@@ -20,6 +20,15 @@ import java.util.List;
 @Internal
 public class JetStreamSinkWriter<InputT> extends NatsSinkWriter<InputT> {
 
+    /**
+     * Construct a JetStreamSinkWriter
+     * @param sinkId the sink id
+     * @param subjects the subjects
+     * @param sinkConverter the sink converter
+     * @param connectionFactory the connection factory
+     * @param writerInitContext the writer init context
+     * @throws IOException if there is an IO exception getting the connection context
+     */
     public JetStreamSinkWriter(String sinkId,
                                List<String> subjects,
                                SinkConverter<InputT> sinkConverter,

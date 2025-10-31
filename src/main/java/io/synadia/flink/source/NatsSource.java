@@ -36,14 +36,35 @@ public class NatsSource<OutputT> implements
     Source<OutputT, NatsSubjectSplit, Collection<NatsSubjectSplit>>,
     ResultTypeQueryable<OutputT>
 {
+    /**
+     * The source id
+     */
     protected final String id;
+
+    /**
+     * The list of subjects
+     */
     protected final List<String> subjects;
+
+    /**
+     * The source converter
+     */
     protected final SourceConverter<OutputT> sourceConverter;
+
+    /**
+     * The connection factory
+     */
     protected final ConnectionFactory connectionFactory;
 
-    protected NatsSource(SourceConverter<OutputT> sourceConverter,
-                         ConnectionFactory connectionFactory,
-                         List<String> subjects)
+    /**
+     * Construct the source
+     *
+     * @param subjects          the subject
+     * @param sourceConverter   the source converter
+     * @param connectionFactory the connection factory
+     */
+    protected NatsSource(List<String> subjects, SourceConverter<OutputT> sourceConverter,
+                         ConnectionFactory connectionFactory)
     {
         id = generateId();
         this.subjects = subjects;
@@ -56,10 +77,18 @@ public class NatsSource<OutputT> implements
         return Boundedness.CONTINUOUS_UNBOUNDED;
     }
 
+    /**
+     * Get the list of subjects
+     * @return the list
+     */
     public List<String> getSubjects() {
         return subjects;
     }
 
+    /**
+     * Get the JSON representation of the source configuration
+     * @return the JSON
+     */
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
@@ -67,6 +96,10 @@ public class NatsSource<OutputT> implements
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the YAML representation of the source configuration
+     * @return the YAML
+     */
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));

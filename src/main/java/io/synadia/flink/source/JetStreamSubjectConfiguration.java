@@ -9,7 +9,10 @@ import io.nats.client.api.DeliverPolicy;
 import io.nats.client.support.*;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullUnmarked;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -23,25 +26,81 @@ import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.checksum;
 
 /**
- * It takes more than a subject to consume.
+ * Subject configuration for a JetStream source. It takes more than a subject to consume.
  */
+@NullUnmarked
 public class JetStreamSubjectConfiguration implements JsonSerializable, Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
-    public final String id;
-    public final String streamName;
-    public final String subject;
+    /**
+     * The generated id
+     */
+    @NonNull public final String id;
+
+    /**
+     * The configured stream name
+     */
+    @NonNull public final String streamName;
+
+    /**
+     * The configured subject
+     */
+    @NonNull public final String subject;
+
+    /**
+     * The configured consumerNamePrefix
+     */
     public final String consumerNamePrefix;
+
+    /**
+     * The configured durableName
+     */
     public final String durableName;
+
+    /**
+     * The configured startSequence
+     */
     public final long startSequence;
+
+    /**
+     * The configured startTime
+     */
     public final ZonedDateTime startTime;
+
+    /**
+     * The configured maxMessagesToRead
+     */
     public final long maxMessagesToRead;
+
+    /**
+     * The configured ackBehavior
+     */
     public final AckBehavior ackBehavior;
+
+    /**
+     * The configured ackWait
+     */
     public final Duration ackWait;
+
+    /**
+     * The configured inactiveThreshold Duration
+     */
     public final Duration inactiveThreshold;
+
+    /**
+     * A serialized version of the configured Consume Options
+     */
     public final SerializableConsumeOptions serializableConsumeOptions;
 
+    /**
+     * The configured Boundedness
+     */
     public final Boundedness boundedness;
+
+    /**
+     * The configured DeliverPolicy
+     */
     public final DeliverPolicy deliverPolicy;
 
     private JetStreamSubjectConfiguration(Builder b, ConsumeOptions consumeOptions) {
@@ -79,6 +138,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
     }
 
     @Override
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, STREAM_NAME, streamName);
@@ -103,6 +163,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the YAML representation of the sink configuration
+     * @param indentLevel the indent level
+     * @return the YAML
+     */
     public String toYaml(int indentLevel) {
         StringBuilder sb = YamlUtils.beginChild(indentLevel, STREAM_NAME, streamName);
         indentLevel++;
@@ -127,6 +192,11 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return sb.toString();
     }
 
+    /**
+     * Make a copy of the configuration for a new subject
+     * @param subject the new subject
+     * @return the JetStreamSubjectConfiguration
+     */
     public JetStreamSubjectConfiguration copy(String subject) {
         return builder().copy(this).subject(subject).build();
     }
@@ -136,14 +206,29 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         return toJson();
     }
 
+    /**
+     * Get a new instance of the JetStreamSubjectConfiguration.Builder
+     * @return the builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Create a JetStreamSubjectConfiguration from JSON
+     * @param json the configuration JSON
+     * @return a JetStreamSubjectConfiguration
+     * @throws JsonParseException if the JSON is not well-formed
+     */
     public static JetStreamSubjectConfiguration fromJson(String json) throws JsonParseException {
         return fromJsonValue(JsonParser.parse(json));
     }
 
+    /**
+     * Create a JetStreamSubjectConfiguration from a JsonValue
+     * @param jv the configuration as a JsonValue
+     * @return a JetStreamSubjectConfiguration
+     */
     public static JetStreamSubjectConfiguration fromJsonValue(JsonValue jv) {
         return new Builder()
             .streamName(JsonValueUtils.readString(jv, STREAM_NAME))
@@ -161,6 +246,12 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .build();
     }
 
+
+    /**
+     * Create a JetStreamSubjectConfiguration from a map as would be found in YAML
+     * @param map the map
+     * @return a JetStreamSubjectConfiguration
+     */
     public static JetStreamSubjectConfiguration fromMap(Map<String, Object> map) {
         return new Builder()
             .streamName(YamlUtils.readString(map, STREAM_NAME))
@@ -178,6 +269,9 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .build();
     }
 
+    /**
+     * Builder class for JetStreamSubjectConfiguration
+     */
     public static class Builder {
         private String streamName;
         private String subject;
@@ -363,28 +457,6 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
                 this.ackWait = ackWait;
             }
 
-            return this;
-        }
-
-        /**
-         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
-         * This sets the AckBehavior to AckBehavior.All
-         * @return the builder
-         */
-        @Deprecated
-        public Builder ackMode() {
-            this.ackBehavior = AckBehavior.AckAll;
-            return this;
-        }
-
-        /**
-         * @deprecated Use {@link #ackBehavior(AckBehavior)} instead.
-         * @param ackMode false sets the policy to AckBehavior.NoAck. true sets the policy to AckBehavior.All
-         * @return the builder
-         */
-        @Deprecated
-        public Builder ackMode(boolean ackMode) {
-            this.ackBehavior = ackMode ? AckBehavior.AckAll : AckBehavior.NoAck;
             return this;
         }
 
