@@ -5,6 +5,7 @@ package io.synadia.flink.message;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -15,9 +16,17 @@ import java.nio.charset.UnsupportedCharsetException;
  * the string to a byte array using the provided Charset
  */
 public abstract class AbstractStringSinkConverter implements SinkConverter<String> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
+    /**
+     * The character set
+     */
     private transient Charset charset;
+
+    /**
+     * The name of the character set
+     */
     private final String charsetName;
 
     /**
@@ -54,6 +63,10 @@ public abstract class AbstractStringSinkConverter implements SinkConverter<Strin
         return new SinkMessage(input.getBytes(charset));
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Serial
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         charset = Charset.forName(charsetName);

@@ -16,13 +16,30 @@ import java.io.IOException;
  */
 @Internal
 public class ConnectionContext {
+    /**
+     * The connection
+     */
     public final Connection connection;
+
+    /**
+     * The JetStreamManagement context
+     */
     public final JetStreamManagement jsm;
+
+    /**
+     * The JetStream context
+     */
     public final JetStream js;
 
+    /**
+     * Construct a ConnectionContext
+     * @param connection the connection
+     * @param jso the JetStreamOptions used to make the JetStreamManagement and JetStream contexts
+     * @throws IOException if there is an IO exception creating the JetStreamManagement context
+     */
     public ConnectionContext(Connection connection, JetStreamOptions jso) throws IOException {
         this.connection = connection;
         this.jsm = connection.jetStreamManagement(jso);
-        this.js = connection.jetStream(jso);
+        this.js = jsm.jetStream();
     }
 }

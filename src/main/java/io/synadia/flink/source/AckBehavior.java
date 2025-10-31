@@ -8,6 +8,9 @@ import io.nats.client.api.AckPolicy;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Enum for allowable ack behaviors
+ */
 public enum AckBehavior {
 
     /**
@@ -40,8 +43,19 @@ public enum AckBehavior {
      */
     ExplicitButDoNotAck("ExplicitButDoNotAck", AckPolicy.Explicit, false);
 
+    /**
+     * The behavior name and json value
+     */
     public final String behavior;
+
+    /**
+     * The AckPolicy
+     */
     public final AckPolicy ackPolicy;
+
+    /**
+     * Whether it represents a policy that does not ack
+     */
     public final boolean isNoAck;
 
     private static final Map<String, AckBehavior> strEnumHash = new HashMap<>();
@@ -56,6 +70,11 @@ public enum AckBehavior {
         return this.behavior;
     }
 
+    /**
+     * Get the AckBehavior from a string value
+     * @param value the case-insensitive string value
+     * @return the AckBehavior or null if a match cannot be found
+     */
     public static AckBehavior get(String value) {
         return value == null ? null : strEnumHash.get(value.toLowerCase());
     }

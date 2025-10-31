@@ -21,10 +21,19 @@ public class NatsSubjectSplit implements SourceSplit {
 
     private final List<Message> currentMessages;
 
+    /**
+     * Construct a NatsSubjectSplit
+     * @param subject the split subject
+     */
     public NatsSubjectSplit(String subject) {
         this(subject, null);
     }
 
+    /**
+     * Construct a NatsSubjectSplit
+     * @param subject the split subject
+     * @param currentMessages the messages that are currently part of the split
+     */
     public NatsSubjectSplit(String subject, List<Message> currentMessages){
         this.subject = subject;
 
@@ -45,10 +54,18 @@ public class NatsSubjectSplit implements SourceSplit {
         return subject;
     }
 
+    /**
+     * get the split's subject
+     * @return the subject
+     */
     public String getSubject() {
         return subject;
     }
 
+    /**
+     * Get the split's messages
+     * @return the subject
+     */
     public List<Message> getCurrentMessages(){ return currentMessages; }
 
     @Override

@@ -44,6 +44,11 @@ public abstract class PropertiesUtils {
         return getAsList(getStringProperty(properties, key));
     }
 
+    /**
+     * convert a comma-delimited string into a list of strings
+     * @param val the string
+     * @return the list
+     */
     public static List<String> getAsList(String val) {
         if (val == null) {
             return Collections.emptyList();

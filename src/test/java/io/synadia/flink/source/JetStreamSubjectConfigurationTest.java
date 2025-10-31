@@ -92,30 +92,6 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
             .subject(TEST_SUBJECT)
             .build();
         assertEquals(config.toJson(), config.toString());
-
-        //noinspection deprecation
-        config = JetStreamSubjectConfiguration.builder()
-            .streamName(TEST_STREAM)
-            .subject(TEST_SUBJECT)
-            .ackMode()
-            .build();
-        assertEquals(AckBehavior.AckAll, config.ackBehavior);
-
-        //noinspection deprecation
-        config = JetStreamSubjectConfiguration.builder()
-            .streamName(TEST_STREAM)
-            .subject(TEST_SUBJECT)
-            .ackMode(true)
-            .build();
-        assertEquals(AckBehavior.AckAll, config.ackBehavior);
-
-        //noinspection deprecation
-        config = JetStreamSubjectConfiguration.builder()
-            .streamName(TEST_STREAM)
-            .subject(TEST_SUBJECT)
-            .ackMode(false)
-            .build();
-        assertEquals(AckBehavior.NoAck, config.ackBehavior);
     }
 
     @Test
@@ -127,7 +103,8 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
                 .ackBehavior(ab)
                 .ackWait(VALIDATION_ACK_WAIT);
 
-            JetStreamSubjectConfiguration.Builder b2 = JetStreamSubjectConfiguration.builder()
+            // coverage for ackWait
+            JetStreamSubjectConfiguration.builder()
                 .streamName(TEST_STREAM)
                 .subject(TEST_SUBJECT)
                 .ackBehavior(ab)
@@ -492,26 +469,24 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
     @Test
     public void testDurableNameWithNoAckThrowsException() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamSubjectConfiguration.builder()
-                    .streamName(TEST_STREAM)
-                    .subject(TEST_SUBJECT)
-                    .durableName("test-consumer")
-                    .ackBehavior(AckBehavior.NoAck)
-                    .build();
-        }, "Consumer Name cannot be set when Ack Behavior is NoAck.");
+        assertThrows(IllegalArgumentException.class,
+            () -> JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .durableName("test-consumer")
+                .ackBehavior(AckBehavior.NoAck)
+                .build(), "Consumer Name cannot be set when Ack Behavior is NoAck.");
     }
 
     @Test
     public void testDurableNameWithDefaultNoAckThrowsException() {
         // Default ack behavior is NoAck
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamSubjectConfiguration.builder()
-                    .streamName(TEST_STREAM)
-                    .subject(TEST_SUBJECT)
-                    .durableName("test-consumer")
-                    .build();
-        }, "Consumer Name cannot be set when Ack Behavior is NoAck.");
+        assertThrows(IllegalArgumentException.class,
+            () -> JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .durableName("test-consumer")
+                .build(), "Consumer Name cannot be set when Ack Behavior is NoAck.");
     }
 
     @Test

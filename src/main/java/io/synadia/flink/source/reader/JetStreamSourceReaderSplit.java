@@ -17,21 +17,56 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Internal
 public class JetStreamSourceReaderSplit {
+    /**
+     * The split
+     */
     public final JetStreamSplit split;
-    public final BaseConsumerContext consumerContext;
-    public final MessageConsumer consumer;
-    public final Map<Long, Snapshot> snapshots; // snapshot by checkpoint id
 
+    /**
+     * The consumer context
+     */
+    public final BaseConsumerContext consumerContext;
+
+    /**
+     * The simplified message consumer
+     */
+    public final MessageConsumer consumer;
+
+    /**
+     * The snapshot by checkpoint id map
+     */
+    public final Map<Long, Snapshot> snapshots;
+
+    /**
+     * class to represent a Snapshot
+     */
     public static class Snapshot {
+        /**
+         * The reply to
+         */
         public final String replyTo;
+
+        /**
+         * The stream sequence
+         */
         public final long streamSequence;
 
+        /**
+         * Construct a Snapshot from a split
+         * @param split the split
+         */
         public Snapshot(JetStreamSplit split) {
             this.replyTo = split.lastEmittedMessageReplyTo.get();
             this.streamSequence = split.lastEmittedStreamSequence.get();
         }
     }
 
+    /**
+     * Construct a JetStreamSourceReaderSplit
+     * @param split the split
+     * @param consumerContext the consumer context
+     * @param consumer the simplified consumer
+     */
     public JetStreamSourceReaderSplit(JetStreamSplit split, BaseConsumerContext consumerContext, MessageConsumer consumer) {
         this.split = split;
         this.consumerContext = consumerContext;
@@ -39,20 +74,37 @@ public class JetStreamSourceReaderSplit {
         snapshots = new ConcurrentHashMap<>();
     }
 
+    /**
+     * mark a message as emitted
+     * @param message the message
+     * @return the total emitted count
+     */
     public long markEmitted(Message message) {
         return split.markEmitted(message);
     }
 
+    /**
+     * Take a snapshot for the specified id
+     * @param checkpointId the checkpoint id
+     */
     public void takeSnapshot(long checkpointId) {
         if (split.lastEmittedStreamSequence.get() != -1) {
             snapshots.put(checkpointId, new Snapshot(split));
         }
     }
 
+    /**
+     * remove a snapshot by id
+     * @param checkpointId the checkpoint id
+     * @return the removed snapshot
+     */
     public Snapshot removeSnapshot(long checkpointId) {
         return snapshots.remove(checkpointId);
     }
 
+    /**
+     * Mark the split as done
+     */
     public void done() {
         split.setFinished();
         consumer.stop();
@@ -64,6 +116,10 @@ public class JetStreamSourceReaderSplit {
         }
     }
 
+    /**
+     * the finished state of the split
+     * @return the state
+     */
     public boolean isFinished() {
         return split.finished.get();
     }

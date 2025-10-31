@@ -26,6 +26,9 @@ import java.util.Set;
 @Internal
 public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<NatsSubjectSplit> {
 
+    /**
+     * The current version constant
+     */
     public static final int CURRENT_VERSION = 2;
 
     @Override
@@ -41,10 +44,22 @@ public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<Nat
         return out.getCopyOfBuffer();
     }
 
+    /**
+     * Serialize a v1 NatsSubjectSplit
+     * @param out the output
+     * @param split the split
+     * @throws IOException if there is a serialization exception
+     */
     public static void serializeV1(DataOutputView out, NatsSubjectSplit split) throws IOException {
         out.writeUTF(split.splitId());
     }
 
+    /**
+     * Serialize a v2 NatsSubjectSplit
+     * @param out the output
+     * @param split the split
+     * @throws IOException if there is a serialization exception
+     */
     public static void serializeV2(DataOutputView out, NatsSubjectSplit split) throws IOException {
         if (split.splitId() == null) {
             throw new IOException("Split ID cannot be null");

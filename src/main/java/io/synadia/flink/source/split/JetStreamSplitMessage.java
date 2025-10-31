@@ -11,9 +11,21 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public class JetStreamSplitMessage {
+    /**
+     * The split id
+     */
     public final String splitId;
+
+    /**
+     * The split message
+     */
     public final Message message;
 
+    /**
+     * Construct a JetStreamSplitMessage
+     * @param splitId the split id
+     * @param message the split message
+     */
     public JetStreamSplitMessage(String splitId, Message message) {
         this.splitId = splitId;
         this.message = message;

@@ -40,6 +40,12 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private Connection _connection;
     private Dispatcher dispatcher;
 
+    /**
+     * Construct the Nats Srouce Reader
+     * @param connectionFactory the connection factory
+     * @param sourceConverter the source converter
+     * @param readerContext the context
+     */
     public NatsSourceReader(ConnectionFactory connectionFactory,
                             SourceConverter<OutputT> sourceConverter,
                             SourceReaderContext readerContext) {

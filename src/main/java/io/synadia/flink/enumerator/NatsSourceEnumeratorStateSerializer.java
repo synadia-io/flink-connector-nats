@@ -20,10 +20,17 @@ import java.util.Set;
 public class NatsSourceEnumeratorStateSerializer
     implements SimpleVersionedSerializer<NatsSubjectSourceEnumeratorState> {
 
+    /**
+     * The current version constant
+     */
     private static final int CURRENT_VERSION = 0;
 
     private final NatsSubjectSplitSerializer splitSerializer;
 
+    /**
+     * Construct the serializers
+     * @param splitSerializer the split serializer
+     */
     public NatsSourceEnumeratorStateSerializer(NatsSubjectSplitSerializer splitSerializer) {
         this.splitSerializer = splitSerializer;
     }

@@ -54,7 +54,7 @@ class NatsSourceBuilderTest extends TestBase {
      * ```
      */
     @Test
-    void testBuildWithMinimumRequiredSettings() throws Exception {
+    void testBuildWithMinimumRequiredSettings() {
         String subject = subject();
 
         NatsSource<String> source = new NatsSourceBuilder<String>()

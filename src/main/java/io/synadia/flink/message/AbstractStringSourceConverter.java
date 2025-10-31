@@ -9,6 +9,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -19,9 +20,17 @@ import java.nio.charset.UnsupportedCharsetException;
  * It must be subclasses to provide the Charset to use
  */
 public abstract class AbstractStringSourceConverter implements SourceConverter<String> {
+    @Serial
     private static final long serialVersionUID = 1L;
 
+    /**
+     * The character set
+     */
     private transient Charset charset;
+
+    /**
+     * The name of the character set
+     */
     private final String charsetName;
 
     /**
@@ -62,6 +71,10 @@ public abstract class AbstractStringSourceConverter implements SourceConverter<S
         return new String(input, charset);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Serial
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         charset = Charset.forName(charsetName);

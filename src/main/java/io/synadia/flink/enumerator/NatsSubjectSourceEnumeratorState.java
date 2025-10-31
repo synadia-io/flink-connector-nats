@@ -16,10 +16,18 @@ import java.util.Set;
 public class NatsSubjectSourceEnumeratorState {
     private final Set<NatsSubjectSplit> unassignedSplits;
 
+    /**
+     * Construct a NatsSubjectSourceEnumeratorState
+     * @param unassignedSplits the unassigned splits
+     */
     public NatsSubjectSourceEnumeratorState(Set<NatsSubjectSplit> unassignedSplits) {
         this.unassignedSplits = unassignedSplits;
     }
 
+    /**
+     * Get the unassigned splits
+     * @return the unassigned splits
+     */
     public Set<NatsSubjectSplit> getUnassignedSplits() {
         return unassignedSplits;
     }

@@ -20,6 +20,9 @@ import java.util.Collection;
 @Internal
 public class NatsSubjectCheckpointSerializer implements SimpleVersionedSerializer<Collection<NatsSubjectSplit>> {
 
+    /**
+     * The current version constant
+     */
     public static final int CURRENT_VERSION = 2;
 
     @Override

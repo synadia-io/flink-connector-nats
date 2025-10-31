@@ -20,6 +20,9 @@ import java.io.IOException;
 @Internal
 public class JetStreamSplitSerializer implements SimpleVersionedSerializer<JetStreamSplit> {
 
+    /**
+     * The current version constant
+     */
     public static final int CURRENT_VERSION = 1;
 
     @Override
@@ -35,6 +38,12 @@ public class JetStreamSplitSerializer implements SimpleVersionedSerializer<JetSt
         return out.getCopyOfBuffer();
     }
 
+    /**
+     * Serialize version 1
+     * @param out the data output view
+     * @param splitJson the json
+     * @throws IOException if an I/O error occurs.
+     */
     public static void serializeV1(DataOutputView out, String splitJson) throws IOException {
         out.writeUTF(splitJson);
     }
@@ -48,6 +57,12 @@ public class JetStreamSplitSerializer implements SimpleVersionedSerializer<JetSt
         return deserializeV1(in);
     }
 
+    /**
+     *
+     * @param in the Data Input View
+     * @return the JetStreamSplit
+     * @throws IOException if an I/O error occurs.
+     */
     static JetStreamSplit deserializeV1(DataInputView in) throws IOException {
         return new JetStreamSplit(in.readUTF());
     }

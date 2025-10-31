@@ -31,8 +31,8 @@ import java.util.zip.Checksum;
 @Internal
 public abstract class MiscUtils {
 
-    public static final String SEP = "--";
-    public static final String NULL_SEGMENT = "na";
+    private static final String SEP = "--";
+    private static final String NULL_SEGMENT = "na";
 
     private MiscUtils() {} /* ensures cannot be constructed */
 
@@ -62,38 +62,82 @@ public abstract class MiscUtils {
         CLIENT_VERSION = cv == null ? "development" : cv;
     }
 
+    /**
+     * Generate an id
+     * @return the id
+     */
     public static String generateId() {
         return new NUID().next().substring(0, 4).toLowerCase();
     }
 
+    /**
+     * Generate an id and prefix it with the prefix
+     * @param prefix the prefix
+     * @return the prefixed id
+     */
     public static String generatePrefixedId(String prefix) {
         return prefix + "-" + generateId();
     }
 
+    /**
+     * Is the string not null and not empty?
+     * @param s the string
+     * @return the result
+     */
     public static boolean provided(String s) {
         return s != null && !s.isEmpty();
     }
 
+    /**
+     * Is the string null or empty?
+     * @param s the string
+     * @return the result
+     */
     public static boolean notProvided(String s) {
         return s == null || s.isEmpty();
     }
 
+    /**
+     * Is the Collection not null and not empty?
+     * @param c the collection
+     * @return the result
+     */
     public static boolean provided(Collection<?> c) {
         return c != null && !c.isEmpty();
     }
 
+    /**
+     * Is the Collection null or empty?
+     * @param c the collection
+     * @return the result
+     */
     public static boolean notProvided(Collection<?> c) {
         return c == null || c.isEmpty();
     }
 
+    /**
+     * Generate a random string
+     * @return the result
+     */
     public static String random() {
         return NUID.nextGlobalSequence();
     }
 
+    /**
+     * Generate a random string and prefix it with the prefix
+     * @param prefix the prefix
+     * @return the prefixed random strinig
+     */
     public static String random(String prefix) {
         return prefix + "-" + NUID.nextGlobalSequence();
     }
 
+    /**
+     * Get the TypeInformation for a class
+     * @param clazz the class
+     * @return the TypeInformation
+     * @param <T> The type
+     */
     public static <T> TypeInformation<T> getTypeInformation(Class<T> clazz) {
         Field[] fields = clazz.getDeclaredFields();
         List<PojoField> pojoFields = new ArrayList<>(fields.length);
@@ -103,16 +147,32 @@ public abstract class MiscUtils {
         return new PojoTypeInfo<T>(clazz, pojoFields);
     }
 
+    /**
+     * Get the class name of an object
+     * @param o the object
+     * @return the class name
+     */
     public static String getClassName(Object o) {
         return o.getClass().getName();
     }
 
+    /**
+     * create an instance of a class from its name
+     * @param className the class name
+     * @return the Object
+     * @throws ReflectiveOperationException if the class can not be created from the name
+     */
     public static Object createInstanceOf(String className) throws ReflectiveOperationException {
         Class<?> clazz = Class.forName(className);
         Constructor<?> constructor = clazz.getConstructor();
         return constructor.newInstance();
     }
 
+    /**
+     * create a crc checksum for a bunch of objects by stringing them together
+     * @param parts the parts
+     * @return the result
+     */
     public static String checksum(Object... parts) {
         boolean first = true;
         StringBuilder sb = new StringBuilder();
@@ -142,10 +202,22 @@ public abstract class MiscUtils {
         return Long.toHexString(crc32.getValue()).toUpperCase();
     }
 
+    /**
+     * Utility to get an InputStream for a file specification
+     * @param filespec the file specification
+     * @return the InputStream
+     * @throws IOException any IO exception while trying to create the input stream from the filespec
+     */
     public static InputStream getInputStream(String filespec) throws IOException {
         return Files.newInputStream(Paths.get(filespec));
     }
 
+    /**
+     * Read all bytes from a file
+     * @param filespec the file specification
+     * @return the resulting byte array
+     * @throws IOException any IO exception while trying to create the input stream from the filespec
+     */
     public static byte[] readAllBytes(String filespec) throws IOException {
         return Files.readAllBytes(Paths.get(filespec));
     }

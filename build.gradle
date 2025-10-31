@@ -115,6 +115,7 @@ javadoc {
     source = sourceSets.main.allJava
     title = "Synadia Communications Inc. Java Flink Connector To Nats"
     classpath = sourceSets.main.runtimeClasspath
+    exclude '**/examples/**'
     doLast {
         if (!OperatingSystem.current().isWindows()) {
             exec {

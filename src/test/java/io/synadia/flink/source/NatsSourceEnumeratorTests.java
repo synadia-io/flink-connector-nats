@@ -39,10 +39,9 @@ class NatsSourceEnumeratorTests extends TestBase {
     @MethodSource("provideTestParameters")
     void testHandleSplitRequest(TestParameters params) {
         SplitEnumeratorContext<NatsSubjectSplit> context = mock(SplitEnumeratorContext.class);
-        Queue<NatsSubjectSplit> splitsQueue = new ArrayDeque<>();
 
         // Setup splits queue
-        splitsQueue.addAll(params.splits.stream().map(NatsSubjectSplit::new).collect(Collectors.toList()));
+        Queue<NatsSubjectSplit> splitsQueue = params.splits.stream().map(NatsSubjectSplit::new).collect(Collectors.toCollection(ArrayDeque::new));
 
         when(context.currentParallelism()).thenReturn(params.parallelism);
         //noinspection resource

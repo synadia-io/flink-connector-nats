@@ -49,6 +49,13 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private int activeSplits;
     private ConnectionContext _connectionContext;
 
+    /**
+     * Construct a JetStreamSourceReader
+     * @param boundedness the boundedness
+     * @param sourceConverter the source converter
+     * @param connectionFactory the connection factory
+     * @param readerContext the reader context
+     */
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
