@@ -6,7 +6,6 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'jacoco'
-    id 'com.github.kt3k.coveralls' version '2.12.0'
     id 'biz.aQute.bnd.builder' version '7.1.0'
     id "org.gradle.test-retry" version "1.6.4"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
@@ -28,6 +27,7 @@ java {
 }
 
 repositories {
+    gradlePluginPortal()
     mavenCentral()
     maven { url "https://repo1.maven.org/maven2/" }
     maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
@@ -84,13 +84,12 @@ tasks.register('bundle', Bundle) {
 jar {
     manifest {
         attributes(
-                'Automatic-Module-Name': 'io.synadia.flink-connector-nats',
+                'Automatic-Module-Name': 'io.synadia.flink.connector.nats',
                 'Implementation-Title': 'Flink Connector Nats',
                 'Implementation-Version': jarVersion,
                 'Implementation-Vendor': 'synadia.io'
         )
     }
-
     exclude("io/synadia/examples/**")
 }
 
@@ -176,15 +175,13 @@ artifacts {
     archives javadocJar, sourcesJar, examplesJar
 }
 
-if (isMerge || isRelease) {
-    nexusPublishing {
-        repositories {
-            sonatype {
-                nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
-                snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
-                username = System.getenv('OSSRH_USERNAME')
-                password = System.getenv('OSSRH_PASSWORD')
-            }
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username = System.getenv('OSSRH_USERNAME')
+            password = System.getenv('OSSRH_PASSWORD')
         }
     }
 }
