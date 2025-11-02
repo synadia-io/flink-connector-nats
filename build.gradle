@@ -6,8 +6,8 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'jacoco'
-    id 'biz.aQute.bnd.builder' version '7.1.0'
-    id "org.gradle.test-retry" version "1.6.4"
+    id 'biz.aQute.bnd.builder' version '5.1.2'
+    id "org.gradle.test-retry" version "1.6.2"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
     id 'signing'
 }
@@ -15,7 +15,6 @@ plugins {
 def jarVersion = "3.0.0"
 group = 'io.synadia'
 
-def isMerge = System.getenv("BUILD_EVENT") == "push"
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
 // version is the variable the build actually uses.
@@ -31,15 +30,12 @@ repositories {
     mavenCentral()
     maven { url "https://repo1.maven.org/maven2/" }
     maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
+    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 }
 
 dependencies {
     implementation 'io.nats:jnats:2.21.5'
     implementation 'org.jspecify:jspecify:1.0.0'
-
-    // these are here to override flink since the flink dependency version has vulnerabilities
-    implementation 'org.apache.commons:commons-compress:1.28.0'
-    implementation 'commons-io:commons-io:2.18.0'
 
     ext.flinkVersion='2.1.0'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
@@ -155,7 +151,7 @@ tasks.register('sourcesJar', Jar) {
 }
 
 jacoco {
-    toolVersion = "0.8.12"
+    toolVersion = "0.8.6"
 }
 
 jacocoTestReport {
@@ -194,10 +190,10 @@ publishing {
             artifact examplesJar
             artifact javadocJar
             pom {
-                name = rootProject.name
+                name = 'flink-connector-nats'
                 packaging = 'jar'
                 groupId = group
-                artifactId = project.name
+                artifactId = archivesBaseName
                 description = 'Synadia Communications Inc. Java Flink Connector To Nats'
                 url = 'https://github.com/synadia-io/flink-connector-nats'
                 licenses {
