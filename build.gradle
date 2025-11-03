@@ -185,6 +185,9 @@ nexusPublishing {
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            if (isRelease) {
+                dependsOn signing
+            }
             from components.java
             artifact sourcesJar
             artifact examplesJar
@@ -226,8 +229,5 @@ if (isRelease) {
         useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         sign configurations.archives
         sign publishing.publications.mavenJava
-    }
-    tasks.register('publishMavenJavaPublicationToSonatypeRepository') {
-        dependsOn signing
     }
 }
