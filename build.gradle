@@ -189,7 +189,7 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             if (isRelease) {
-                dependsOn signing
+                dependsOn(tasks.named("sign"))
             }
             from components.java
             artifact sourcesJar
