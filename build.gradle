@@ -134,9 +134,9 @@ javadoc {
 tasks.register('examplesJar', Jar) {
     archiveClassifier.set('examples')
     manifest {
-        attributes('Implementation-Title': 'Java Nats Examples',
+        attributes('Implementation-Title': 'Flink Connector Examples',
                 'Implementation-Version': jarVersion,
-                'Implementation-Vendor': 'nats.io')
+                'Implementation-Vendor': 'synadia.io')
     }
     from(sourceSets.main.output) {
         include "io/synadia/examples/**"
@@ -188,9 +188,6 @@ nexusPublishing {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            if (isRelease) {
-                dependsOn signArchives
-            }
             from components.java
             artifact sourcesJar
             artifact examplesJar
@@ -226,6 +223,7 @@ publishing {
 
 if (isRelease) {
     signing {
+        required = { gradle.taskGraph.hasTask("publish") }
         def signingKeyId = System.getenv('SIGNING_KEY_ID')
         def signingKey = System.getenv('SIGNING_KEY')
         def signingPassword = System.getenv('SIGNING_PASSWORD')
