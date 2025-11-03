@@ -5,6 +5,7 @@ on:
     branches:
       - main
     types: [released]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -44,7 +45,7 @@ jobs:
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify, Sign and Publish Release
-        run: ./gradlew -i publishToSonatype
+        run: ./gradlew -i publishToSonatype closeAndReleaseSonatypeStagingRepository
       - name: Clean up
         if: always()
         run: pkill -9 nats-server 2>/dev/null || true

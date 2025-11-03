@@ -6,9 +6,9 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'jacoco'
-    id 'biz.aQute.bnd.builder' version '5.1.2'
-    id "org.gradle.test-retry" version "1.6.2"
-    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id("biz.aQute.bnd.builder") version "7.1.0"
+    id("org.gradle.test-retry") version "1.6.4"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id 'signing'
 }
 
@@ -26,11 +26,9 @@ java {
 }
 
 repositories {
-    gradlePluginPortal()
     mavenCentral()
-    maven { url "https://repo1.maven.org/maven2/" }
-    maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    maven { url="https://repo1.maven.org/maven2/" }
+    maven { url="https://central.sonatype.com/repository/maven-snapshots/" }
 }
 
 dependencies {
@@ -77,23 +75,17 @@ sourceSets {
 
 tasks.register('bundle', Bundle) {
     from sourceSets.main.output
-    exclude("io/synadia/examples/**")
+    exclude("io/synadia/flink/examples/**")
 }
 
 jar {
-    manifest {
-        attributes(
-                'Automatic-Module-Name': 'io.synadia.flink.connector.nats',
-                'Implementation-Title': 'Flink Connector Nats',
-                'Implementation-Version': jarVersion,
-                'Implementation-Vendor': 'synadia.io'
+    bundle {
+        bnd("Bundle-Name": "io.synadia.flink.connector.nats",
+                "Bundle-Vendor": "synadia.io",
+                "Bundle-Description": "Flink Connector Nats",
+                "Bundle-DocURL": "https://github.com/synadia-io/flink-connector-nats"
         )
     }
-    bnd (['Implementation-Title': 'Java Nats',
-          'Implementation-Version': jarVersion,
-          'Implementation-Vendor': 'nats.io']
-    )
-    exclude("io/synadia/examples/**")
 }
 
 test {
@@ -116,7 +108,7 @@ javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "Synadia Communications Inc. Java Flink Connector To Nats"
-    exclude '**/examples/**'
+    excludes ['**/examples/**']
     classpath = sourceSets.main.runtimeClasspath
     doLast {
         if (!OperatingSystem.current().isWindows()) {
@@ -203,12 +195,12 @@ publishing {
             artifact javadocJar
             artifact testsJar
             pom {
-                name = 'flink-connector-nats'
-                packaging = 'jar'
+                name = "flink-connector-nats"
+                packaging = "jar"
                 groupId = group
-                artifactId = archivesBaseName
-                description = 'Synadia Communications Inc. Java Flink Connector To Nats'
-                url = 'https://github.com/synadia-io/flink-connector-nats'
+                artifactId = "flink-connector-nats"
+                description = "Synadia Communications Inc. Java Flink Connector To Nats"
+                url = "https://github.com/synadia-io/flink-connector-nats"
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -240,5 +232,12 @@ if (isRelease) {
         useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         sign configurations.archives
         sign publishing.publications.mavenJava
+    }
+}
+
+develocity {
+    buildScan {
+        termsOfUseUrl = 'https://gradle.com/help/legal-terms-of-use'
+        termsOfUseAgree = 'yes'
     }
 }
