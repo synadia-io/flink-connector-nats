@@ -89,6 +89,10 @@ jar {
                 'Implementation-Vendor': 'synadia.io'
         )
     }
+    bnd (['Implementation-Title': 'Java Nats',
+          'Implementation-Version': jarVersion,
+          'Implementation-Vendor': 'nats.io']
+    )
     exclude("io/synadia/examples/**")
 }
 
@@ -112,8 +116,8 @@ javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "Synadia Communications Inc. Java Flink Connector To Nats"
+    excludes ['**/examples/**']
     classpath = sourceSets.main.runtimeClasspath
-    exclude '**/examples/**'
     doLast {
         if (!OperatingSystem.current().isWindows()) {
             exec {
@@ -139,7 +143,7 @@ tasks.register('examplesJar', Jar) {
                 'Implementation-Vendor': 'synadia.io')
     }
     from(sourceSets.main.output) {
-        include "io/synadia/examples/**"
+        include "io/synadia/flink/examples/**"
     }
 }
 
@@ -151,6 +155,11 @@ tasks.register('javadocJar', Jar) {
 tasks.register('sourcesJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allSource
+}
+
+tasks.register('testsJar', Jar) {
+    archiveClassifier.set('tests')
+    from sourceSets.test.allSource
 }
 
 jacoco {
@@ -171,7 +180,7 @@ jacocoTestReport {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar, examplesJar
+    archives javadocJar, sourcesJar, examplesJar, testsJar
 }
 
 nexusPublishing {
@@ -192,6 +201,7 @@ publishing {
             artifact sourcesJar
             artifact examplesJar
             artifact javadocJar
+            artifact testsJar
             pom {
                 name = 'flink-connector-nats'
                 packaging = 'jar'
