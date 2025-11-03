@@ -5,12 +5,13 @@ on:
     branches:
       - main
     types: [released]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      BUILD_EVENT: ${{ github.event_name }}
+      BUILD_EVENT: 'release'
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
