@@ -233,4 +233,6 @@ if (isRelease) {
         sign configurations.archives
         sign publishing.publications.mavenJava
     }
+
+    signArchives.mustRunAfter(publishMavenJavaPublicationToSonatypeRepository)
 }
