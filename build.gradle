@@ -12,13 +12,12 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "3.0.1"
-group = 'io.synadia'
+def jarVersion = "3.0.2"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
-// version is the variable the build actually uses.
-version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT"
+group = 'io.synadia'
+version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT" // version is the variable the build actually uses.
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -154,6 +153,10 @@ tasks.register('testsJar', Jar) {
     from sourceSets.test.allSource
 }
 
+artifacts {
+    archives javadocJar, sourcesJar, examplesJar, testsJar
+}
+
 jacoco {
     toolVersion = "0.8.12"
 }
@@ -169,10 +172,6 @@ jacocoTestReport {
                     exclude: ['**/examples**','**/Debug**'])
         }))
     }
-}
-
-artifacts {
-    archives javadocJar, sourcesJar, examplesJar, testsJar
 }
 
 nexusPublishing {

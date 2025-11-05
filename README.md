@@ -2,7 +2,7 @@
 
 # Synadia NATS to Flink Connector
 
-**Current Release**: 2.3.1 &nbsp; **Current Snapshot**: 2.3.2-SNAPSHOT
+**Current Release**: 3.0.1 &nbsp; **Current Snapshot**: 3.0.2-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
@@ -25,25 +25,13 @@
  
 ## Java Version
 
-The connector requires Java version 11 or later to be compatible with Flink libraries. 
+As of Version 3, the connector requires Java version 17 or later to be compatible with Flink libraries. 
 The JNats library is built with Java 8 and is compatible with being run by a later version of Java.  
 
 ## Releases and Versioning
 
 This project will adhere to semver except where a class is commented as "INTERNAL" and annotated with the `@Internal` annotation
 (`org.apache.flink.annotation.Internal`) 
-
-### Version Note Regarding 2.1.4 and 2.2.0
-There was technically a violation of semver. An api that was renamed in 2.1.4 should only have been deprecated.
-2.2.0 fixes this by changing the name back.
-
-In `JetStreamSubjectConfiguration.Builder`, `ackMode()` was incorrectly renamed to `ackBehavior()`
-
-This has been "fixed" as in 
-> Bob Slydell: "We, uh, we fixed the glitch. So he won't be receiving a paycheck anymore, so it'll just work itself out naturally."
-
-Very sorry, we appreciate your understanding, at least we didn't steal your stapler.
-![Red Swingline](swingline.jpg "Swingline")
 
 ## Builders
 
