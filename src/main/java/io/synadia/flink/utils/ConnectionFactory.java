@@ -81,7 +81,7 @@ public class ConnectionFactory implements Serializable {
         if (props != null) {
             b.properties(props);
         }
-        return b.maxReconnects(0).build();
+        return b.build();
     }
 
     private static JetStreamOptions getJetStreamOptions(Properties props) {
