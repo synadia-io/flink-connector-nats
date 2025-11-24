@@ -13,7 +13,6 @@ plugins {
 }
 
 def jarVersion = "3.0.2"
-
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
 group = 'io.synadia'
