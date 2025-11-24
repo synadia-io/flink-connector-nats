@@ -80,6 +80,44 @@ class ConnectionFactoryTest extends TestBase {
         try (Connection connection = factory.connect()) {
             assertNotNull(connection);
             assertSame(Connection.Status.CONNECTED, connection.getStatus());
+            assertEquals(0, connection.getOptions().getMaxReconnect());
+        }
+    }
+
+    /**
+     * Tests connection overriding the max reconnects of zero
+     */
+    @Test
+    void testConnectWithCustomMaxReconnectsPropertyWithPrefix() throws Exception {
+        Properties props = defaultConnectionProperties(ctx.url);
+        props.setProperty("io.nats.client.reconnect.max", "3");
+        String propsFile = createTempPropertiesFile(props);
+
+        ConnectionFactory factory = new ConnectionFactory(propsFile);
+        assertEquals(propsFile, factory.getConnectionPropertiesFile());
+
+        try (Connection connection = factory.connect()) {
+            assertNotNull(connection);
+            assertSame(Connection.Status.CONNECTED, connection.getStatus());
+            assertEquals(3, connection.getOptions().getMaxReconnect());
+        }
+    }
+    /**
+     * Tests connection overriding the max reconnects of zero
+     */
+    @Test
+    void testConnectWithCustomMaxReconnectsPropertyWithoutPrefix() throws Exception {
+        Properties props = defaultConnectionProperties(ctx.url);
+        props.setProperty("reconnect.max", "4");
+        String propsFile = createTempPropertiesFile(props);
+
+        ConnectionFactory factory = new ConnectionFactory(propsFile);
+        assertEquals(propsFile, factory.getConnectionPropertiesFile());
+
+        try (Connection connection = factory.connect()) {
+            assertNotNull(connection);
+            assertSame(Connection.Status.CONNECTED, connection.getStatus());
+            assertEquals(4, connection.getOptions().getMaxReconnect());
         }
     }
 
