@@ -1,5 +1,4 @@
 import aQute.bnd.gradle.Bundle
-import org.gradle.internal.os.OperatingSystem
 
 plugins {
     id 'java'
@@ -13,9 +12,10 @@ plugins {
 }
 
 def jarVersion = "3.0.3"
+group = 'io.synadia'
+
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 
-group = 'io.synadia'
 version = isRelease ? jarVersion : jarVersion + "-SNAPSHOT" // version is the variable the build actually uses.
 
 java {
@@ -30,7 +30,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.21.5'
+    implementation 'io.nats:jnats:2.24.0'
     implementation 'org.jspecify:jspecify:1.0.0'
 
     // these are here to override flink since the flink dependency version has vulnerabilities
@@ -49,10 +49,12 @@ dependencies {
     testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
 
     testImplementation 'io.nats:jnats-server-runner:1.2.8'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'com.github.stefanbirkner:system-lambda:1.2.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
     testImplementation 'org.mockito:mockito-core:5.10.0'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 sourceSets {
@@ -108,21 +110,6 @@ javadoc {
     title = "Synadia Communications Inc. Java Flink Connector To Nats"
     exclude 'io/synadia/flink/examples/**'
     classpath = sourceSets.main.runtimeClasspath
-    doLast {
-        if (!OperatingSystem.current().isWindows()) {
-            exec {
-                println "Updating favicon on all html files"
-                workingDir 'build/docs/javadoc'
-                // Only on linux, mac at this point
-                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
-            }
-            copy {
-                println "Copying images to javadoc folder"
-                from 'src/main/javadoc/images'
-                into 'build/docs/javadoc'
-            }
-        }
-    }
 }
 
 tasks.register('examplesJar', Jar) {
