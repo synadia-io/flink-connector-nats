@@ -20,8 +20,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEnumerator<SplitT, Collection<SplitT>> {
     private final SplitEnumeratorContext<SplitT> context;
-    private final Queue<SplitT> remainingSplits;
-    private List<List<SplitT>> precomputedSplitAssignments;
+    private final Queue<SplitT> initialSplits;
+    private List<List<SplitT>> splitAssignments;
 
     /**
      * Construct the NatsSourceEnumerator
@@ -31,13 +31,13 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
     public NatsSourceEnumerator(SplitEnumeratorContext<SplitT> context,
                                 Collection<SplitT> splits) {
         this.context = checkNotNull(context);
-        this.remainingSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
-        this.precomputedSplitAssignments = Collections.synchronizedList(new LinkedList<>());
+        this.initialSplits = splits == null ? new ArrayDeque<>() : new ArrayDeque<>(splits);
+        this.splitAssignments = Collections.synchronizedList(new LinkedList<>());
     }
 
     @Override
     public void start() {
-        int totalSplits = remainingSplits.size();
+        int totalSplits = initialSplits.size();
         int parallelism = context.currentParallelism();
 
         // Calculate the minimum splits per reader and leftover splits
@@ -45,7 +45,7 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
         int leftoverSplits = totalSplits % parallelism;
 
         // Precompute split assignments
-        this.precomputedSplitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
+        this.splitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
     }
 
     private List<List<SplitT>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
@@ -61,13 +61,13 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
             List<SplitT> readerSplits = splitAssignments.get(j);
 
             // Assign minimum splits to each reader
-            for (int i = 0; i < minimumSplitsPerReader && !remainingSplits.isEmpty(); i++) {
-                readerSplits.add(remainingSplits.poll());
+            for (int i = 0; i < minimumSplitsPerReader && !initialSplits.isEmpty(); i++) {
+                readerSplits.add(initialSplits.poll());
             }
 
             // Assign one leftover split if available
-            if (leftoverSplits > 0 && !remainingSplits.isEmpty()) {
-                readerSplits.add(remainingSplits.poll());
+            if (leftoverSplits > 0 && !initialSplits.isEmpty()) {
+                readerSplits.add(initialSplits.poll());
                 leftoverSplits--;
             }
         }
@@ -78,20 +78,21 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
     @Override
     public void close() {
         // remove precomputed split assignments if any
-        precomputedSplitAssignments.clear();
+        splitAssignments.clear();
     }
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-        int size = precomputedSplitAssignments.size();
+        int size = splitAssignments.size();
 
         if (size == 0) {
             context.signalNoMoreSplits(subtaskId);
         } else {
-            // O(1) operation with LinkedList
+            // O(1) operation using LinkedList
             // Remove the first element from the list
-            // and assign splits to subtask
-            List<SplitT> splits = precomputedSplitAssignments.remove(0);
+            // This is the only place where splits are assigned,
+            // and this list is the only one that should be snapshotted
+            List<SplitT> splits = splitAssignments.remove(0);
             if (splits.isEmpty()) {
                 context.signalNoMoreSplits(subtaskId);
             } else {
@@ -102,9 +103,19 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
         }
     }
 
+    /**
+     * Add splits back to the split enumerator. This will only happen when a SourceReader
+     * fails and there are splits assigned to it after the last successful checkpoint.
+     *
+     * @param splits The splits to add back to the enumerator for reassignment.
+     * @param subtaskId The id of the subtask to which the returned splits belong.
+     */
     @Override
     public void addSplitsBack(List<SplitT> splits, int subtaskId) {
-        remainingSplits.addAll(splits);
+        if (!splits.isEmpty()) {
+            // Add the failed reader splits back for reassignment.
+            splitAssignments.add(new ArrayList<>(splits));
+        }
     }
 
     @Override
@@ -114,6 +125,10 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
 
     @Override
     public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
-        return remainingSplits;
+        List<SplitT> state = new ArrayList<>();
+        for (List<SplitT> pending : splitAssignments) {
+            state.addAll(pending);
+        }
+        return state;
     }
 }
