@@ -21,7 +21,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEnumerator<SplitT, Collection<SplitT>> {
     private final SplitEnumeratorContext<SplitT> context;
     private final Queue<SplitT> initialSplits;
-    private List<List<SplitT>> splitAssignments;
+    private final List<List<SplitT>> splitAssignments;
 
     /**
      * Construct the NatsSourceEnumerator
@@ -45,20 +45,21 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
         int leftoverSplits = totalSplits % parallelism;
 
         // Precompute split assignments
-        this.splitAssignments = preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits);
+        splitAssignments.clear();
+        splitAssignments.addAll(preComputeSplitsAssignments(parallelism, minimumSplitsPerReader, leftoverSplits));
     }
 
     private List<List<SplitT>> preComputeSplitsAssignments (int parallelism, int minimumSplitsPerReader, int leftoverSplits) {
-        List<List<SplitT>> splitAssignments = new ArrayList<>(parallelism);
+        List<List<SplitT>> computed = new ArrayList<>(parallelism);
 
         // Initialize lists
         for (int i = 0; i < parallelism; i++) {
-            splitAssignments.add(new ArrayList<>());
+            computed.add(new ArrayList<>());
         }
 
         // Distribute splits evenly among subtasks
         for (int j = 0; j < parallelism; j++) {
-            List<SplitT> readerSplits = splitAssignments.get(j);
+            List<SplitT> readerSplits = computed.get(j);
 
             // Assign minimum splits to each reader
             for (int i = 0; i < minimumSplitsPerReader && !initialSplits.isEmpty(); i++) {
@@ -72,7 +73,7 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
             }
         }
 
-        return splitAssignments;
+        return computed;
     }
 
     @Override
@@ -125,10 +126,12 @@ public class NatsSourceEnumerator<SplitT extends SourceSplit> implements SplitEn
 
     @Override
     public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
-        List<SplitT> state = new ArrayList<>();
-        for (List<SplitT> pending : splitAssignments) {
-            state.addAll(pending);
+        synchronized (splitAssignments) {
+            List<SplitT> state = new ArrayList<>();
+            for (List<SplitT> pending : splitAssignments) {
+                state.addAll(pending);
+            }
+            return state;
         }
-        return state;
     }
 }
