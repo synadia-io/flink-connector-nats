@@ -36,14 +36,9 @@ dependencies {
     // these are here to override flink since the flink dependency version has vulnerabilities
     implementation 'org.apache.commons:commons-lang3:3.18.0'
 
-    // this is done to remove vulnerable dependency in flink-streaming-java
-    implementation("at.yawk.lz4:lz4-java:1.10.3")
-
     ext.flinkVersion='2.2.0'
     implementation "org.apache.flink:flink-core:${flinkVersion}"
-    implementation("org.apache.flink:flink-streaming-java:${flinkVersion}") {
-        exclude group: "org.lz4", module: "lz4-java"
-    }
+    implementation("org.apache.flink:flink-streaming-java:${flinkVersion}")
     implementation "org.apache.flink:flink-clients:${flinkVersion}"
     implementation "org.apache.flink:flink-connector-files:${flinkVersion}"
 
