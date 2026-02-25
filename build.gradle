@@ -30,7 +30,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.nats:jnats:2.24.0'
+    implementation 'io.nats:jnats:2.25.1'
     implementation 'org.jspecify:jspecify:1.0.0'
 
     // these are here to override flink since the flink dependency version has vulnerabilities
