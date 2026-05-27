@@ -1,17 +1,15 @@
-name: Build Release Branch
+name: Build V2 Release
 
-# Manually-triggered release build for a specific branch or tag.
-# Use this to cut maintenance/patch releases (e.g. 2.x) without going through
-# a GitHub Release on the default branch. The published version comes from
-# `jarVersion` in build.gradle on the checked-out ref, NOT from this input.
+# Manually-triggered release build for the V2 maintenance line (2.x.x), always
+# built from the V2-Main branch — without going through a GitHub Release on the
+# default branch. The published version comes from `jarVersion` in build.gradle
+# on V2-Main.
+#
+# If main ever moves to a new major (e.g. 4.x), copy this file to
+# build-v3-release.yml and change the checkout ref to the V3 maintenance branch.
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch or tag to build and release (e.g. 2.x)'
-        required: true
-        type: string
 
 jobs:
   build:
@@ -47,9 +45,9 @@ jobs:
           go build -o ~/.local/bin/nats-server
           nats-server -v
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: V2-Main
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify, Sign and Publish Release

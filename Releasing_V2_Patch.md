@@ -8,10 +8,10 @@ long-lived branch, **`V2-Main`**, started from the last V2 release, `2.3.1`.
 **For each fix:**
 1. Branch `V2-<feature>` off `V2-Main`.
 2. Open a PR `V2-<feature>` → `V2-Main`. Tests run automatically as a PR check.
-3Merge the PR. The merge auto-publishes `<jarVersion>-SNAPSHOT` (e.g. `2.3.2-SNAPSHOT`).
+3. Merge the PR. The merge auto-publishes `<jarVersion>-SNAPSHOT` (e.g. `2.3.2-SNAPSHOT`).
 
 **To release:**
-1. GitHub → **Actions** → **Build Release Branch** → Run workflow → `branch = V2-Main`.
+1. GitHub → **Actions** → **Build V2 Release** → Run workflow.
    Publishes the release version `<jarVersion>` (e.g. `2.3.2`) to Sonatype.
 2. Bump `jarVersion` on `V2-Main` to the next patch for ongoing snapshots.
 3. *(Optional)* tag the released commit: `git tag 2.3.2 <sha> && git push origin 2.3.2`.
@@ -44,12 +44,12 @@ live on a specific branch:
 |----------------------------------|-----------------------------|------------------------------|-----------|------------------------------------|
 | Build Pull Request               | `build-pr.yml`              | `pull_request` (any base)    | `V2-Main` | tests run as a PR check            |
 | Build a Branch Specific Snapshot | `build-branch-snapshot.yml` | `push` to `V2-Main`          | `V2-Main` | publishes `<jarVersion>-SNAPSHOT`  |
-| Build Release Branch             | `build-release-branch.yml`  | `workflow_dispatch` (manual) | `main`    | publishes `<jarVersion>` (release) |
+| Build V2 Release                 | `build-v2-release.yml`      | `workflow_dispatch` (manual) | `main`    | publishes `<jarVersion>` (release) |
 
 The "lives on" column is not a preference — it's a GitHub rule:
 
 - **`push`** runs the workflow from the *pushed* branch → snapshot must be on `V2-Main`.
 - **`pull_request`** runs the workflow from the PR's *base* branch → PR build must be on `V2-Main`.
 - **`workflow_dispatch`** only shows its "Run workflow" button from the *default*
-  branch → the manual release tool must be on `main`. It checks out the branch
-  you type, so it can release `V2-Main` from `main`.
+  branch → the manual release tool must be on `main`. It has `V2-Main` hardcoded
+  as its checkout ref, so it always releases `V2-Main` even while running from `main`.
