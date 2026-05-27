@@ -18,10 +18,10 @@ jobs:
       GODEBUG: x509sha1=1
     steps:
       - name: Setup JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           java-version: '11'
-          distribution: 'adopt'
+          distribution: 'temurin'
       - name: Install Nats Server
         run: |
           cd $GITHUB_WORKSPACE
@@ -35,7 +35,7 @@ jobs:
           rm -rf nats-server
           nats-server -v
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify Javadoc
