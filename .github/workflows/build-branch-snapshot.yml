@@ -1,23 +1,25 @@
 name: Build a Branch Specific Snapshot
 
-# Manually-triggered SNAPSHOT build for the branch/tag named in the input.
-# This workflow lives on main; type the branch to build (e.g. 2.x) when running.
+# SNAPSHOT build for the V2 maintenance line. Always builds V2-Main.
+# Runs automatically on every push to V2-Main (e.g. when a V2-* feature branch
+# is merged in); can also be run manually from the Actions tab.
 # Publishes <jarVersion>-SNAPSHOT, where jarVersion comes from build.gradle on
-# the checked-out ref (e.g. "2.3.2-SNAPSHOT" when run against the 2.x branch).
+# V2-Main (e.g. "2.3.2-SNAPSHOT").
+#
+# This file must live on V2-Main for the push trigger to fire (push events run
+# the workflow version present on the pushed branch).
 #
 # NOTE: This intentionally does NOT set BRANCH_REF_NAME. This project's
 # build.gradle derives the version solely from jarVersion + "-SNAPSHOT", so the
 # branch name is not appended (no "...-branch-SNAPSHOT"). BUILD_EVENT is the
-# event name ("workflow_dispatch", not "release"), so isRelease is false and the
-# build stays a SNAPSHOT.
+# event name ("push"/"workflow_dispatch", not "release"), so isRelease is false
+# and the build stays a SNAPSHOT.
 
 on:
+  push:
+    branches:
+      - V2-Main
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch or tag to build a snapshot from (e.g. 2.x)'
-        required: true
-        type: string
 
 jobs:
   build:
@@ -54,8 +56,6 @@ jobs:
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.branch }}
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify Javadoc
