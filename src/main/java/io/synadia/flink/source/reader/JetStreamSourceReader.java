@@ -72,19 +72,21 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     }
 
     private ConnectionContext getConnectionContext() {
-        if (_connectionContext == null) {
-            connectionLock.lock();
-            try {
-                _connectionContext = connectionFactory.getConnectionContext();
+        connectionLock.lock();
+        try {
+            if (_connectionContext == null) {
+                try {
+                    _connectionContext = connectionFactory.getConnectionContext();
+                }
+                catch (IOException e) {
+                    throw new FlinkRuntimeException(e);
+                }
             }
-            catch (IOException e) {
-                throw new FlinkRuntimeException(e);
-            }
-            finally {
-                connectionLock.unlock();
-            }
+            return _connectionContext;
         }
-        return _connectionContext;
+        finally {
+            connectionLock.unlock();
+        }
     }
 
     private ConnectionContext checkConnection(String source) {
