@@ -77,10 +77,10 @@ public class JetStreamBoundlessExample {
 
     // ------------------------------------------------------------------------------------------
     // Server
-    // MaxReconnects for testing, try 0 or 5
+    // MaxReconnects for testing, try 0 or 5 and see what happens when you shutdown the server
     // ------------------------------------------------------------------------------------------
     public static final String SERVER = "nats://localhost:4222";
-    public static final int MAX_RECONNECTS = 5;
+    public static final int MAX_RECONNECTS = 0;
 
     public static void main(String[] args) throws Exception {
         // ==========================================================================================
