@@ -9,12 +9,15 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
+import io.nats.client.support.DateTimeUtils;
 import io.synadia.flink.examples.support.ExampleUtils;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static io.synadia.flink.examples.support.Publisher.makePayload;
@@ -105,5 +108,49 @@ public class JetStreamExampleHelper {
             System.out.print(SOURCE_B_SUBJECTS[x] + "/" + countB[x]);
         }
         System.out.println();
+    }
+
+    public static Thread publishAsync(Connection nc, String subject, long delay, long jitter, int reportFrequency) throws Exception {
+        final JetStream js = nc.jetStream();
+        Thread t = new Thread(() -> {
+            System.out.println(timeLabel() + "Publishing...");
+            int n = 0;
+            List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
+            while (true) {
+                try {
+                    if (nc.getStatus() == Connection.Status.CONNECTED) {
+                        js.publish(subject, makePayload(subject, ++n).getBytes());
+                        if (n % reportFrequency == 0) {
+                            System.out.println(timeLabel() + "Publish " + subject + "/" + n);
+                        }
+                    }
+                }
+                catch (Exception e) {
+                    --n;
+                    System.out.println(timeLabel() + e);
+                }
+
+                try {
+                    long wait = delay + ThreadLocalRandom.current().nextLong(0, jitter);
+                    Thread.sleep(wait);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
+
+        });
+        t.start();
+        return t;
+    }
+
+    public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    public static String time() {
+        return TIME_FORMATTER.format(DateTimeUtils.gmtNow());
+    }
+
+    public static String timeLabel() {
+        return "[" + TIME_FORMATTER.format(DateTimeUtils.gmtNow()) + "] ";
     }
 }

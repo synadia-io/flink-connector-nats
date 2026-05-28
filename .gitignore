@@ -63,7 +63,7 @@ atlassian-ide-plugin.xml
 # Eclipse specific files/directories
 .classpath
 .project
-.settings
+.writerSettings
 .metadata
 
 # NetBeans specific files/directories
