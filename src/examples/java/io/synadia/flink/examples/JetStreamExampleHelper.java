@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.synadia.flink.examples.support.Publisher.makePayload;
 
@@ -110,7 +111,8 @@ public class JetStreamExampleHelper {
         System.out.println();
     }
 
-    public static void publishAsync(Connection nc, String subject, long delay, long jitter, int reportFrequency, boolean quitIfNotConnected) throws Exception {
+    public static boolean publishAsync(Connection nc, String subject, long delay, long jitter, int reportFrequency, boolean quitIfNotConnected) throws Exception {
+        final AtomicBoolean connected = new AtomicBoolean(true);
         final JetStream js = nc.jetStream();
         Thread t = new Thread(() -> {
             System.out.println(timeLabel() + "Publishing...");
@@ -125,6 +127,7 @@ public class JetStreamExampleHelper {
                         }
                     }
                     else if (quitIfNotConnected){
+                        connected.set(false);
                         return;
                     }
                 }
@@ -146,6 +149,7 @@ public class JetStreamExampleHelper {
         });
         t.start();
         t.join();
+        return connected.get();
     }
 
     public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");

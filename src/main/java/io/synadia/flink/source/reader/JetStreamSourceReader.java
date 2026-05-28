@@ -47,7 +47,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final ReentrantLock connectionLock;
 
     private int activeSplits;
-    private ConnectionContext _connectionContext;
+    private volatile ConnectionContext _connectionContext;
 
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
@@ -72,9 +72,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     }
 
     private ConnectionContext getConnectionContext() {
-        connectionLock.lock();
-        try {
-            if (_connectionContext == null) {
+        if (_connectionContext == null) {
+            connectionLock.lock();
+            try {
                 try {
                     _connectionContext = connectionFactory.getConnectionContext();
                 }
@@ -82,17 +82,26 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     throw new FlinkRuntimeException(e);
                 }
             }
-            return _connectionContext;
+            finally {
+                connectionLock.unlock();
+            }
         }
-        finally {
-            connectionLock.unlock();
+        return _connectionContext;
+    }
+
+    private ConnectionContext checkConnection(String source) {
+        ConnectionContext connectionContext = getConnectionContext();
+        if (connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
+            throw new RuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
         }
+        return connectionContext;
     }
 
     @Override
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
         JetStreamSplitMessage sm = queue.poll();
         if (sm == null) {
+            checkConnection("pollNext");
             return InputStatus.NOTHING_AVAILABLE;
         }
         // 1. Get the split
@@ -123,6 +132,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public List<JetStreamSplit> snapshotState(long checkpointId) {
+        checkConnection("snapshotState");
         List<JetStreamSplit> splits = new ArrayList<>();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             srSplit.takeSnapshot(checkpointId);
@@ -141,7 +151,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         for (JetStreamSplit split : splits) {
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
                 try {
-                    StreamContext sc = connectionFactory.getConnectionContext().js.getStreamContext(split.subjectConfig.streamName);
+                    ConnectionContext connectionContext = checkConnection("addSplits");
+                    StreamContext sc = connectionContext.js.getStreamContext(split.subjectConfig.streamName);
                     BaseConsumerContext consumerContext = split.subjectConfig.ackBehavior == AckBehavior.NoAck
                         ? createOrderedConsumer(split, sc)
                         : createConsumer(split, sc);
@@ -230,11 +241,12 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public void notifyNoMoreSplits() {
+        checkConnection("notifyNoMoreSplits");
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        ConnectionContext connectionContext  = getConnectionContext();
+        ConnectionContext connectionContext = checkConnection("notifyCheckpointComplete");
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {

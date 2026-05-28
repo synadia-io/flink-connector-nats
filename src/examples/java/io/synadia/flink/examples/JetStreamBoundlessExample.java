@@ -161,9 +161,11 @@ public class JetStreamBoundlessExample {
         // Start publishing messages via JetStreamExampleHelper.
         // publishAsync(JetStream js, String subject, long delay, long jitter, int reportFrequency)
         // ==========================================================================================
-        publishAsync(nc, SOURCE_A_SUBJECT, 10, 10, PUBLISH_REPORT_FREQUENCY, MAX_RECONNECTS == 0);
+        boolean connected = publishAsync(nc, SOURCE_A_SUBJECT, 10, 10, PUBLISH_REPORT_FREQUENCY, MAX_RECONNECTS == 0);
 
-        System.exit(0); // Threads are running, stuff still going, so force exit. Probably not a production strategy!
+        if (!connected) {
+            System.exit(0); // Threads are running, stuff still going, so force exit. Probably not a production strategy!
+        }
     }
 
     static class JsbeSink implements Sink<String>, SupportsConcurrentExecutionAttempts {
