@@ -110,7 +110,7 @@ public class JetStreamExampleHelper {
         System.out.println();
     }
 
-    public static Thread publishAsync(Connection nc, String subject, long delay, long jitter, int reportFrequency) throws Exception {
+    public static void publishAsync(Connection nc, String subject, long delay, long jitter, int reportFrequency, boolean quitIfNotConnected) throws Exception {
         final JetStream js = nc.jetStream();
         Thread t = new Thread(() -> {
             System.out.println(timeLabel() + "Publishing...");
@@ -123,6 +123,9 @@ public class JetStreamExampleHelper {
                         if (n % reportFrequency == 0) {
                             System.out.println(timeLabel() + "Publish " + subject + "/" + n);
                         }
+                    }
+                    else if (quitIfNotConnected){
+                        return;
                     }
                 }
                 catch (Exception e) {
@@ -142,7 +145,7 @@ public class JetStreamExampleHelper {
 
         });
         t.start();
-        return t;
+        t.join();
     }
 
     public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");

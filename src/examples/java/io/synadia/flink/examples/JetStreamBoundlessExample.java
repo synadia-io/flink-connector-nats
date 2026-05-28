@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Properties;
 
 import static io.synadia.flink.examples.JetStreamExampleHelper.*;
 
@@ -42,20 +43,6 @@ public class JetStreamBoundlessExample {
     // ------------------------------------------------------------------------------------------
     public static final int SINK_REPORT_FREQUENCY = 100;
     public static final int PUBLISH_REPORT_FREQUENCY = 500;
-
-    // ------------------------------------------------------------------------------------------
-    // The quiet period is how long to wait when not receiving messages to end the program.
-    // Set the quiet period longer if you are using ack behavior. See notes on ACK_BEHAVIOR below.
-    // Try 3000 for AckBehavior.NoAck and 10000 for AckBehavior.AckAll
-    // ------------------------------------------------------------------------------------------
-    public static final int QUIET_PERIOD = 3000;
-
-    // ------------------------------------------------------------------------------------------
-    // Locations where to write config files based on how the example gets configured.
-    // These files can be used in the JetStreamExampleFromConfigFiles example.
-    // ------------------------------------------------------------------------------------------
-    public static final String SOURCE_CONFIG_FILE_YAML = "src/examples/resources/js-source-config.yaml";
-    public static final String SINK_CONFIG_FILE_YAML = "src/examples/resources/js-sink-config.yaml";
 
     // ==========================================================================================
     // JetStreamSource Configuration: Use these settings to change how the source is configured
@@ -88,6 +75,13 @@ public class JetStreamBoundlessExample {
     // ------------------------------------------------------------------------------------------
     public static final int CHECKPOINTING_INTERVAL = 5000;
 
+    // ------------------------------------------------------------------------------------------
+    // Server
+    // MaxReconnects for testing, try 0 or 5
+    // ------------------------------------------------------------------------------------------
+    public static final String SERVER = "nats://localhost:4222";
+    public static final int MAX_RECONNECTS = 5;
+
     public static void main(String[] args) throws Exception {
         // ==========================================================================================
         // Setup
@@ -95,7 +89,10 @@ public class JetStreamBoundlessExample {
         // Make a connection to use for setting up streams
         // 1. We need data that the source will consume
         // 2. We need a stream/subject for the sink to publish to
-        Connection nc = ExampleUtils.connect(ExampleUtils.EXAMPLES_CONNECTION_PROPERTIES_FILE);
+        Properties props = new Properties();
+        props.setProperty("io.nats.client.url", SERVER);
+        props.setProperty("io.nats.client.reconnect.max", Integer.toString(MAX_RECONNECTS));
+        Connection nc = ExampleUtils.connect(props);
         JetStreamManagement jsm = nc.jetStreamManagement();
 
         System.out.println("Setting up data stream: " + SOURCE_A_STREAM + "/" + SOURCE_A_SUBJECT);
@@ -164,7 +161,9 @@ public class JetStreamBoundlessExample {
         // Start publishing messages via JetStreamExampleHelper.
         // publishAsync(JetStream js, String subject, long delay, long jitter, int reportFrequency)
         // ==========================================================================================
-        publishAsync(nc, SOURCE_A_SUBJECT, 10, 10, PUBLISH_REPORT_FREQUENCY);
+        publishAsync(nc, SOURCE_A_SUBJECT, 10, 10, PUBLISH_REPORT_FREQUENCY, MAX_RECONNECTS == 0);
+
+        System.exit(0); // Threads are running, stuff still going, so force exit. Probably not a production strategy!
     }
 
     static class JsbeSink implements Sink<String>, SupportsConcurrentExecutionAttempts {
