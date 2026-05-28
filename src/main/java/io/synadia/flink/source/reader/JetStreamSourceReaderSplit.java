@@ -7,7 +7,6 @@ import io.nats.client.BaseConsumerContext;
 import io.nats.client.Message;
 import io.nats.client.MessageConsumer;
 import io.synadia.flink.source.split.JetStreamSplit;
-import io.synadia.flink.utils.Debug;
 import org.apache.flink.annotation.Internal;
 
 import java.util.Map;
@@ -55,7 +54,6 @@ public class JetStreamSourceReaderSplit {
     }
 
     public void done() {
-        Debug.stackTrace("JetStreamSourceReaderSplit.done");
         split.setFinished();
         consumer.stop();
         try {
