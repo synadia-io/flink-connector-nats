@@ -117,7 +117,6 @@ public class JetStreamExampleHelper {
         Thread t = new Thread(() -> {
             System.out.println(timeLabel() + "Publishing...");
             int n = 0;
-            List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
             while (true) {
                 try {
                     if (nc.getStatus() == Connection.Status.CONNECTED) {

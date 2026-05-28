@@ -75,12 +75,10 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         if (_connectionContext == null) {
             connectionLock.lock();
             try {
-                try {
-                    _connectionContext = connectionFactory.getConnectionContext();
-                }
-                catch (IOException e) {
-                    throw new FlinkRuntimeException(e);
-                }
+                _connectionContext = connectionFactory.getConnectionContext();
+            }
+            catch (IOException e) {
+                throw new FlinkRuntimeException(e);
             }
             finally {
                 connectionLock.unlock();
@@ -92,7 +90,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private ConnectionContext checkConnection(String source) {
         ConnectionContext connectionContext = getConnectionContext();
         if (connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
-            throw new RuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
         }
         return connectionContext;
     }

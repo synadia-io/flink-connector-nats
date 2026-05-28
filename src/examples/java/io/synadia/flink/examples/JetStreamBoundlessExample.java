@@ -64,12 +64,6 @@ public class JetStreamBoundlessExample {
     // ==========================================================================================
 
     // ------------------------------------------------------------------------------------------
-    // if > 0 parallelism will manually set to this value
-    // Try 3 or 1
-    // ------------------------------------------------------------------------------------------
-    public static final int PARALLELISM = 1;
-
-    // ------------------------------------------------------------------------------------------
     // if > 0, how often in milliseconds to checkpoint, otherwise checkpoint will not be done
     // Try 5000 or 0
     // ------------------------------------------------------------------------------------------
@@ -147,9 +141,6 @@ public class JetStreamBoundlessExample {
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         if (CHECKPOINTING_INTERVAL > 0) {
             env.enableCheckpointing(CHECKPOINTING_INTERVAL);
-        }
-        if (PARALLELISM > 0) {
-            env.setParallelism(PARALLELISM);
         }
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), JOB_NAME);

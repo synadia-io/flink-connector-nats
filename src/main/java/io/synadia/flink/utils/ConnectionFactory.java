@@ -41,7 +41,6 @@ public class ConnectionFactory implements Serializable {
     }
 
     /**
-     /**
      * Construct a connection factory
      * @param connectionPropertiesFile the file specification for the properties file
      */
@@ -88,11 +87,11 @@ public class ConnectionFactory implements Serializable {
             // to the JNats client default if the property is not supplied.
             // This will be fixed in the client and then this code will be updated
             // and the workaround removed.
+            b.properties(props);
             String maxReconnects = getPropertyValue(props, Options.PROP_MAX_RECONNECT);
             if (maxReconnects == null) {
-                props.setProperty(Options.PROP_MAX_RECONNECT, "0");
+                b.maxReconnects(0);
             }
-            b.properties(props);
         }
         return b.build();
     }
