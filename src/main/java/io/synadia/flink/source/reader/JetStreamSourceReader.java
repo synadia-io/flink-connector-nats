@@ -48,7 +48,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private int activeSplits;
     private ConnectionContext connectionContext;
-    private boolean closed;
+    private volatile boolean closed;
 
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
