@@ -48,6 +48,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private int activeSplits;
     private ConnectionContext _connectionContext;
+    private boolean _readerIsClosed;
 
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
@@ -64,14 +65,22 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         splitMap = new HashMap<>();
         queue = new FutureCompletingBlockingQueue<>();
         scheduler = Executors.newCachedThreadPool();
+
+        activeSplits = 0;
+        _connectionContext = null;
+        _readerIsClosed = false;
     }
 
     @Override
     public void start() {
-        getConnectionContext();
+        ensureConnectionContext();
     }
 
-    private ConnectionContext getConnectionContext() {
+    /**
+     * Sets the _connectionContext or throws if it could not.
+     * Does not care if _readerIsClosed == true
+     */
+    private void ensureConnectionContext() {
         connectionLock.lock();
         try {
             if (_connectionContext == null) {
@@ -82,7 +91,39 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     throw new FlinkRuntimeException(e);
                 }
             }
-            return _connectionContext;
+        }
+        finally {
+            connectionLock.unlock();
+        }
+    }
+
+    private void ensureReaderOpenAndConnectionNotClosed(String source) {
+        connectionLock.lock();
+        try {
+            if (_readerIsClosed) {
+                throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            }
+
+            ensureConnectionContext();
+            if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
+                throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            }
+        }
+        finally {
+            connectionLock.unlock();
+        }
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private void ensureConnectionNotClosedIfReaderIsOpen(String source) {
+        connectionLock.lock();
+        try {
+            if (!_readerIsClosed) {
+                ensureConnectionContext();
+                if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
+                    throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+                }
+            }
         }
         finally {
             connectionLock.unlock();
@@ -93,6 +134,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
         JetStreamSplitMessage sm = queue.poll();
         if (sm == null) {
+            ensureReaderOpenAndConnectionNotClosed("pollNext");
             return InputStatus.NOTHING_AVAILABLE;
         }
         // 1. Get the split
@@ -123,6 +165,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public List<JetStreamSplit> snapshotState(long checkpointId) {
+        ensureReaderOpenAndConnectionNotClosed("snapshotState");
         List<JetStreamSplit> splits = new ArrayList<>();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             srSplit.takeSnapshot(checkpointId);
@@ -141,7 +184,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         for (JetStreamSplit split : splits) {
             if (!splitMap.containsKey(split.splitId()) && !split.finished.get()) {
                 try {
-                    StreamContext sc = connectionFactory.getConnectionContext().js.getStreamContext(split.subjectConfig.streamName);
+                    ensureReaderOpenAndConnectionNotClosed("addSplits");
+                    StreamContext sc = _connectionContext.js.getStreamContext(split.subjectConfig.streamName);
                     BaseConsumerContext consumerContext = split.subjectConfig.ackBehavior == AckBehavior.NoAck
                         ? createOrderedConsumer(split, sc)
                         : createConsumer(split, sc);
@@ -230,11 +274,14 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     @Override
     public void notifyNoMoreSplits() {
+        ensureConnectionNotClosedIfReaderIsOpen("notifyNoMoreSplits");
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        ConnectionContext connectionContext  = getConnectionContext();
+        // gets a connection regardless of closed state, this needs to finish.
+        // If there is no connection to be gotten, getConnectionContext already throws
+        ensureConnectionContext();
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
@@ -243,7 +290,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
                 // Also, we execute as a task so as not to slow down the reader
-                scheduler.execute(() -> connectionContext.connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
+                scheduler.execute(() -> _connectionContext.connection.publish(snapshot.replyTo, ACK_BODY_BYTES));
             }
         }
     }
@@ -265,6 +312,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             }
         }
         finally {
+            _readerIsClosed = true;
             _connectionContext = null;
             connectionLock.unlock();
         }
