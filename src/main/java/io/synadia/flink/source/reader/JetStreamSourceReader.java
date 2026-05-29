@@ -48,7 +48,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     private int activeSplits;
     private ConnectionContext _connectionContext;
-    private volatile boolean readerIsClosed;
+    private boolean _readerIsClosed;
 
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
@@ -68,7 +68,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
         activeSplits = 0;
         _connectionContext = null;
-        readerIsClosed = false;
+        _readerIsClosed = false;
     }
 
     @Override
@@ -78,7 +78,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     /**
      * Sets the _connectionContext or throws if it could not.
-     * Does not care if _closeMethodWasCalled == true
+     * Does not care if _readerIsClosed == true
      */
     private void ensureConnectionContext() {
         connectionLock.lock();
@@ -98,23 +98,35 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     }
 
     private void ensureReaderOpenAndConnectionNotClosed(String source) {
-        if (readerIsClosed) {
-            throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
-        }
+        connectionLock.lock();
+        try {
+            if (_readerIsClosed) {
+                throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            }
 
-        ensureConnectionContext();
-        if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
-            throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            ensureConnectionContext();
+            if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
+                throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+            }
+        }
+        finally {
+            connectionLock.unlock();
         }
     }
 
     @SuppressWarnings("SameParameterValue")
     private void ensureConnectionNotClosedIfReaderIsOpen(String source) {
-        if (!readerIsClosed) {
-            ensureConnectionContext();
-            if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
-                throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+        connectionLock.lock();
+        try {
+            if (!_readerIsClosed) {
+                ensureConnectionContext();
+                if (_connectionContext.connection.getStatus() == Connection.Status.CLOSED) {
+                    throw new FlinkRuntimeException("Connection is closed (JetStreamSourceReader." + source + ")");
+                }
             }
+        }
+        finally {
+            connectionLock.unlock();
         }
     }
 
@@ -300,7 +312,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             }
         }
         finally {
-            readerIsClosed = true;
+            _readerIsClosed = true;
             _connectionContext = null;
             connectionLock.unlock();
         }
