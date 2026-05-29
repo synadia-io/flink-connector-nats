@@ -108,6 +108,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         }
     }
 
+    @SuppressWarnings("SameParameterValue")
     private void ensureConnectionNotClosedIfReaderIsOpen(String source) {
         if (!readerIsClosed) {
             ensureConnectionContext();
