@@ -153,28 +153,31 @@ public abstract class MiscUtils {
     }
 
     /**
-     * Compute the element queue capacity for a source reader.
-     * Returns max(sourceQueueCapacity, {@link #getFloorCapacity(SourceReaderContext)}) —
-     * so an explicit value above the floor is honored, anything below falls
-     * back to the floor (the Flink-configured ELEMENT_QUEUE_CAPACITY, or its
-     * compile-time default when unset).
+     * Compute the element queue capacity for a source reader using
+     * explicit-wins semantics: any value other than {@code -1} is honored
+     * verbatim (the builder is responsible for normalizing sub-default user
+     * input to {@code -1}); the {@code -1} sentinel falls back to
+     * {@link #getFallbackCapacity(SourceReaderContext)}.
      */
     public static int figureCapacity(SourceReaderContext readerContext, int sourceQueueCapacity) {
-        return Math.max(sourceQueueCapacity, getFloorCapacity(readerContext));
+        return sourceQueueCapacity == -1
+            ? getFallbackCapacity(readerContext)
+            : sourceQueueCapacity;
     }
 
     /**
-     * The floor used by {@link #figureCapacity}. Reads ELEMENT_QUEUE_CAPACITY
-     * from the reader context's Configuration when present; otherwise returns
-     * the option's compile-time default.
+     * The fallback used by {@link #figureCapacity} when no explicit value was
+     * supplied: reads ELEMENT_QUEUE_CAPACITY from the reader context's
+     * Configuration when present; otherwise returns the option's compile-time
+     * default.
      */
-    public static int getFloorCapacity(SourceReaderContext readerContext) {
-        int floor = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+    public static int getFallbackCapacity(SourceReaderContext readerContext) {
+        int fallback = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
         if (readerContext != null
             && readerContext.getConfiguration() != null
             && readerContext.getConfiguration().contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
-            floor = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+            fallback = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
         }
-        return floor;
+        return fallback;
     }
 }
