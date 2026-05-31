@@ -163,6 +163,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             }
         }
 
-        return new JetStreamSource<>(boundedness, configById, sourceConverter, connectionFactory);
+        return new JetStreamSource<>(boundedness, sourceQueueCapacity, configById, sourceConverter, connectionFactory);
     }
 }

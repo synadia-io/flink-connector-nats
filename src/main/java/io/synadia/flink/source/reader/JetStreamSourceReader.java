@@ -17,6 +17,7 @@ import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -60,7 +61,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
-                                 SourceReaderContext readerContext
+                                 SourceReaderContext readerContext,
+                                 int sourceQueueCapacity
     ) {
         this.bounded = boundedness == Boundedness.BOUNDED;
         this.sourceConverter = sourceConverter;
@@ -70,7 +72,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         checkNotNull(readerContext); // it's not used but is supposed to be provided
 
         splitMap = new HashMap<>();
-        queue = new FutureCompletingBlockingQueue<>();
+        int capacity = Math.max(sourceQueueCapacity,
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue());
+        queue = new FutureCompletingBlockingQueue<>(capacity);
         scheduler = Executors.newCachedThreadPool();
 
         activeSplits = 0;
@@ -200,7 +204,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
                     MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
-                    io.nats.client.MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
+
+                    io.nats.client.MessageConsumer consumer = consumerContext
+                        .consume(consumeOptions, messageHandler);
 
                     JetStreamSourceReaderSplit srSplit =
                         new JetStreamSourceReaderSplit(split, consumerContext, consumer);

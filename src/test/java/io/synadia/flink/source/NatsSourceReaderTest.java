@@ -175,8 +175,9 @@ class NatsSourceReaderTest extends TestBase {
 
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             failingFactory,
-                new Utf8StringSourceConverter(),
-                mock(SourceReaderContext.class)
+            new Utf8StringSourceConverter(),
+            mock(SourceReaderContext.class),
+            -1
         )) {
             // Verify error propagation
             FlinkRuntimeException thrown = assertThrows(
@@ -217,8 +218,9 @@ class NatsSourceReaderTest extends TestBase {
     void testSourceEvents() throws Exception {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
-                new Utf8StringSourceConverter(),
-                mock(SourceReaderContext.class)
+            new Utf8StringSourceConverter(),
+            mock(SourceReaderContext.class),
+            -1
         )) {
             assertDoesNotThrow(() -> reader.handleSourceEvents(mock(SourceEvent.class)),
                 "Event handling should not throw exceptions");
@@ -239,8 +241,9 @@ class NatsSourceReaderTest extends TestBase {
     void testNotifyNoMoreSplits() throws Exception {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
-                new Utf8StringSourceConverter(),
-                mock(SourceReaderContext.class)
+            new Utf8StringSourceConverter(),
+            mock(SourceReaderContext.class),
+            -1
         )) {
             assertDoesNotThrow(reader::notifyNoMoreSplits,
                 "notifyNoMoreSplits should not throw exceptions");
@@ -259,8 +262,9 @@ class NatsSourceReaderTest extends TestBase {
     private NatsSourceReader<String> createReader(String url, SourceReaderContext context) {
         return new NatsSourceReader<>(
             new ConnectionFactory(defaultConnectionProperties(url)),
-                new Utf8StringSourceConverter(),
-                context
+            new Utf8StringSourceConverter(),
+            context,
+            -1
         );
     }
 }

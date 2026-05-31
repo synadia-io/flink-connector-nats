@@ -13,6 +13,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -34,7 +35,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private final ConnectionFactory connectionFactory;
     private final SourceConverter<OutputT> sourceConverter;
     private final List<NatsSubjectSplit> subbedSplits;
-    private final FutureCompletingBlockingQueue<Message> messages;
+    private final FutureCompletingBlockingQueue<Message> queue;
     private final ReentrantLock connectionLock;
 
     private Connection _connection;
@@ -48,12 +49,16 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
      */
     public NatsSourceReader(ConnectionFactory connectionFactory,
                             SourceConverter<OutputT> sourceConverter,
-                            SourceReaderContext readerContext) {
+                            SourceReaderContext readerContext,
+                            int sourceQueueCapacity) {
         this.connectionFactory = connectionFactory;
         this.sourceConverter = sourceConverter;
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
-        messages = new FutureCompletingBlockingQueue<>();
+
+        int capacity = Math.max(sourceQueueCapacity,
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue());
+        queue = new FutureCompletingBlockingQueue<>(capacity);
         connectionLock = new ReentrantLock();
     }
 
@@ -68,7 +73,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
             if (_connection == null) {
                 try {
                     _connection = connectionFactory.connect();
-                    dispatcher = _connection.createDispatcher(m -> messages.put(1, m));
+                    dispatcher = _connection.createDispatcher(m -> queue.put(1, m));
                 }
                 catch (IOException e) {
                     throw new FlinkRuntimeException(e);
@@ -83,12 +88,12 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public InputStatus pollNext(ReaderOutput<OutputT> output) throws Exception {
-        Message m = messages.poll();
+        Message m = queue.poll();
         if (m == null) {
             return InputStatus.NOTHING_AVAILABLE;
         }
         output.collect(sourceConverter.convert(m));
-        return messages.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+        return queue.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
     }
 
     @Override
@@ -98,7 +103,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     @Override
     public CompletableFuture<Void> isAvailable() {
-        return messages.getAvailabilityFuture();
+        return queue.getAvailabilityFuture();
     }
 
     @Override

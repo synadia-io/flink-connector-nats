@@ -144,6 +144,7 @@ public class JetStreamBoundlessExample {
         if (CHECKPOINTING_INTERVAL > 0) {
             env.enableCheckpointing(CHECKPOINTING_INTERVAL);
         }
+        env.setParallelism(1);
 
         DataStream<String> dataStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), JOB_NAME);
         dataStream.sinkTo(new JsbeSink());

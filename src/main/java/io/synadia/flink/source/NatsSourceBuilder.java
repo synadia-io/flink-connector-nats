@@ -50,6 +50,17 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
     }
 
     /**
+     * Set the source reader's element queue capacity. The reader floors the
+     * value at Flink's ELEMENT_QUEUE_CAPACITY default, so anything below that
+     * (-1 is conventional) yields the default.
+     * @param sourceQueueCapacity the element queue capacity
+     * @return The Builder
+     */
+    public NatsSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
+        return _sourceQueueCapacity(sourceQueueCapacity);
+    }
+
+    /**
      * Set one or more subjects for the source. Replaces all subjects previously set in the builder.
      * @param subjects the subjects
      * @return the builder
@@ -91,6 +102,6 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      */
     public NatsSource<OutputT> build() {
         beforeBuild();
-        return new NatsSource<>(subjects, sourceConverter, connectionFactory);
+        return new NatsSource<>(subjects, sourceQueueCapacity, sourceConverter, connectionFactory);
     }
 }
