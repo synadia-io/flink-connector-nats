@@ -13,7 +13,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -56,8 +56,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
 
-        int capacity = Math.max(sourceQueueCapacity,
-            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue());
+        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
         queue = new FutureCompletingBlockingQueue<>(capacity);
         connectionLock = new ReentrantLock();
     }

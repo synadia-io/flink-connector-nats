@@ -17,7 +17,6 @@ import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.*;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -30,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -72,8 +72,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         checkNotNull(readerContext); // it's not used but is supposed to be provided
 
         splitMap = new HashMap<>();
-        int capacity = Math.max(sourceQueueCapacity,
-            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue());
+        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
         queue = new FutureCompletingBlockingQueue<>(capacity);
         scheduler = Executors.newCachedThreadPool();
 

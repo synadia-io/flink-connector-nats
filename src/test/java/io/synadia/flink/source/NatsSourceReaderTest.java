@@ -9,6 +9,7 @@ import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.*;
 
@@ -59,7 +60,7 @@ class NatsSourceReaderTest extends TestBase {
     void testBasicMessageFlow() throws Exception {
         String testSubject = subject();
         ReaderOutput<String> mockOutput = mock(ReaderOutput.class);
-        SourceReaderContext mockContext = mock(SourceReaderContext.class);
+        SourceReaderContext mockContext = mockReaderContext();
 
         try (NatsSourceReader<String> reader = createReader(ctx.url, mockContext)) {
             reader.start();
@@ -176,7 +177,7 @@ class NatsSourceReaderTest extends TestBase {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             failingFactory,
             new Utf8StringSourceConverter(),
-            mock(SourceReaderContext.class),
+            mockReaderContext(),
             -1
         )) {
             // Verify error propagation
@@ -219,7 +220,7 @@ class NatsSourceReaderTest extends TestBase {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
             new Utf8StringSourceConverter(),
-            mock(SourceReaderContext.class),
+            mockReaderContext(),
             -1
         )) {
             assertDoesNotThrow(() -> reader.handleSourceEvents(mock(SourceEvent.class)),
@@ -242,7 +243,7 @@ class NatsSourceReaderTest extends TestBase {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
             mock(ConnectionFactory.class),
             new Utf8StringSourceConverter(),
-            mock(SourceReaderContext.class),
+            mockReaderContext(),
             -1
         )) {
             assertDoesNotThrow(reader::notifyNoMoreSplits,
@@ -252,7 +253,7 @@ class NatsSourceReaderTest extends TestBase {
 
     // Helper method to create reader with default context
     private NatsSourceReader<String> createReader(String url) {
-        NatsSourceReader<String> reader = createReader(url, mock(SourceReaderContext.class));
+        NatsSourceReader<String> reader = createReader(url, mockReaderContext());
         String s = reader.toString();
         assertTrue(s.contains("NatsSourceReader")); // COVERAGE
         return reader;
@@ -266,5 +267,14 @@ class NatsSourceReaderTest extends TestBase {
             context,
             -1
         );
+    }
+
+    // Mocks a SourceReaderContext with getConfiguration() stubbed to return an
+    // empty Configuration, so MiscUtils.figureCapacity() doesn't NPE on the
+    // reader's constructor path.
+    private static SourceReaderContext mockReaderContext() {
+        SourceReaderContext ctx = mock(SourceReaderContext.class);
+        when(ctx.getConfiguration()).thenReturn(new Configuration());
+        return ctx;
     }
 }

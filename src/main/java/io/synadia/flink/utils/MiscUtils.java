@@ -8,8 +8,10 @@ import io.nats.client.support.JsonSerializable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -220,5 +222,30 @@ public abstract class MiscUtils {
      */
     public static byte[] readAllBytes(String filespec) throws IOException {
         return Files.readAllBytes(Paths.get(filespec));
+    }
+
+    /**
+     * Compute the element queue capacity for a source reader.
+     * Returns max(sourceQueueCapacity, getDefaultCapacity(readerContext)) — so an
+     * explicit value above the floor is honored, anything below falls back to the
+     * Flink-configured (or compile-time-default) ELEMENT_QUEUE_CAPACITY.
+     */
+    public static int figureCapacity(SourceReaderContext readerContext, int sourceQueueCapacity) {
+        return Math.max(sourceQueueCapacity, getDefaultCapacity(readerContext));
+    }
+
+    /**
+     * The floor used by {@link #figureCapacity}. Reads ELEMENT_QUEUE_CAPACITY from
+     * the reader context's Configuration when present; otherwise the option's
+     * compile-time default.
+     */
+    public static int getDefaultCapacity(SourceReaderContext readerContext) {
+        int defaultCapacity = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+        if (readerContext != null
+            && readerContext.getConfiguration() != null
+            && readerContext.getConfiguration().contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
+            defaultCapacity = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+        }
+        return defaultCapacity;
     }
 }

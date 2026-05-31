@@ -9,6 +9,7 @@ import io.synadia.flink.source.reader.NatsSourceReader;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.junit.jupiter.api.Test;
@@ -17,11 +18,15 @@ import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Validates that each source reader's internal {@link FutureCompletingBlockingQueue}
  * is sized from the constructor's {@code sourceQueueCapacity} argument, floored
- * at {@link SourceReaderOptions#ELEMENT_QUEUE_CAPACITY}'s default value.
+ * by {@code MiscUtils.figureCapacity} — which uses
+ * {@link SourceReaderOptions#ELEMENT_QUEUE_CAPACITY} from the
+ * {@link SourceReaderContext}'s {@link Configuration} when set, falling back
+ * to the option's compile-time default ({@code defaultValue()}) when not.
  *
  * <p>Reflects on the private {@code queue} field and reads
  * {@link FutureCompletingBlockingQueue#remainingCapacity()} on a freshly
@@ -33,7 +38,7 @@ class SourceQueueCapacityTest {
     private static final int FLINK_DEFAULT =
         SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();   // 2
 
-    // ----- NatsSourceReader -----
+    // ----- NatsSourceReader: empty config (floor = Flink default) -----
 
     @Test
     void natsReader_explicitCapacityIsHonored() throws Exception {
@@ -56,7 +61,7 @@ class SourceQueueCapacityTest {
         assertEquals(FLINK_DEFAULT + 1, natsReaderQueueCapacity(FLINK_DEFAULT + 1));
     }
 
-    // ----- JetStreamSourceReader -----
+    // ----- JetStreamSourceReader: empty config (floor = Flink default) -----
 
     @Test
     void jetStreamReader_explicitCapacityIsHonored() throws Exception {
@@ -78,27 +83,69 @@ class SourceQueueCapacityTest {
         assertEquals(FLINK_DEFAULT + 1, jetStreamReaderQueueCapacity(FLINK_DEFAULT + 1));
     }
 
+    // ----- Configuration-supplied ELEMENT_QUEUE_CAPACITY raises the floor -----
+
+    @Test
+    void natsReader_configurationFloorIsHonored() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 50);
+
+        // Anything at or below 50 is floored at 50.
+        assertEquals(50, natsReaderQueueCapacity(-1, conf));
+        assertEquals(50, natsReaderQueueCapacity(0,  conf));
+        assertEquals(50, natsReaderQueueCapacity(25, conf));
+        assertEquals(50, natsReaderQueueCapacity(50, conf));
+        // Above the configured floor, the explicit value wins.
+        assertEquals(75, natsReaderQueueCapacity(75, conf));
+    }
+
+    @Test
+    void jetStreamReader_configurationFloorIsHonored() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 50);
+
+        assertEquals(50, jetStreamReaderQueueCapacity(-1, conf));
+        assertEquals(50, jetStreamReaderQueueCapacity(0,  conf));
+        assertEquals(50, jetStreamReaderQueueCapacity(25, conf));
+        assertEquals(50, jetStreamReaderQueueCapacity(50, conf));
+        assertEquals(75, jetStreamReaderQueueCapacity(75, conf));
+    }
+
     // ----- helpers -----
 
     private static int natsReaderQueueCapacity(int sourceQueueCapacity) throws Exception {
+        return natsReaderQueueCapacity(sourceQueueCapacity, new Configuration());
+    }
+
+    private static int natsReaderQueueCapacity(int sourceQueueCapacity, Configuration conf) throws Exception {
         try (NatsSourceReader<String> reader = new NatsSourceReader<>(
                 mock(ConnectionFactory.class),
                 new Utf8StringSourceConverter(),
-                mock(SourceReaderContext.class),
+                contextWith(conf),
                 sourceQueueCapacity)) {
             return queueCapacity(reader);
         }
     }
 
     private static int jetStreamReaderQueueCapacity(int sourceQueueCapacity) throws Exception {
+        return jetStreamReaderQueueCapacity(sourceQueueCapacity, new Configuration());
+    }
+
+    private static int jetStreamReaderQueueCapacity(int sourceQueueCapacity, Configuration conf) throws Exception {
         try (JetStreamSourceReader<String> reader = new JetStreamSourceReader<>(
                 Boundedness.CONTINUOUS_UNBOUNDED,
                 new Utf8StringSourceConverter(),
                 mock(ConnectionFactory.class),
-                mock(SourceReaderContext.class),
+                contextWith(conf),
                 sourceQueueCapacity)) {
             return queueCapacity(reader);
         }
+    }
+
+    private static SourceReaderContext contextWith(Configuration conf) {
+        SourceReaderContext ctx = mock(SourceReaderContext.class);
+        when(ctx.getConfiguration()).thenReturn(conf);
+        return ctx;
     }
 
     private static int queueCapacity(Object reader) throws Exception {
