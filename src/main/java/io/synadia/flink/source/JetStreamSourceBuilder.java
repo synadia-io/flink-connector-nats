@@ -89,6 +89,17 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
+     * Set the source reader's element queue capacity. The reader floors the
+     * value at Flink's ELEMENT_QUEUE_CAPACITY (configured or compile-time
+     * default), so anything below that (-1 is conventional) yields the default.
+     * @param sourceQueueCapacity the element queue capacity
+     * @return The Builder
+     */
+    public JetStreamSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
+        return _sourceQueueCapacity(sourceQueueCapacity);
+    }
+
+    /**
      * Set one or more subject configurations, replacing any existing subject configurations
      * @param subjectConfigurations the subject configurations
      * @return the builder
