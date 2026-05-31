@@ -121,7 +121,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      * @param sourceQueueCapacity the element queue capacity
      * @return The Builder
      */
-    public BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
+    protected BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
         this.sourceQueueCapacity = sourceQueueCapacity;
         return getThis();
     }

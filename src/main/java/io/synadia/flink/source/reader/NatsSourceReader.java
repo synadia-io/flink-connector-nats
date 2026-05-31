@@ -36,6 +36,7 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private final SourceConverter<OutputT> sourceConverter;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> queue;
+    private final int queueCapacity;
     private final ReentrantLock connectionLock;
 
     private Connection _connection;
@@ -56,9 +57,17 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
 
-        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
-        queue = new FutureCompletingBlockingQueue<>(capacity);
+        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
+        queue = new FutureCompletingBlockingQueue<>(queueCapacity);
         connectionLock = new ReentrantLock();
+    }
+
+    /**
+     * The size the element queue was constructed with. Exposed for tests and
+     * diagnostics; the reader is {@link Internal @Internal}.
+     */
+    public int getQueueCapacity() {
+        return queueCapacity;
     }
 
     @Override
