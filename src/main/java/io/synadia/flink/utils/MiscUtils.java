@@ -152,17 +152,29 @@ public abstract class MiscUtils {
         return Files.readAllBytes(Paths.get(filespec));
     }
 
+    /**
+     * Compute the element queue capacity for a source reader.
+     * Returns max(sourceQueueCapacity, {@link #getFloorCapacity(SourceReaderContext)}) —
+     * so an explicit value above the floor is honored, anything below falls
+     * back to the floor (the Flink-configured ELEMENT_QUEUE_CAPACITY, or its
+     * compile-time default when unset).
+     */
     public static int figureCapacity(SourceReaderContext readerContext, int sourceQueueCapacity) {
-        return Math.max(sourceQueueCapacity, getDefaultCapacity(readerContext));
+        return Math.max(sourceQueueCapacity, getFloorCapacity(readerContext));
     }
 
-    public static int getDefaultCapacity(SourceReaderContext readerContext) {
-        int defaultCapacity = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+    /**
+     * The floor used by {@link #figureCapacity}. Reads ELEMENT_QUEUE_CAPACITY
+     * from the reader context's Configuration when present; otherwise returns
+     * the option's compile-time default.
+     */
+    public static int getFloorCapacity(SourceReaderContext readerContext) {
+        int floor = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
         if (readerContext != null
             && readerContext.getConfiguration() != null
             && readerContext.getConfiguration().contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
-            defaultCapacity = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+            floor = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
         }
-        return defaultCapacity;
+        return floor;
     }
 }

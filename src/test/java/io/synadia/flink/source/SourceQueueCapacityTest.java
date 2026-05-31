@@ -11,27 +11,21 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.junit.jupiter.api.Test;
-
-import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Validates that each source reader's internal {@link FutureCompletingBlockingQueue}
- * is sized from the constructor's {@code sourceQueueCapacity} argument, floored
- * by {@code MiscUtils.figureCapacity} — which uses
+ * Validates that each source reader's internal element queue is sized from
+ * the constructor's {@code sourceQueueCapacity} argument, floored by
+ * {@code MiscUtils.figureCapacity} — which uses
  * {@link SourceReaderOptions#ELEMENT_QUEUE_CAPACITY} from the
  * {@link SourceReaderContext}'s {@link Configuration} when set, falling back
  * to the option's compile-time default ({@code defaultValue()}) when not.
  *
- * <p>Reflects on the private queue field and reads
- * {@link FutureCompletingBlockingQueue#remainingCapacity()} on a freshly
- * constructed (empty) queue — when empty, {@code remainingCapacity()} equals
- * the configured capacity.</p>
+ * <p>Uses each reader's public {@code getQueueCapacity()} accessor.</p>
  */
 class SourceQueueCapacityTest {
 
@@ -123,7 +117,7 @@ class SourceQueueCapacityTest {
                 new Utf8StringSourceConverter(),
                 contextWith(conf),
                 sourceQueueCapacity)) {
-            return queueCapacity(reader, "messages");
+            return reader.getQueueCapacity();
         }
     }
 
@@ -138,7 +132,7 @@ class SourceQueueCapacityTest {
                 mock(ConnectionFactory.class),
                 contextWith(conf),
                 sourceQueueCapacity)) {
-            return queueCapacity(reader, "queue");
+            return reader.getQueueCapacity();
         }
     }
 
@@ -146,13 +140,5 @@ class SourceQueueCapacityTest {
         SourceReaderContext ctx = mock(SourceReaderContext.class);
         when(ctx.getConfiguration()).thenReturn(conf);
         return ctx;
-    }
-
-    private static int queueCapacity(Object reader, String fieldName) throws Exception {
-        Field f = reader.getClass().getDeclaredField(fieldName);
-        f.setAccessible(true);
-        FutureCompletingBlockingQueue<?> q = (FutureCompletingBlockingQueue<?>) f.get(reader);
-        // Queue is empty (freshly constructed), so remainingCapacity == capacity.
-        return q.remainingCapacity();
     }
 }

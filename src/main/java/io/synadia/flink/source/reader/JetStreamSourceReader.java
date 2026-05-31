@@ -44,6 +44,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
+    private final int queueCapacity;
     private final ExecutorService scheduler;
     private final ReentrantLock connectionLock;
 
@@ -66,13 +67,21 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
         splitMap = new HashMap<>();
 
-        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
-        queue = new FutureCompletingBlockingQueue<>(capacity);
+        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
+        queue = new FutureCompletingBlockingQueue<>(queueCapacity);
         scheduler = Executors.newCachedThreadPool();
 
         activeSplits = 0;
         _connectionContext = null;
         _readerIsClosed = false;
+    }
+
+    /**
+     * The size the element queue was constructed with. Exposed for tests and
+     * diagnostics; the reader is {@link Internal @Internal}.
+     */
+    public int getQueueCapacity() {
+        return queueCapacity;
     }
 
     @Override
