@@ -23,6 +23,12 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     protected String sourceConverterClass;
     protected List<String> subjects;
 
+    /**
+     * The source reader's element queue capacity. -1 (the default) leaves sizing
+     * to the reader, which falls back to Flink's ELEMENT_QUEUE_CAPACITY default.
+     */
+    protected int sourceQueueCapacity = -1;
+
     protected ConnectionFactory connectionFactory;
     protected SinkConverter<SerialT> sinkConverter;
     protected SourceConverter<SerialT> sourceConverter;
@@ -61,6 +67,18 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     public BuilderT connectionPropertiesFile(String connectionPropertiesFile) {
         this.connectionProperties = null;
         this.connectionPropertiesFile = connectionPropertiesFile;
+        return getThis();
+    }
+
+    /**
+     * Set the source reader's element queue capacity. The value is passed
+     * through as-is; the reader floors it at Flink's ELEMENT_QUEUE_CAPACITY
+     * default, so any value below that (-1 is conventional) yields the default.
+     * @param sourceQueueCapacity the element queue capacity
+     * @return The Builder
+     */
+    public BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
+        this.sourceQueueCapacity = sourceQueueCapacity;
         return getThis();
     }
 
@@ -105,6 +123,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     protected interface ConfigurationAdapter {
         List<String> getList(String key);
         String getString(String key);
+        int getInt(String key, int defaultValue);
     }
 
     protected void _config(ConfigurationAdapter adapter) {
@@ -133,6 +152,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             if (classname != null) {
                 _sourceConverterClass(classname);
             }
+            _sourceQueueCapacity(adapter.getInt(SOURCE_QUEUE_CAPACITY, -1));
         }
     }
 
@@ -147,6 +167,11 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             @Override
             public String getString(String key) {
                 return JsonValueUtils.readString(jv, key, null);
+            }
+
+            @Override
+            public int getInt(String key, int defaultValue) {
+                return JsonValueUtils.readInteger(jv, key, defaultValue);
             }
         });
         return jv;
@@ -163,6 +188,11 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             @Override
             public String getString(String key) {
                 return YamlUtils.readString(map, key, null);
+            }
+
+            @Override
+            public int getInt(String key, int defaultValue) {
+                return YamlUtils.readInteger(map, key, defaultValue);
             }
         });
         return map;

@@ -18,6 +18,7 @@ public interface Constants {
     String SINK_CONVERTER_CLASS_NAME = "sink_converter_class_name";
     String JETSTREAM_SUBJECT_CONFIGURATIONS = "jetstream_subject_configurations";
     String SUBJECTS = "subjects"; // Used in core source and both core and js sink
+    String SOURCE_QUEUE_CAPACITY = "source_queue_capacity";
 
     // ===================================================================================
     // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants

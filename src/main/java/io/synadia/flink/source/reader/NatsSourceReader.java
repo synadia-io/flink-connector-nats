@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -42,12 +43,14 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
 
     public NatsSourceReader(ConnectionFactory connectionFactory,
                             SourceConverter<OutputT> sourceConverter,
-                            SourceReaderContext readerContext) {
+                            SourceReaderContext readerContext,
+                            int sourceQueueCapacity) {
         this.connectionFactory = connectionFactory;
         this.sourceConverter = sourceConverter;
         checkNotNull(readerContext); // it's not used but is supposed to be provided
         subbedSplits = new ArrayList<>();
-        messages = new FutureCompletingBlockingQueue<>();
+        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
+        messages = new FutureCompletingBlockingQueue<>(capacity);
         connectionLock = new ReentrantLock();
     }
 

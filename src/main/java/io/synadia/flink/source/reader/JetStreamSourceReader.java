@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -53,7 +54,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
-                                 SourceReaderContext readerContext
+                                 SourceReaderContext readerContext,
+                                 int sourceQueueCapacity
     ) {
         this.bounded = boundedness == Boundedness.BOUNDED;
         this.sourceConverter = sourceConverter;
@@ -63,7 +65,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         checkNotNull(readerContext); // it's not used but is supposed to be provided
 
         splitMap = new HashMap<>();
-        queue = new FutureCompletingBlockingQueue<>();
+
+        int capacity = figureCapacity(readerContext, sourceQueueCapacity);
+        queue = new FutureCompletingBlockingQueue<>(capacity);
         scheduler = Executors.newCachedThreadPool();
 
         activeSplits = 0;
