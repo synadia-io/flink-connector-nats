@@ -18,12 +18,20 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Validates that each source reader's internal element queue is sized from
- * the constructor's {@code sourceQueueCapacity} argument, floored by
- * {@code MiscUtils.figureCapacity} — which uses
- * {@link SourceReaderOptions#ELEMENT_QUEUE_CAPACITY} from the
- * {@link SourceReaderContext}'s {@link Configuration} when set, falling back
- * to the option's compile-time default ({@code defaultValue()}) when not.
+ * Validates each source reader's element queue sizing under
+ * "explicit-wins" semantics ({@code MiscUtils.figureCapacity}):
+ *
+ * <ul>
+ *   <li><b>Explicit:</b> any {@code sourceQueueCapacity} other than {@code -1}
+ *       is used verbatim, taking precedence over any value set in the reader
+ *       context's {@link Configuration}. (The builder normalizes user input
+ *       below the compile-time default to {@code -1} before it reaches the
+ *       reader.)</li>
+ *   <li><b>Unset:</b> the {@code -1} sentinel falls back to the
+ *       {@code Configuration} value if present, or to
+ *       {@link SourceReaderOptions#ELEMENT_QUEUE_CAPACITY}'s compile-time
+ *       default otherwise.</li>
+ * </ul>
  *
  * <p>Uses each reader's public {@code getQueueCapacity()} accessor.</p>
  */
@@ -32,77 +40,76 @@ class SourceQueueCapacityTest {
     private static final int FLINK_DEFAULT =
         SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();   // 2
 
-    // ----- NatsSourceReader: empty config (floor = Flink default) -----
+    // ----- Explicit value (>= FLINK_DEFAULT) is honored, no Configuration set -----
 
     @Test
     void natsReader_explicitCapacityIsHonored() throws Exception {
+        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(FLINK_DEFAULT)); // exact min
         assertEquals(32,  natsReaderQueueCapacity(32));
         assertEquals(64,  natsReaderQueueCapacity(64));
         assertEquals(500, natsReaderQueueCapacity(500));
     }
 
     @Test
-    void natsReader_belowFlinkDefaultIsFloored() throws Exception {
-        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(-1));
-        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(0));
-        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(1));
-        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(2));
-    }
-
-    @Test
-    void natsReader_exactlyFlinkDefaultPlusOne() throws Exception {
-        // Smallest value that survives the floor unchanged.
-        assertEquals(FLINK_DEFAULT + 1, natsReaderQueueCapacity(FLINK_DEFAULT + 1));
-    }
-
-    // ----- JetStreamSourceReader: empty config (floor = Flink default) -----
-
-    @Test
     void jetStreamReader_explicitCapacityIsHonored() throws Exception {
+        assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(FLINK_DEFAULT));
         assertEquals(32,  jetStreamReaderQueueCapacity(32));
         assertEquals(64,  jetStreamReaderQueueCapacity(64));
         assertEquals(500, jetStreamReaderQueueCapacity(500));
     }
 
+    // ----- Explicit value wins over a Configuration value, even when smaller -----
+
     @Test
-    void jetStreamReader_belowFlinkDefaultIsFloored() throws Exception {
+    void natsReader_explicitWinsOverConfiguration() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 100);
+
+        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(FLINK_DEFAULT, conf));
+        assertEquals(25,  natsReaderQueueCapacity(25,  conf));
+        assertEquals(100, natsReaderQueueCapacity(100, conf));
+        assertEquals(200, natsReaderQueueCapacity(200, conf));   // explicit above also wins
+    }
+
+    @Test
+    void jetStreamReader_explicitWinsOverConfiguration() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 100);
+
+        assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(FLINK_DEFAULT, conf));
+        assertEquals(25,  jetStreamReaderQueueCapacity(25,  conf));
+        assertEquals(100, jetStreamReaderQueueCapacity(100, conf));
+        assertEquals(200, jetStreamReaderQueueCapacity(200, conf));
+    }
+
+    // ----- The -1 sentinel falls back to compile-time default when no config -----
+
+    @Test
+    void natsReader_unsetFallsBackToCompileTimeDefault() throws Exception {
+        assertEquals(FLINK_DEFAULT, natsReaderQueueCapacity(-1));
+    }
+
+    @Test
+    void jetStreamReader_unsetFallsBackToCompileTimeDefault() throws Exception {
         assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(-1));
-        assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(0));
-        assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(1));
-        assertEquals(FLINK_DEFAULT, jetStreamReaderQueueCapacity(2));
     }
 
-    @Test
-    void jetStreamReader_exactlyFlinkDefaultPlusOne() throws Exception {
-        assertEquals(FLINK_DEFAULT + 1, jetStreamReaderQueueCapacity(FLINK_DEFAULT + 1));
-    }
-
-    // ----- Configuration-supplied ELEMENT_QUEUE_CAPACITY raises the floor -----
+    // ----- The -1 sentinel falls back to Configuration value when set -----
 
     @Test
-    void natsReader_configurationFloorIsHonored() throws Exception {
+    void natsReader_unsetFallsBackToConfiguration() throws Exception {
         Configuration conf = new Configuration();
         conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 50);
 
-        // Anything at or below 50 is floored at 50.
         assertEquals(50, natsReaderQueueCapacity(-1, conf));
-        assertEquals(50, natsReaderQueueCapacity(0,  conf));
-        assertEquals(50, natsReaderQueueCapacity(25, conf));
-        assertEquals(50, natsReaderQueueCapacity(50, conf));
-        // Above the configured floor, the explicit value wins.
-        assertEquals(75, natsReaderQueueCapacity(75, conf));
     }
 
     @Test
-    void jetStreamReader_configurationFloorIsHonored() throws Exception {
+    void jetStreamReader_unsetFallsBackToConfiguration() throws Exception {
         Configuration conf = new Configuration();
         conf.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 50);
 
         assertEquals(50, jetStreamReaderQueueCapacity(-1, conf));
-        assertEquals(50, jetStreamReaderQueueCapacity(0,  conf));
-        assertEquals(50, jetStreamReaderQueueCapacity(25, conf));
-        assertEquals(50, jetStreamReaderQueueCapacity(50, conf));
-        assertEquals(75, jetStreamReaderQueueCapacity(75, conf));
     }
 
     // ----- helpers -----

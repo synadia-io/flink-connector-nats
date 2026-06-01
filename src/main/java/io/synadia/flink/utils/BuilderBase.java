@@ -8,6 +8,7 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SinkConverter;
 import io.synadia.flink.message.SourceConverter;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -71,14 +72,19 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     }
 
     /**
-     * Set the source reader's element queue capacity. The value is passed
-     * through as-is; the reader floors it at Flink's ELEMENT_QUEUE_CAPACITY
-     * default, so any value below that (-1 is conventional) yields the default.
+     * Set the source reader's element queue capacity. An explicit value
+     * (&ge; {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default) is honored
+     * verbatim and takes precedence over any value set in the Flink
+     * Configuration. Anything below that is treated as "not set" (stored as
+     * {@code -1}); the reader will then use the Configuration value if present,
+     * or {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default otherwise.
      * @param sourceQueueCapacity the element queue capacity
      * @return The Builder
      */
     protected BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
-        this.sourceQueueCapacity = sourceQueueCapacity;
+        this.sourceQueueCapacity = sourceQueueCapacity < SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue()
+            ? -1
+            : sourceQueueCapacity;
         return getThis();
     }
 
