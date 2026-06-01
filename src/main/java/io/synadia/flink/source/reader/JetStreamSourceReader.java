@@ -202,7 +202,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
-                    int threadIndex = nextThreadIndex++;
+                    int threadIndex = ++nextThreadIndex;
                     MessageHandler messageHandler = msg -> queue.put(threadIndex, new JetStreamSplitMessage(split.splitId(), msg));
                     io.nats.client.MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
 
