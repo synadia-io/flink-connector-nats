@@ -52,14 +52,13 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
                             SourceConverter<OutputT> sourceConverter,
                             SourceReaderContext readerContext,
                             int sourceQueueCapacity) {
+        checkNotNull(readerContext);
         this.connectionFactory = connectionFactory;
         this.sourceConverter = sourceConverter;
-        checkNotNull(readerContext); // it's not used but is supposed to be provided
-        subbedSplits = new ArrayList<>();
-
+        this.subbedSplits = new ArrayList<>();
         this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
-        queue = new FutureCompletingBlockingQueue<>(queueCapacity);
-        connectionLock = new ReentrantLock();
+        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.connectionLock = new ReentrantLock();
     }
 
     /**

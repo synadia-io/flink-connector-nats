@@ -168,6 +168,7 @@ public class JetStreamSource<OutputT> implements
 
         JetStreamSource<?> that = (JetStreamSource<?>) o;
         return boundedness == that.boundedness
+            && sourceQueueCapacity == that.sourceQueueCapacity
             && configById.equals(that.configById)
             && sourceConverter.getClass().equals(that.sourceConverter.getClass())
             && Objects.equals(connectionFactory, that.connectionFactory);
@@ -179,6 +180,7 @@ public class JetStreamSource<OutputT> implements
         result = 31 * result + configById.hashCode();
         result = 31 * result + Objects.hashCode(sourceConverter.getClass());
         result = 31 * result + Objects.hashCode(connectionFactory);
+        result = 31 * result + sourceQueueCapacity;
         return result;
     }
 }

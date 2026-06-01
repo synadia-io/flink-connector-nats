@@ -65,21 +65,15 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                                  SourceReaderContext readerContext,
                                  int sourceQueueCapacity
     ) {
+        checkNotNull(readerContext);
         this.bounded = boundedness == Boundedness.BOUNDED;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
-        connectionLock = new ReentrantLock();
-
-        checkNotNull(readerContext); // it's not used but is supposed to be provided
-
-        splitMap = new HashMap<>();
+        this.connectionLock = new ReentrantLock();
+        this.splitMap = new HashMap<>();
         this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
-        queue = new FutureCompletingBlockingQueue<>(queueCapacity);
-        scheduler = Executors.newCachedThreadPool();
-
-        activeSplits = 0;
-        _connectionContext = null;
-        _readerIsClosed = false;
+        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.scheduler = Executors.newCachedThreadPool();
     }
 
     /**
