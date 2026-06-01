@@ -23,8 +23,7 @@ import java.util.List;
 
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
-import static io.synadia.flink.utils.Constants.SUBJECTS;
+import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.generateId;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
 
@@ -40,13 +39,16 @@ public class NatsSource<OutputT> implements
     protected final List<String> subjects;
     protected final SourceConverter<OutputT> sourceConverter;
     protected final ConnectionFactory connectionFactory;
+    protected final int sourceQueueCapacity;
 
-    protected NatsSource(SourceConverter<OutputT> sourceConverter,
-                         ConnectionFactory connectionFactory,
-                         List<String> subjects)
+    protected NatsSource(List<String> subjects,
+                         int sourceQueueCapacity,
+                         SourceConverter<OutputT> sourceConverter,
+                         ConnectionFactory connectionFactory)
     {
         id = generateId();
         this.subjects = subjects;
+        this.sourceQueueCapacity = sourceQueueCapacity;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
     }
@@ -64,6 +66,7 @@ public class NatsSource<OutputT> implements
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         JsonUtils.addStrings(sb, SUBJECTS, subjects);
+        JsonUtils.addField(sb, SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
         return endJson(sb).toString();
     }
 
@@ -71,6 +74,7 @@ public class NatsSource<OutputT> implements
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
+        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
         return sb.toString();
     }
 
@@ -105,7 +109,7 @@ public class NatsSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext);
+        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext, sourceQueueCapacity);
     }
 
     @Override
