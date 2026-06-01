@@ -8,8 +8,10 @@ import io.nats.client.support.JsonSerializable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -220,5 +222,34 @@ public abstract class MiscUtils {
      */
     public static byte[] readAllBytes(String filespec) throws IOException {
         return Files.readAllBytes(Paths.get(filespec));
+    }
+
+    /**
+     * Compute the element queue capacity for a source reader using
+     * explicit-wins semantics: any value other than {@code -1} is honored
+     * verbatim (the builder is responsible for normalizing sub-default user
+     * input to {@code -1}); the {@code -1} sentinel falls back to
+     * {@link #getFallbackCapacity(SourceReaderContext)}.
+     */
+    public static int figureCapacity(SourceReaderContext readerContext, int sourceQueueCapacity) {
+        return sourceQueueCapacity == -1
+            ? getFallbackCapacity(readerContext)
+            : sourceQueueCapacity;
+    }
+
+    /**
+     * The fallback used by {@link #figureCapacity} when no explicit value was
+     * supplied: reads ELEMENT_QUEUE_CAPACITY from the reader context's
+     * Configuration when present; otherwise returns the option's compile-time
+     * default.
+     */
+    public static int getFallbackCapacity(SourceReaderContext readerContext) {
+        int fallback = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+        if (readerContext != null
+            && readerContext.getConfiguration() != null
+            && readerContext.getConfiguration().contains(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)) {
+            fallback = readerContext.getConfiguration().get(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+        }
+        return fallback;
     }
 }

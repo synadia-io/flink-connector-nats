@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
+import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -43,6 +44,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
+    private final int queueCapacity;
     private final ExecutorService scheduler;
     private final ReentrantLock connectionLock;
 
@@ -60,22 +62,26 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     public JetStreamSourceReader(Boundedness boundedness,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
-                                 SourceReaderContext readerContext
+                                 SourceReaderContext readerContext,
+                                 int sourceQueueCapacity
     ) {
+        checkNotNull(readerContext);
         this.bounded = boundedness == Boundedness.BOUNDED;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
-        connectionLock = new ReentrantLock();
+        this.connectionLock = new ReentrantLock();
+        this.splitMap = new HashMap<>();
+        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
+        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.scheduler = Executors.newCachedThreadPool();
+    }
 
-        checkNotNull(readerContext); // it's not used but is supposed to be provided
-
-        splitMap = new HashMap<>();
-        queue = new FutureCompletingBlockingQueue<>();
-        scheduler = Executors.newCachedThreadPool();
-
-        activeSplits = 0;
-        _connectionContext = null;
-        _readerIsClosed = false;
+    /**
+     * The size the element queue was constructed with. Exposed for tests and
+     * diagnostics; the reader is {@link Internal @Internal}.
+     */
+    public int getQueueCapacity() {
+        return queueCapacity;
     }
 
     @Override
@@ -200,7 +206,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
                     MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
-                    io.nats.client.MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
+
+                    io.nats.client.MessageConsumer consumer = consumerContext
+                        .consume(consumeOptions, messageHandler);
 
                     JetStreamSourceReaderSplit srSplit =
                         new JetStreamSourceReaderSplit(split, consumerContext, consumer);

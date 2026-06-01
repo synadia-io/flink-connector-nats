@@ -8,6 +8,7 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SinkConverter;
 import io.synadia.flink.message.SourceConverter;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -62,6 +63,12 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      */
     protected SourceConverter<SerialT> sourceConverter;
 
+    /**
+     * The source reader's element queue capacity. -1 (the default) leaves sizing
+     * to the reader, which falls back to Flink's ELEMENT_QUEUE_CAPACITY default.
+     */
+    protected int sourceQueueCapacity = -1;
+
     private final boolean expectsSubjects;
     private final boolean forSink;
 
@@ -105,6 +112,23 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     public BuilderT connectionPropertiesFile(String connectionPropertiesFile) {
         this.connectionProperties = null;
         this.connectionPropertiesFile = connectionPropertiesFile;
+        return getThis();
+    }
+
+    /**
+     * Set the source reader's element queue capacity. An explicit value
+     * (&ge; {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default) is honored
+     * verbatim and takes precedence over any value set in the Flink
+     * Configuration. Anything below that is treated as "not set" (stored as
+     * {@code -1}); the reader will then use the Configuration value if present,
+     * or {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default otherwise.
+     * @param sourceQueueCapacity the element queue capacity
+     * @return The Builder
+     */
+    protected BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
+        this.sourceQueueCapacity = sourceQueueCapacity < SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue()
+            ? -1
+            : sourceQueueCapacity;
         return getThis();
     }
 
@@ -193,6 +217,14 @@ public abstract class BuilderBase<SerialT, BuilderT> {
          * @return the string
          */
         String getString(String key);
+
+        /**
+         * Get an int from the key
+         * @param key the key
+         * @param defaultValue the value to use as default if the key is not found
+         * @return the value
+         */
+        int getInt(String key, int defaultValue);
     }
 
     /**
@@ -225,6 +257,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             if (classname != null) {
                 _sourceConverterClass(classname);
             }
+            _sourceQueueCapacity(adapter.getInt(SOURCE_QUEUE_CAPACITY, -1));
         }
     }
 
@@ -245,6 +278,11 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             @Override
             public String getString(String key) {
                 return JsonValueUtils.readString(jv, key, null);
+            }
+
+            @Override
+            public int getInt(String key, int defaultValue) {
+                return JsonValueUtils.readInteger(jv, key, defaultValue);
             }
         });
         return jv;
@@ -267,6 +305,11 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             @Override
             public String getString(String key) {
                 return YamlUtils.readString(map, key, null);
+            }
+
+            @Override
+            public int getInt(String key, int defaultValue) {
+                return YamlUtils.readInteger(map, key, defaultValue);
             }
         });
         return map;
