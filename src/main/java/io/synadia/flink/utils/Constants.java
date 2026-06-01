@@ -19,6 +19,7 @@ public interface Constants {
     String JETSTREAM_SUBJECT_CONFIGURATIONS = "jetstream_subject_configurations";
     String SUBJECTS = "subjects"; // Used in core source and both core and js sink
     String SOURCE_QUEUE_CAPACITY = "source_queue_capacity";
+    String CONSUMER_STRATEGY = "consumer_strategy";
 
     // ===================================================================================
     // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants
