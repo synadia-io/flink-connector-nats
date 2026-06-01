@@ -31,14 +31,10 @@ public class JetStreamSource<OutputT> implements
     ResultTypeQueryable<OutputT>
 {
     /**
-     * the boundedness
+     * Source-level configuration (boundedness, source queue capacity,
+     * consumer strategy). See {@link JetStreamSourceConfig}.
      */
-    public final Boundedness boundedness;
-
-    /**
-     * The size of the queue. Default/Minimum is 2.
-     */
-    public final int sourceQueueCapacity;
+    public final JetStreamSourceConfig config;
 
     /**
      * the config by id map
@@ -56,22 +52,18 @@ public class JetStreamSource<OutputT> implements
     public final ConnectionFactory connectionFactory;
 
     /**
-     *
-     * Construct a JetStreamSourceReader
-     * @param boundedness the boundedness
-     * @param sourceQueueCapacity the source reader's element queue capacity
+     * Construct a JetStreamSource
+     * @param config the source-level configuration
      * @param configById the config by id map
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      */
-    JetStreamSource(Boundedness boundedness,
-                    int sourceQueueCapacity,
+    JetStreamSource(JetStreamSourceConfig config,
                     Map<String, JetStreamSubjectConfiguration> configById,
                     SourceConverter<OutputT> sourceConverter,
                     ConnectionFactory connectionFactory)
     {
-        this.boundedness = boundedness;
-        this.sourceQueueCapacity = sourceQueueCapacity;
+        this.config = config;
         this.configById = Collections.unmodifiableMap(configById);
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
@@ -79,7 +71,7 @@ public class JetStreamSource<OutputT> implements
 
     @Override
     public Boundedness getBoundedness() {
-        return boundedness;
+        return config.boundedness;
     }
 
     @Override
@@ -113,7 +105,7 @@ public class JetStreamSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, JetStreamSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new JetStreamSourceReader<>(boundedness, sourceConverter, connectionFactory, readerContext, sourceQueueCapacity);
+        return new JetStreamSourceReader<>(config, sourceConverter, connectionFactory, readerContext);
     }
 
     @Override
@@ -141,7 +133,8 @@ public class JetStreamSource<OutputT> implements
         }
         JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
         bm.put(SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        bm.put(SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
+        bm.put(SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
+        bm.put(CONSUMER_STRATEGY, config.consumerStrategy.toString());
         bm.put(JETSTREAM_SUBJECT_CONFIGURATIONS, ba.jv);
         return bm.jv.toJson();
     }
@@ -153,7 +146,8 @@ public class JetStreamSource<OutputT> implements
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
+        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
+        YamlUtils.addField(sb, 0, CONSUMER_STRATEGY, config.consumerStrategy.toString());
         YamlUtils.addField(sb, 0, JETSTREAM_SUBJECT_CONFIGURATIONS);
         for (String id : configById.keySet()) {
             sb.append(configById.get(id).toYaml(1));
@@ -167,8 +161,7 @@ public class JetStreamSource<OutputT> implements
         if (!(o instanceof JetStreamSource)) return false;
 
         JetStreamSource<?> that = (JetStreamSource<?>) o;
-        return boundedness == that.boundedness
-            && sourceQueueCapacity == that.sourceQueueCapacity
+        return Objects.equals(config, that.config)
             && configById.equals(that.configById)
             && sourceConverter.getClass().equals(that.sourceConverter.getClass())
             && Objects.equals(connectionFactory, that.connectionFactory);
@@ -176,11 +169,10 @@ public class JetStreamSource<OutputT> implements
 
     @Override
     public int hashCode() {
-        int result = Objects.hashCode(boundedness);
+        int result = Objects.hashCode(config);
         result = 31 * result + configById.hashCode();
         result = 31 * result + Objects.hashCode(sourceConverter.getClass());
         result = 31 * result + Objects.hashCode(connectionFactory);
-        result = 31 * result + sourceQueueCapacity;
         return result;
     }
 }

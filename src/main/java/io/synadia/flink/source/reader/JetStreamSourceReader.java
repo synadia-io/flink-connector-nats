@@ -11,12 +11,16 @@ import io.nats.client.impl.AckType;
 import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.AckBehavior;
+import io.synadia.flink.source.JetStreamSourceConfig;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.*;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -39,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
-    private final boolean bounded;
+    private final JetStreamSourceConfig config;
     private final ConnectionFactory connectionFactory;
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
@@ -49,29 +53,29 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
     private final ReentrantLock connectionLock;
 
     private int activeSplits;
+    private int nextThreadIndex;   // monotonic per-handler index for queue.put; addSplits is single-threaded
     private ConnectionContext _connectionContext;
     private boolean _readerIsClosed;
 
     /**
      * Construct a JetStreamSourceReader
-     * @param boundedness the boundedness
+     * @param config the source-level configuration (boundedness, queue capacity, consumer strategy)
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      * @param readerContext the reader context
      */
-    public JetStreamSourceReader(Boundedness boundedness,
+    public JetStreamSourceReader(JetStreamSourceConfig config,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
-                                 SourceReaderContext readerContext,
-                                 int sourceQueueCapacity
+                                 SourceReaderContext readerContext
     ) {
         checkNotNull(readerContext);
-        this.bounded = boundedness == Boundedness.BOUNDED;
+        this.config = config;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
         this.connectionLock = new ReentrantLock();
         this.splitMap = new HashMap<>();
-        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
+        this.queueCapacity = figureCapacity(readerContext, config.sourceQueueCapacity);
         this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
         this.scheduler = Executors.newCachedThreadPool();
     }
@@ -159,7 +163,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             // 3. if bounded, check to see if
             output.collect(sourceConverter.convert(sm.message));
             long emittedCount = readerSplit.markEmitted(sm.message);
-            if (bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
+            if (config.bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
                 // This split has fulfilled it's bound. Not all splits readers necessarily have yet,
                 // so only say END_OF_INPUT if all are done
                 readerSplit.done();
@@ -205,7 +209,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
-                    MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
+                    int threadIndex = nextThreadIndex++;
+                    MessageHandler messageHandler = msg -> queue.put(threadIndex, new JetStreamSplitMessage(split.splitId(), msg));
 
                     io.nats.client.MessageConsumer consumer = consumerContext
                         .consume(consumeOptions, messageHandler);

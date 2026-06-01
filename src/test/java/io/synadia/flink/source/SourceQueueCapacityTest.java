@@ -133,12 +133,13 @@ class SourceQueueCapacityTest {
     }
 
     private static int jetStreamReaderQueueCapacity(int sourceQueueCapacity, Configuration conf) throws Exception {
+        JetStreamSourceConfig sourceConfig = new JetStreamSourceConfig(
+            Boundedness.CONTINUOUS_UNBOUNDED, sourceQueueCapacity, ConsumerStrategy.Polled);
         try (JetStreamSourceReader<String> reader = new JetStreamSourceReader<>(
-                Boundedness.CONTINUOUS_UNBOUNDED,
+                sourceConfig,
                 new Utf8StringSourceConverter(),
                 mock(ConnectionFactory.class),
-                contextWith(conf),
-                sourceQueueCapacity)) {
+                contextWith(conf))) {
             return reader.getQueueCapacity();
         }
     }

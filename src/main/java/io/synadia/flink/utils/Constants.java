@@ -51,6 +51,11 @@ public interface Constants {
      */
     String SOURCE_QUEUE_CAPACITY = "source_queue_capacity";
 
+    /**
+     * JetStream Source JSON / YAML Configuration Field Name Constant
+     */
+    String CONSUMER_STRATEGY = "consumer_strategy";
+
     // ===================================================================================
     // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants
     // ===================================================================================

@@ -130,8 +130,8 @@ class JetStreamSourceBuilderTest extends TestBase {
     }
 
     private static void validateSourceFileConstruction(JetStreamSource<String> expected, JetStreamSource<String> actual) throws Exception {
-        assertEquals(expected.boundedness, actual.boundedness);
-        assertEquals(expected.boundedness, actual.getBoundedness());
+        assertEquals(expected.config, actual.config);
+        assertEquals(expected.config.boundedness, actual.getBoundedness());
         assertEquals(expected.configById.size(), actual.configById.size());
         for (String id : expected.configById.keySet()) {
             JetStreamSubjectConfiguration expectedConfig = expected.configById.get(id);
@@ -194,6 +194,57 @@ class JetStreamSourceBuilderTest extends TestBase {
                 return null;
             }
         }));
+    }
+
+    @Test
+    void testNonDefaultConfigRoundTrip() throws Exception {
+        // Builder with explicit non-default sourceQueueCapacity and consumerStrategy.
+        JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .sourceQueueCapacity(64)
+            .consumerStrategy(ConsumerStrategy.Dispatched)
+            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                .streamName("S").subject("Sub").build())
+            .build();
+        assertEquals(64, source.config.sourceQueueCapacity);
+        assertEquals(ConsumerStrategy.Dispatched, source.config.consumerStrategy);
+
+        // Round-trip via JSON.
+        String jsonFile = writeToTempFile("JetStreamSource", ".json", source.toJson());
+        JetStreamSource<String> fromJson = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .jsonConfigFile(jsonFile)
+            .build();
+        assertEquals(source.config, fromJson.config);
+
+        // Round-trip via YAML.
+        String yamlFile = writeToTempFile("JetStreamSource", ".yaml", source.toYaml());
+        JetStreamSource<String> fromYaml = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .yamlConfigFile(yamlFile)
+            .build();
+        assertEquals(source.config, fromYaml.config);
+
+        // Builder defaults: not setting either yields a -1 / Polled config.
+        JetStreamSource<String> defaults = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                .streamName("S").subject("Sub").build())
+            .build();
+        assertEquals(-1, defaults.config.sourceQueueCapacity);
+        assertEquals(ConsumerStrategy.Polled, defaults.config.consumerStrategy);
+
+        // null → Polled normalization on the setter.
+        JetStreamSource<String> nulled = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .consumerStrategy(null)
+            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                .streamName("S").subject("Sub").build())
+            .build();
+        assertEquals(ConsumerStrategy.Polled, nulled.config.consumerStrategy);
     }
 
     @Test

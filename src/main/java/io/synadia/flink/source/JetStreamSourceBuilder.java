@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.synadia.flink.utils.Constants.CONSUMER_STRATEGY;
 import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
 
 /**
@@ -23,6 +24,7 @@ import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
  */
 public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
+    private ConsumerStrategy consumerStrategy = ConsumerStrategy.Polled;
 
     /**
      * Construct a new JetStreamSourceBuilder instance
@@ -50,6 +52,10 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromJsonValue(config));
             }
         }
+        ConsumerStrategy cs = ConsumerStrategy.get(JsonValueUtils.readString(jv, CONSUMER_STRATEGY, null));
+        if (cs != null) {
+            consumerStrategy(cs);
+        }
         return this;
     }
 
@@ -66,6 +72,10 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             for (Map<String, Object> config : mapConfigs) {
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromMap(config));
             }
+        }
+        ConsumerStrategy cs = ConsumerStrategy.get(YamlUtils.readString(map, CONSUMER_STRATEGY, null));
+        if (cs != null) {
+            consumerStrategy(cs);
         }
         return this;
     }
@@ -97,6 +107,17 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      */
     public JetStreamSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
         return _sourceQueueCapacity(sourceQueueCapacity);
+    }
+
+    /**
+     * Set the consumer strategy. Defaults to {@link ConsumerStrategy#Polled}.
+     * A null argument is treated as the default.
+     * @param consumerStrategy the consumer strategy
+     * @return the builder
+     */
+    public JetStreamSourceBuilder<OutputT> consumerStrategy(ConsumerStrategy consumerStrategy) {
+        this.consumerStrategy = consumerStrategy == null ? ConsumerStrategy.Polled : consumerStrategy;
+        return this;
     }
 
     /**
@@ -174,6 +195,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             }
         }
 
-        return new JetStreamSource<>(boundedness, sourceQueueCapacity, configById, sourceConverter, connectionFactory);
+        JetStreamSourceConfig config = new JetStreamSourceConfig(boundedness, sourceQueueCapacity, consumerStrategy);
+        return new JetStreamSource<>(config, configById, sourceConverter, connectionFactory);
     }
 }
