@@ -11,7 +11,7 @@ import io.nats.client.impl.AckType;
 import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.AckBehavior;
-import io.synadia.flink.source.JetStreamSourceConfig;
+import io.synadia.flink.source.SourceConfig;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -43,12 +42,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
-    private final JetStreamSourceConfig config;
+    private final SourceConfig config;
     private final ConnectionFactory connectionFactory;
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
-    private final int queueCapacity;
     private final ExecutorService scheduler;
     private final ReentrantLock connectionLock;
 
@@ -59,12 +57,12 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     /**
      * Construct a JetStreamSourceReader
-     * @param config the source-level configuration (boundedness, queue capacity, consumer strategy)
+     * @param config the source-level configuration (boundedness, queue capacity)
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      * @param readerContext the reader context
      */
-    public JetStreamSourceReader(JetStreamSourceConfig config,
+    public JetStreamSourceReader(SourceConfig config,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
                                  SourceReaderContext readerContext
@@ -75,17 +73,8 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         this.connectionFactory = connectionFactory;
         this.connectionLock = new ReentrantLock();
         this.splitMap = new HashMap<>();
-        this.queueCapacity = figureCapacity(readerContext, config.sourceQueueCapacity);
-        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.queue = new FutureCompletingBlockingQueue<>(config.sourceQueueCapacity);
         this.scheduler = Executors.newCachedThreadPool();
-    }
-
-    /**
-     * The size the element queue was constructed with. Exposed for tests and
-     * diagnostics; the reader is {@link Internal @Internal}.
-     */
-    public int getQueueCapacity() {
-        return queueCapacity;
     }
 
     @Override

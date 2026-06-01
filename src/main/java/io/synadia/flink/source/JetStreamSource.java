@@ -19,7 +19,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.*;
 
-import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
@@ -31,10 +32,10 @@ public class JetStreamSource<OutputT> implements
     ResultTypeQueryable<OutputT>
 {
     /**
-     * Source-level configuration (boundedness, source queue capacity,
-     * consumer strategy). See {@link JetStreamSourceConfig}.
+     * Source-level configuration (boundedness, source queue capacity).
+     * See {@link SourceConfig}.
      */
-    public final JetStreamSourceConfig config;
+    public final SourceConfig config;
 
     /**
      * the config by id map
@@ -58,7 +59,7 @@ public class JetStreamSource<OutputT> implements
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      */
-    JetStreamSource(JetStreamSourceConfig config,
+    JetStreamSource(SourceConfig config,
                     Map<String, JetStreamSubjectConfiguration> configById,
                     SourceConverter<OutputT> sourceConverter,
                     ConnectionFactory connectionFactory)
@@ -133,8 +134,6 @@ public class JetStreamSource<OutputT> implements
         }
         JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
         bm.put(SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        bm.put(SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
-        bm.put(CONSUMER_STRATEGY, config.consumerStrategy.toString());
         bm.put(JETSTREAM_SUBJECT_CONFIGURATIONS, ba.jv);
         return bm.jv.toJson();
     }
@@ -146,8 +145,6 @@ public class JetStreamSource<OutputT> implements
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
-        YamlUtils.addField(sb, 0, CONSUMER_STRATEGY, config.consumerStrategy.toString());
         YamlUtils.addField(sb, 0, JETSTREAM_SUBJECT_CONFIGURATIONS);
         for (String id : configById.keySet()) {
             sb.append(configById.get(id).toYaml(1));

@@ -47,14 +47,10 @@ public interface Constants {
     String SUBJECTS = "subjects"; // Used in core source and both core and js sink
 
     /**
-     * Source JSON / YAML Configuration Field Name Constants
+     * Source JSON / YAML Configuration Field Name Constant — element queue
+     * capacity for the source reader (see {@link io.synadia.flink.source.SourceConfig}).
      */
     String SOURCE_QUEUE_CAPACITY = "source_queue_capacity";
-
-    /**
-     * JetStream Source JSON / YAML Configuration Field Name Constant
-     */
-    String CONSUMER_STRATEGY = "consumer_strategy";
 
     // ===================================================================================
     // JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constants
