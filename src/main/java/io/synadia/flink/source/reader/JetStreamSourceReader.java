@@ -11,12 +11,16 @@ import io.nats.client.impl.AckType;
 import io.nats.client.support.SerializableConsumeOptions;
 import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.source.AckBehavior;
+import io.synadia.flink.source.SourceConfig;
 import io.synadia.flink.source.split.JetStreamSplit;
 import io.synadia.flink.source.split.JetStreamSplitMessage;
 import io.synadia.flink.utils.ConnectionContext;
 import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.source.*;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceEvent;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -29,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -39,42 +42,39 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, JetStreamSplit> {
     private static final byte[] ACK_BODY_BYTES = AckType.AckAck.bodyBytes(-1);
 
-    private final boolean bounded;
+    private final SourceConfig config;
     private final ConnectionFactory connectionFactory;
     private final SourceConverter<OutputT> sourceConverter;
     private final Map<String, JetStreamSourceReaderSplit> splitMap;
     private final FutureCompletingBlockingQueue<JetStreamSplitMessage> queue;
-    private final int queueCapacity;
     private final ExecutorService scheduler;
     private final ReentrantLock connectionLock;
 
     private int activeSplits;
+    private int nextThreadIndex;   // monotonic per-handler index for queue.put; addSplits is single-threaded
     private ConnectionContext _connectionContext;
     private boolean _readerIsClosed;
 
-    public JetStreamSourceReader(Boundedness boundedness,
+    /**
+     * Construct a JetStreamSourceReader
+     * @param config the source-level configuration
+     * @param sourceConverter the source converter
+     * @param connectionFactory the connection factory
+     * @param readerContext the reader context
+     */
+    public JetStreamSourceReader(SourceConfig config,
                                  SourceConverter<OutputT> sourceConverter,
                                  ConnectionFactory connectionFactory,
-                                 SourceReaderContext readerContext,
-                                 int sourceQueueCapacity
+                                 SourceReaderContext readerContext
     ) {
         checkNotNull(readerContext);
-        this.bounded = boundedness == Boundedness.BOUNDED;
+        this.config = config;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
         this.connectionLock = new ReentrantLock();
         this.splitMap = new HashMap<>();
-        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
-        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.queue = new FutureCompletingBlockingQueue<>(config.sourceQueueCapacity);
         this.scheduler = Executors.newCachedThreadPool();
-    }
-
-    /**
-     * The size the element queue was constructed with. Exposed for tests and
-     * diagnostics; the reader is {@link Internal @Internal}.
-     */
-    public int getQueueCapacity() {
-        return queueCapacity;
     }
 
     @Override
@@ -152,7 +152,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             // 3. if bounded, check to see if
             output.collect(sourceConverter.convert(sm.message));
             long emittedCount = readerSplit.markEmitted(sm.message);
-            if (bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
+            if (config.bounded && emittedCount >= readerSplit.split.subjectConfig.maxMessagesToRead) {
                 // This split has fulfilled it's bound. Not all splits readers necessarily have yet,
                 // so only say END_OF_INPUT if all are done
                 readerSplit.done();
@@ -198,8 +198,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
                     SerializableConsumeOptions sco = split.subjectConfig.serializableConsumeOptions;
                     ConsumeOptions consumeOptions = sco == null ? DEFAULT_CONSUME_OPTIONS : sco.getConsumeOptions();
-                    MessageHandler messageHandler = msg -> queue.put(1, new JetStreamSplitMessage(split.splitId(), msg));
-                    io.nats.client.MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
+                    int threadIndex = ++nextThreadIndex;
+                    MessageHandler messageHandler = msg -> queue.put(threadIndex, new JetStreamSplitMessage(split.splitId(), msg));
+                    MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
 
                     JetStreamSourceReaderSplit srSplit =
                         new JetStreamSourceReaderSplit(split, consumerContext, consumer);
@@ -291,7 +292,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
         for (JetStreamSourceReaderSplit srSplit : splitMap.values()) {
             JetStreamSourceReaderSplit.Snapshot snapshot = srSplit.removeSnapshot(checkpointId);
             if (snapshot != null && srSplit.split.subjectConfig.ackBehavior == AckBehavior.AckAll) {
-                // AckBehavior.AckAll is the only behavior that we currently ack (isCheckpointAck).
+                // AckBehavior.AckAll is the only behavior that we currently ack.
                 // All other behaviors are either AckPolicy.None or left for the sink to deal with.
                 // Manual ack since we don't have the message.
                 // Use the original message's "reply_to" since this is where the ack info is kept.
@@ -318,6 +319,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             }
         }
         finally {
+            // Shut the scheduler down so the cached thread pool doesn't keep
+            // ack-publish tasks alive after the reader is closed.
+            scheduler.shutdownNow();
             _readerIsClosed = true;
             _connectionContext = null;
             connectionLock.unlock();

@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.ConsumeOptions;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SourceConverter;
@@ -89,17 +90,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
     }
 
     /**
-     * Set the source reader's element queue capacity. The reader floors the
-     * value at Flink's ELEMENT_QUEUE_CAPACITY (configured or compile-time
-     * default), so anything below that (-1 is conventional) yields the default.
-     * @param sourceQueueCapacity the element queue capacity
-     * @return The Builder
-     */
-    public JetStreamSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
-        return _sourceQueueCapacity(sourceQueueCapacity);
-    }
-
-    /**
      * Set one or more subject configurations, replacing any existing subject configurations
      * @param subjectConfigurations the subject configurations
      * @return the builder
@@ -162,9 +152,17 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             throw new IllegalArgumentException("At least 1 managed subject configuration is required.");
         }
 
-        // check all the consume options of all the subject configs to
-        // make sure they are the same boundedness if they are supplied
+        // Walk the subject configs once: verify boundedness is consistent and
+        // accumulate the source reader's queue capacity. Per-subject
+        // contribution is batchSize (the new pull just delivered) +
+        // max(1, batchSize * thresholdPercent / 100) (the messages still
+        // buffered when the re-pull was triggered) — the peak simultaneous
+        // queue depth for that subject. Summed across subjects so each split
+        // has room for its in-flight pull plus its still-buffered tail.
+        // Accumulator is long so a pathological mix of subjects can't silently
+        // wrap an int; we range-check before narrowing.
         Boundedness boundedness = null;
+        long queueCapacity = 0L;
         for (JetStreamSubjectConfiguration msc : configById.values()) {
             if (boundedness == null) {
                 boundedness = msc.boundedness;
@@ -172,8 +170,18 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             else if (boundedness != msc.boundedness) {
                 throw new IllegalArgumentException("All boundedness must be the same.");
             }
+            ConsumeOptions co = msc.serializableConsumeOptions.getConsumeOptions();
+            long batchSize = co.getBatchSize();
+            queueCapacity += batchSize + Math.max(1L, batchSize * co.getThresholdPercent() / 100);
         }
 
-        return new JetStreamSource<>(boundedness, sourceQueueCapacity, configById, sourceConverter, connectionFactory);
+        if (queueCapacity > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                "Computed source queue capacity " + queueCapacity
+                    + " exceeds Integer.MAX_VALUE; reduce the per-subject batchSize / thresholdPercent.");
+        }
+
+        SourceConfig config = new SourceConfig(boundedness, (int) queueCapacity);
+        return new JetStreamSource<>(config, configById, sourceConverter, connectionFactory);
     }
 }

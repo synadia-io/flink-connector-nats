@@ -8,7 +8,6 @@ import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SinkConverter;
 import io.synadia.flink.message.SourceConverter;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -17,31 +16,69 @@ import java.util.*;
 import static io.synadia.flink.utils.Constants.*;
 import static io.synadia.flink.utils.MiscUtils.*;
 
+/**
+ * The base builder
+ * @param <SerialT> the builder data type
+ * @param <BuilderT> The builder type
+ */
 public abstract class BuilderBase<SerialT, BuilderT> {
+    /**
+     * The connectionProperties
+     */
     protected Properties connectionProperties;
+
+    /**
+     * the connection properties file path
+     */
     protected String connectionPropertiesFile;
+
+    /**
+     * The sink converter class when the builder is for a sink
+     */
     protected String sinkConverterClass;
+
+    /**
+     * The source convert class when the builder is a for source
+     */
     protected String sourceConverterClass;
+
+    /**
+     * The subjects
+     */
     protected List<String> subjects;
 
     /**
-     * The source reader's element queue capacity. -1 (the default) leaves sizing
-     * to the reader, which falls back to Flink's ELEMENT_QUEUE_CAPACITY default.
+     * The connection factory
      */
-    protected int sourceQueueCapacity = -1;
-
     protected ConnectionFactory connectionFactory;
+
+    /**
+     * The sink converter when the builder is for a sink
+     */
     protected SinkConverter<SerialT> sinkConverter;
+
+    /**
+     * The source converter when the builder is for a source
+     */
     protected SourceConverter<SerialT> sourceConverter;
 
     private final boolean expectsSubjects;
     private final boolean forSink;
 
+    /**
+     * Construct a builder
+     * @param expectsSubjects whether the builder expects the base behavior for having subjects
+     * @param forSink whether the builder is for a sink
+     */
     protected BuilderBase(boolean expectsSubjects, boolean forSink) {
         this.expectsSubjects = expectsSubjects;
         this.forSink = forSink;
     }
 
+    /**
+     * Get the instance of the builder. Needed for generic extension
+     * @return The Builder
+     */
     protected abstract BuilderT getThis();
 
     /**
@@ -72,27 +109,20 @@ public abstract class BuilderBase<SerialT, BuilderT> {
     }
 
     /**
-     * Set the source reader's element queue capacity. An explicit value
-     * (&ge; {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default) is honored
-     * verbatim and takes precedence over any value set in the Flink
-     * Configuration. Anything below that is treated as "not set" (stored as
-     * {@code -1}); the reader will then use the Configuration value if present,
-     * or {@code ELEMENT_QUEUE_CAPACITY}'s compile-time default otherwise.
-     * @param sourceQueueCapacity the element queue capacity
+     * Set the subjects
+     * @param subjects the subjects
      * @return The Builder
      */
-    protected BuilderT _sourceQueueCapacity(int sourceQueueCapacity) {
-        this.sourceQueueCapacity = sourceQueueCapacity < SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue()
-            ? -1
-            : sourceQueueCapacity;
-        return getThis();
-    }
-
     protected BuilderT _subjects(String... subjects) {
         this.subjects = subjects == null || subjects.length == 0 ? null : Arrays.asList(subjects);
         return getThis();
     }
 
+    /**
+     * Set the subjects
+     * @param subjects the subjects
+     * @return The Builder
+     */
     protected BuilderT _subjects(List<String> subjects) {
         this.subjects = new ArrayList<>();
         if (subjects != null) {
@@ -108,30 +138,75 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return getThis();
     }
 
+    /**
+     * Set the source converter class instance
+     * @param sourceConverter the class instance
+     * @return The Builder
+     */
     protected BuilderT _sourceConverter(SourceConverter<SerialT> sourceConverter) {
         return _sourceConverterClass(getClassName(sourceConverter));
     }
 
+    /**
+     * Set the source converter class name
+     * @param sourceConverterClass the class name
+     * @return The Builder
+     */
     protected BuilderT _sourceConverterClass(String sourceConverterClass) {
         this.sourceConverterClass = sourceConverterClass;
         return getThis();
     }
 
+    /**
+     * Set the SinkConverter
+     * @param sinkConverter the sink converter
+     * @return The Builder
+     */
     protected BuilderT _sinkConverter(SinkConverter<SerialT> sinkConverter) {
         return _sinkConverterClass(getClassName(sinkConverter));
     }
 
-    public BuilderT _sinkConverterClass(String sinkConverterClass) {
+    /**
+     * Set the sinkConverterClass
+     * @param sinkConverterClass the sinkConverterClass
+     * @return The Builder
+     */
+    protected BuilderT _sinkConverterClass(String sinkConverterClass) {
         this.sinkConverterClass = sinkConverterClass;
         return getThis();
     }
 
+    /**
+     * A ConfigurationAdapter class used to adapt builder specific strings
+     */
     protected interface ConfigurationAdapter {
+        /**
+         * get a list from the key
+         * @param key the key
+         * @return the list
+         */
         List<String> getList(String key);
+
+        /**
+         * Get a string from the key
+         * @param key the key
+         * @return the string
+         */
         String getString(String key);
+
+        /**
+         * Get an int from the key
+         * @param key the key
+         * @param defaultValue the value to use as default if the key is not found
+         * @return the value
+         */
         int getInt(String key, int defaultValue);
     }
 
+    /**
+     * Set the ConfigurationAdapter
+     * @param adapter the adapter
+     */
     protected void _config(ConfigurationAdapter adapter) {
         if (expectsSubjects) {
             // We support SUBJECT or SUBJECTS
@@ -158,10 +233,15 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             if (classname != null) {
                 _sourceConverterClass(classname);
             }
-            _sourceQueueCapacity(adapter.getInt(SOURCE_QUEUE_CAPACITY, -1));
         }
     }
 
+    /**
+     * Accept a JSON file as config
+     * @param jsonFilePath the path to the file
+     * @return The Builder
+     * @throws IOException if there is an issue opening or reading the file
+     */
     protected JsonValue _jsonConfigFile(String jsonFilePath) throws IOException {
         JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
         _config(new ConfigurationAdapter() {
@@ -183,6 +263,12 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return jv;
     }
 
+    /**
+     * Accept a YAML file as config
+     * @param yamlFilePath the path to the file
+     * @return The Builder
+     * @throws IOException if there is an issue opening or reading the file
+     */
     protected Map<String, Object> _yamlConfigFile(String yamlFilePath) throws IOException {
         Map<String, Object> map = new Yaml().load(getInputStream(yamlFilePath));
         _config(new ConfigurationAdapter() {
@@ -204,6 +290,9 @@ public abstract class BuilderBase<SerialT, BuilderT> {
         return map;
     }
 
+    /**
+     * Execute this before building
+     */
     protected void beforeBuild() {
         if (expectsSubjects && MiscUtils.notProvided(subjects)) {
             throw new IllegalArgumentException("One or more subjects must be provided.");

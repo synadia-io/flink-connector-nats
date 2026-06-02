@@ -1,19 +1,37 @@
 // Copyright (c) 2023-2025 Synadia Communications Inc. All Rights Reserved.
-// See LICENSE and NOTICE file for details. 
+// See LICENSE and NOTICE file for details.
 
 package io.synadia.flink.source;
 
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.utils.BuilderBase;
+import io.synadia.flink.utils.YamlUtils;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+
+import static io.synadia.flink.utils.Constants.SOURCE_QUEUE_CAPACITY;
 
 /**
  * Builder to construct {@link NatsSource}.
  * @param <OutputT> type of the records emitted by the source
  */
 public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceBuilder<OutputT>> {
+
+    /**
+     * Default element queue capacity for the source reader. Modest — the NATS
+     * dispatcher pushes with no flow control, but most workloads drain fast
+     * enough that a large buffer is wasted memory; users who need more can set
+     * it via {@link #sourceQueueCapacity(int)}.
+     */
+    public static final int DEFAULT_SOURCE_QUEUE_CAPACITY = 100;
+
+    private int sourceQueueCapacity = DEFAULT_SOURCE_QUEUE_CAPACITY;
 
     /**
      * Construct a new NatsSourceBuilder instance
@@ -34,8 +52,8 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSourceBuilder<OutputT> jsonConfigFile(String jsonFilePath) throws IOException {
-        _jsonConfigFile(jsonFilePath);
-        return this;
+        JsonValue jv = _jsonConfigFile(jsonFilePath);
+        return sourceQueueCapacity(JsonValueUtils.readInteger(jv, SOURCE_QUEUE_CAPACITY, DEFAULT_SOURCE_QUEUE_CAPACITY));
     }
 
     /**
@@ -45,8 +63,8 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      * @throws IOException if there is a problem loading or reading the file
      */
     public NatsSourceBuilder<OutputT> yamlConfigFile(String yamlFilePath) throws IOException {
-        _yamlConfigFile(yamlFilePath);
-        return this;
+        Map<String, Object> map = _yamlConfigFile(yamlFilePath);
+        return sourceQueueCapacity(YamlUtils.readInteger(map, SOURCE_QUEUE_CAPACITY, DEFAULT_SOURCE_QUEUE_CAPACITY));
     }
 
     /**
@@ -86,14 +104,18 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
     }
 
     /**
-     * Set the source reader's element queue capacity. The reader floors the
-     * value at Flink's ELEMENT_QUEUE_CAPACITY default, so anything below that
-     * (-1 is conventional) yields the default.
+     * Set the source reader's element queue capacity. Defaults to
+     * {@link #DEFAULT_SOURCE_QUEUE_CAPACITY}. Values below Flink's
+     * {@code SourceReaderOptions.ELEMENT_QUEUE_CAPACITY} default are silently
+     * raised to it — the setter doesn't throw.
      * @param sourceQueueCapacity the element queue capacity
-     * @return The Builder
+     * @return the builder
      */
     public NatsSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
-        return _sourceQueueCapacity(sourceQueueCapacity);
+        this.sourceQueueCapacity = Math.max(
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue(),
+            sourceQueueCapacity);
+        return this;
     }
 
     /**
@@ -102,6 +124,13 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      */
     public NatsSource<OutputT> build() {
         beforeBuild();
-        return new NatsSource<>(subjects, sourceQueueCapacity, sourceConverter, connectionFactory);
+        // Re-apply the floor here so the contract holds regardless of how the
+        // field was set — e.g. the field initializer, a future default tweak,
+        // or any path that bypasses the setter.
+        int effectiveCapacity = Math.max(
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue(),
+            sourceQueueCapacity);
+        SourceConfig config = new SourceConfig(Boundedness.CONTINUOUS_UNBOUNDED, effectiveCapacity);
+        return new NatsSource<>(config, subjects, sourceConverter, connectionFactory);
     }
 }
