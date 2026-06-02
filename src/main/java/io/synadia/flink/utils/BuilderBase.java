@@ -171,7 +171,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      * @param sinkConverterClass the sinkConverterClass
      * @return The Builder
      */
-    public BuilderT _sinkConverterClass(String sinkConverterClass) {
+    protected BuilderT _sinkConverterClass(String sinkConverterClass) {
         this.sinkConverterClass = sinkConverterClass;
         return getThis();
     }

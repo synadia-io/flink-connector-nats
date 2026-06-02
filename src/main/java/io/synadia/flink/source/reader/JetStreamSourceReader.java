@@ -57,7 +57,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     /**
      * Construct a JetStreamSourceReader
-     * @param config the source-level configuration (boundedness, queue capacity)
+     * @param config the source-level configuration
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      * @param readerContext the reader context
@@ -201,8 +201,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
                     int threadIndex = ++nextThreadIndex;
                     MessageHandler messageHandler = msg -> queue.put(threadIndex, new JetStreamSplitMessage(split.splitId(), msg));
 
-                    io.nats.client.MessageConsumer consumer = consumerContext
-                        .consume(consumeOptions, messageHandler);
+                    MessageConsumer consumer = consumerContext.consume(consumeOptions, messageHandler);
 
                     JetStreamSourceReaderSplit srSplit =
                         new JetStreamSourceReaderSplit(split, consumerContext, consumer);
