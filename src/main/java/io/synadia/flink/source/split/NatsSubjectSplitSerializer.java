@@ -38,8 +38,11 @@ public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<Nat
 
     @Override
     public byte[] serialize(NatsSubjectSplit split) throws IOException {
-        final DataOutputSerializer out =
-            new DataOutputSerializer(split.splitId().length());
+        String id = split.splitId();
+        if (id == null) {
+            throw new IOException("Split ID cannot be null");
+        }
+        final DataOutputSerializer out = new DataOutputSerializer(id.length());
         serializeV2(out, split);
         return out.getCopyOfBuffer();
     }

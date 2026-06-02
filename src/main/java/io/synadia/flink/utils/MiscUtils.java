@@ -42,10 +42,15 @@ public abstract class MiscUtils {
     public static final String CLIENT_VERSION;
 
     static {
-        String cv;
-        try { cv = MiscUtils.class.getPackage().getImplementationVersion(); }
-        catch (Exception ignore) { cv = null; }
+        // Class.getPackage() can return null in unusual classloader setups but
+        // never throws; Package.getImplementationVersion() returns null when
+        // the JAR has no manifest entry (development builds). No try/catch
+        // needed for this leg.
+        Package pkg = MiscUtils.class.getPackage();
+        String cv = pkg == null ? null : pkg.getImplementationVersion();
         if (cv == null) {
+            // Development fallback - try to read the version out of build.gradle.
+            // Swallow IOException so static init never fails.
             try {
                 List<String> lines = Files.readAllLines(new File("build.gradle").toPath());
                 for (String l : lines) {
@@ -57,7 +62,7 @@ public abstract class MiscUtils {
                     }
                 }
             }
-            catch (Exception ignore) {}
+            catch (IOException ignore) {}
         }
         CLIENT_VERSION = cv == null ? "development" : cv;
     }
