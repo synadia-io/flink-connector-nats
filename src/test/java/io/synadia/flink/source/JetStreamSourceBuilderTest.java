@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.BaseConsumeOptions;
 import io.nats.client.support.DateTimeUtils;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.message.AsciiStringSourceConverter;
@@ -130,8 +131,8 @@ class JetStreamSourceBuilderTest extends TestBase {
     }
 
     private static void validateSourceFileConstruction(JetStreamSource<String> expected, JetStreamSource<String> actual) throws Exception {
-        assertEquals(expected.boundedness, actual.boundedness);
-        assertEquals(expected.boundedness, actual.getBoundedness());
+        assertEquals(expected.config, actual.config);
+        assertEquals(expected.config.boundedness, actual.getBoundedness());
         assertEquals(expected.configById.size(), actual.configById.size());
         for (String id : expected.configById.keySet()) {
             JetStreamSubjectConfiguration expectedConfig = expected.configById.get(id);
@@ -194,6 +195,52 @@ class JetStreamSourceBuilderTest extends TestBase {
                 return null;
             }
         }));
+    }
+
+    @Test
+    void testQueueCapacity_sumsBatchPlusRePullPerSubject() throws Exception {
+        // Two subjects at jnats defaults (batchSize=500, threshold=25%):
+        // per-subject contribution is 500 + max(1, 500*25/100) = 500 + 125 = 625.
+        int defaultPer = BaseConsumeOptions.DEFAULT_MESSAGE_COUNT
+            + Math.max(1, BaseConsumeOptions.DEFAULT_MESSAGE_COUNT
+                * BaseConsumeOptions.DEFAULT_THRESHOLD_PERCENT / 100);
+
+        JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .addSubjectConfigurations(
+                JetStreamSubjectConfiguration.builder().streamName("S").subject("a").build(),
+                JetStreamSubjectConfiguration.builder().streamName("S").subject("b").build())
+            .build();
+        assertEquals(2 * defaultPer, source.config.sourceQueueCapacity);
+    }
+
+    @Test
+    void testQueueCapacity_rePullFloorsAtOne() throws Exception {
+        // batchSize=1 with default threshold yields rePull = max(1, 0) = 1.
+        JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                .streamName("S").subject("one").batchSize(1).build())
+            .build();
+        assertEquals(2, source.config.sourceQueueCapacity);
+    }
+
+    @Test
+    void testQueueCapacity_overflowsIntRangeThrows() {
+        // A single subject at Integer.MAX_VALUE batchSize contributes
+        // batchSize + max(1, batchSize * 25 / 100) ≈ 2.68 billion in long math,
+        // which exceeds Integer.MAX_VALUE — the range check after the
+        // accumulator should fire instead of silently wrapping to a negative.
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> new JetStreamSourceBuilder<String>()
+                .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+                .sourceConverter(new AsciiStringSourceConverter())
+                .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                    .streamName("S").subject("huge").batchSize(Integer.MAX_VALUE).build())
+                .build());
+        assertTrue(iae.getMessage().contains("exceeds Integer.MAX_VALUE"), iae.getMessage());
     }
 
     @Test

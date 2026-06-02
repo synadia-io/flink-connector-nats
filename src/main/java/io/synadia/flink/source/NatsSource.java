@@ -20,6 +20,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -41,14 +42,15 @@ public class NatsSource<OutputT> implements
     protected final String id;
 
     /**
+     * Source-level configuration (boundedness, source queue capacity).
+     * See {@link SourceConfig}.
+     */
+    public final SourceConfig config;
+
+    /**
      * The list of subjects
      */
     protected final List<String> subjects;
-
-    /**
-     * The size of the queue. Default/Minimum is 2.
-     */
-    protected final int sourceQueueCapacity;
 
     /**
      * The source converter
@@ -63,26 +65,26 @@ public class NatsSource<OutputT> implements
     /**
      * Construct the source
      *
+     * @param config            the source-level configuration
      * @param subjects          the subject
      * @param sourceConverter   the source converter
-     * @param sourceQueueCapacity     the source reader's element queue capacity
      * @param connectionFactory the connection factory
      */
-    protected NatsSource(List<String> subjects,
-                         int sourceQueueCapacity,
+    protected NatsSource(SourceConfig config,
+                         List<String> subjects,
                          SourceConverter<OutputT> sourceConverter,
                          ConnectionFactory connectionFactory)
     {
         id = generateId();
+        this.config = config;
         this.subjects = subjects;
-        this.sourceQueueCapacity = sourceQueueCapacity;
         this.sourceConverter = sourceConverter;
         this.connectionFactory = connectionFactory;
     }
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.CONTINUOUS_UNBOUNDED;
+        return config.boundedness;
     }
 
     /**
@@ -100,7 +102,7 @@ public class NatsSource<OutputT> implements
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        JsonUtils.addField(sb, SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
+        JsonUtils.addField(sb, SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
         JsonUtils.addStrings(sb, SUBJECTS, subjects);
         return endJson(sb).toString();
     }
@@ -112,7 +114,7 @@ public class NatsSource<OutputT> implements
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, sourceQueueCapacity);
+        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
         YamlUtils.addStrings(sb, 0, SUBJECTS, subjects);
         return sb.toString();
     }
@@ -148,7 +150,7 @@ public class NatsSource<OutputT> implements
 
     @Override
     public SourceReader<OutputT, NatsSubjectSplit> createReader(SourceReaderContext readerContext) throws Exception {
-        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext, sourceQueueCapacity);
+        return new NatsSourceReader<>(connectionFactory, sourceConverter, readerContext, config.sourceQueueCapacity);
     }
 
     @Override
@@ -164,5 +166,29 @@ public class NatsSource<OutputT> implements
             ", sourceConverter=" + sourceConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof NatsSource)) return false;
+
+        // id is intentionally excluded — it's a generated per-instance
+        // identifier; two structurally-equal sources should still compare
+        // equal even though their ids differ.
+        NatsSource<?> that = (NatsSource<?>) o;
+        return Objects.equals(config, that.config)
+            && subjects.equals(that.subjects)
+            && sourceConverter.getClass().equals(that.sourceConverter.getClass())
+            && Objects.equals(connectionFactory, that.connectionFactory);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(config);
+        result = 31 * result + subjects.hashCode();
+        result = 31 * result + Objects.hashCode(sourceConverter.getClass());
+        result = 31 * result + Objects.hashCode(connectionFactory);
+        return result;
     }
 }

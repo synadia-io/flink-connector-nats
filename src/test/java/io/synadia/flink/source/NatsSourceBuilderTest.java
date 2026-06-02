@@ -6,6 +6,7 @@ package io.synadia.flink.source;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.TestServerContext;
 import io.synadia.flink.message.Utf8StringSourceConverter;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -277,6 +278,84 @@ class NatsSourceBuilderTest extends TestBase {
             .build();
 
         assertNotNull(source, "Source with multiple subjects should not be null");
+    }
+
+    @Test
+    void testSourceQueueCapacity_roundTripsThroughJsonAndYaml() throws Exception {
+        String subject = subject();
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .subjects(subject)
+            .sourceConverter(new Utf8StringSourceConverter())
+            .sourceQueueCapacity(2048)
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .build();
+        assertEquals(2048, source.config.sourceQueueCapacity);
+
+        String jsonFile = writeToTempFile("nats", "json", source.toJson());
+        NatsSource<String> fromJson = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(jsonFile)
+            .build();
+        assertEquals(2048, fromJson.config.sourceQueueCapacity);
+
+        String yamlFile = writeToTempFile("nats", "yaml", source.toYaml());
+        NatsSource<String> fromYaml = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .yamlConfigFile(yamlFile)
+            .build();
+        assertEquals(2048, fromYaml.config.sourceQueueCapacity);
+
+        // A file with no source_queue_capacity falls back to the builder default.
+        String defaultJson = source.toJson().replaceAll(",\"source_queue_capacity\":\\d+", "");
+        String defaultJsonFile = writeToTempFile("nats-default", "json", defaultJson);
+        NatsSource<String> defaults = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(defaultJsonFile)
+            .build();
+        assertEquals(NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY,
+            defaults.config.sourceQueueCapacity);
+    }
+
+    @Test
+    void testSourceQueueCapacity_belowFlinkDefaultClamps() throws Exception {
+        int flinkDefault = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+
+        // Setter with a sub-floor value silently raises to Flink's default,
+        // doesn't throw.
+        NatsSource<String> low = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(flinkDefault - 1)
+            .build();
+        assertEquals(flinkDefault, low.config.sourceQueueCapacity);
+
+        NatsSource<String> zero = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(0)
+            .build();
+        assertEquals(flinkDefault, zero.config.sourceQueueCapacity);
+
+        NatsSource<String> negative = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(-1)
+            .build();
+        assertEquals(flinkDefault, negative.config.sourceQueueCapacity);
+
+        // A JSON file with a too-low source_queue_capacity also clamps.
+        String badJson = negative.toJson().replaceAll(
+            "\"source_queue_capacity\":-?\\d+",
+            "\"source_queue_capacity\":1");
+        String badJsonFile = writeToTempFile("nats-clamp", "json", badJson);
+        NatsSource<String> fromBadJson = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(badJsonFile)
+            .build();
+        assertEquals(flinkDefault, fromBadJson.config.sourceQueueCapacity);
     }
 
     @Test

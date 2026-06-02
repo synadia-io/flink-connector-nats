@@ -9,7 +9,6 @@ import io.synadia.flink.utils.ConnectionFactory;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.junit.jupiter.api.*;
 
@@ -178,7 +177,7 @@ class NatsSourceReaderTest extends TestBase {
             failingFactory,
             new Utf8StringSourceConverter(),
             mockReaderContext(),
-            -1
+            NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY
         )) {
             // Verify error propagation
             FlinkRuntimeException thrown = assertThrows(
@@ -221,7 +220,7 @@ class NatsSourceReaderTest extends TestBase {
             mock(ConnectionFactory.class),
             new Utf8StringSourceConverter(),
             mockReaderContext(),
-            -1
+            NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY
         )) {
             assertDoesNotThrow(() -> reader.handleSourceEvents(mock(SourceEvent.class)),
                 "Event handling should not throw exceptions");
@@ -244,7 +243,7 @@ class NatsSourceReaderTest extends TestBase {
             mock(ConnectionFactory.class),
             new Utf8StringSourceConverter(),
             mockReaderContext(),
-            -1
+            NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY
         )) {
             assertDoesNotThrow(reader::notifyNoMoreSplits,
                 "notifyNoMoreSplits should not throw exceptions");
@@ -265,16 +264,11 @@ class NatsSourceReaderTest extends TestBase {
             new ConnectionFactory(defaultConnectionProperties(url)),
             new Utf8StringSourceConverter(),
             context,
-            -1
+            NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY
         );
     }
 
-    // Mocks a SourceReaderContext with getConfiguration() stubbed to return an
-    // empty Configuration, so MiscUtils.figureCapacity() doesn't NPE on the
-    // reader's constructor path.
     private static SourceReaderContext mockReaderContext() {
-        SourceReaderContext ctx = mock(SourceReaderContext.class);
-        when(ctx.getConfiguration()).thenReturn(new Configuration());
-        return ctx;
+        return mock(SourceReaderContext.class);
     }
 }
