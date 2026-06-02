@@ -57,7 +57,7 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
 
     /**
      * Construct a JetStreamSourceReader
-     * @param config the source-level configuration (boundedness, queue capacity)
+     * @param config the source-level configuration
      * @param sourceConverter the source converter
      * @param connectionFactory the connection factory
      * @param readerContext the reader context
