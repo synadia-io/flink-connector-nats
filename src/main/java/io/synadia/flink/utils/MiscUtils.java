@@ -31,8 +31,8 @@ import java.util.zip.Checksum;
 @Internal
 public abstract class MiscUtils {
 
-    private static final String SEP = "--";
-    private static final String NULL_SEGMENT = "na";
+    public static final String SEP = "--";
+    public static final String NULL_SEGMENT = "na";
 
     private MiscUtils() {} /* ensures cannot be constructed */
 
