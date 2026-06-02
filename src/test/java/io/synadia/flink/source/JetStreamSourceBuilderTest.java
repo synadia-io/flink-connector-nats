@@ -130,6 +130,22 @@ class JetStreamSourceBuilderTest extends TestBase {
         }
     }
 
+    @Test
+    void testQueueCapacity_overflowsIntRangeThrows() {
+        // A single subject at Integer.MAX_VALUE batchSize contributes
+        // batchSize + max(1, batchSize * 25 / 100) ≈ 2.68 billion in long math,
+        // which exceeds Integer.MAX_VALUE — the range check after the
+        // accumulator should fire instead of silently wrapping to a negative.
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+            () -> new JetStreamSourceBuilder<String>()
+                .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+                .sourceConverter(new AsciiStringSourceConverter())
+                .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                    .streamName("S").subject("huge").batchSize(Integer.MAX_VALUE).build())
+                .build());
+        assertTrue(iae.getMessage().contains("exceeds Integer.MAX_VALUE"), iae.getMessage());
+    }
+
     private static void validateSourceFileConstruction(JetStreamSource<String> expected, JetStreamSource<String> actual) throws Exception {
         assertEquals(expected.config, actual.config);
         assertEquals(expected.config.boundedness, actual.getBoundedness());

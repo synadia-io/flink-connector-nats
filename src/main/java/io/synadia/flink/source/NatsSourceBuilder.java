@@ -124,7 +124,13 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
      */
     public NatsSource<OutputT> build() {
         beforeBuild();
-        SourceConfig config = new SourceConfig(Boundedness.CONTINUOUS_UNBOUNDED, sourceQueueCapacity);
+        // Re-apply the floor here so the contract holds regardless of how the
+        // field was set — e.g. the field initializer, a future default tweak,
+        // or any path that bypasses the setter.
+        int effectiveCapacity = Math.max(
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue(),
+            sourceQueueCapacity);
+        SourceConfig config = new SourceConfig(Boundedness.CONTINUOUS_UNBOUNDED, effectiveCapacity);
         return new NatsSource<>(config, subjects, sourceConverter, connectionFactory);
     }
 }

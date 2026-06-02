@@ -153,13 +153,16 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         }
 
         // Walk the subject configs once: verify boundedness is consistent and
-        // accumulate the source reader's queue capacity. Per subject the
-        // contribution is batchSize + max(1, batchSize * thresholdPercent / 100)
-        // — i.e. the size of the next pull JNats issues when the threshold is
-        // crossed, summed across subjects so each split has room for one
-        // in-flight pull plus what's still buffered when its re-pull fires.
+        // accumulate the source reader's queue capacity. Per-subject
+        // contribution is batchSize (the new pull just delivered) +
+        // max(1, batchSize * thresholdPercent / 100) (the messages still
+        // buffered when the re-pull was triggered) — the peak simultaneous
+        // queue depth for that subject. Summed across subjects so each split
+        // has room for its in-flight pull plus its still-buffered tail.
+        // Accumulator is long so a pathological mix of subjects can't silently
+        // wrap an int; we range-check before narrowing.
         Boundedness boundedness = null;
-        int queueCapacity = 0;
+        long queueCapacity = 0L;
         for (JetStreamSubjectConfiguration msc : configById.values()) {
             if (boundedness == null) {
                 boundedness = msc.boundedness;
@@ -168,11 +171,17 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
                 throw new IllegalArgumentException("All boundedness must be the same.");
             }
             ConsumeOptions co = msc.serializableConsumeOptions.getConsumeOptions();
-            int batchSize = co.getBatchSize();
-            queueCapacity += batchSize + Math.max(1, batchSize * co.getThresholdPercent() / 100);
+            long batchSize = co.getBatchSize();
+            queueCapacity += batchSize + Math.max(1L, batchSize * co.getThresholdPercent() / 100);
         }
 
-        SourceConfig config = new SourceConfig(boundedness, queueCapacity);
+        if (queueCapacity > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                "Computed source queue capacity " + queueCapacity
+                    + " exceeds Integer.MAX_VALUE; reduce the per-subject batchSize / thresholdPercent.");
+        }
+
+        SourceConfig config = new SourceConfig(boundedness, (int) queueCapacity);
         return new JetStreamSource<>(config, configById, sourceConverter, connectionFactory);
     }
 }
