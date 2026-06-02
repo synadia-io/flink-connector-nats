@@ -320,6 +320,9 @@ public class JetStreamSourceReader<OutputT> implements SourceReader<OutputT, Jet
             }
         }
         finally {
+            // Shut the scheduler down so the cached thread pool doesn't keep
+            // ack-publish tasks alive after the reader is closed.
+            scheduler.shutdownNow();
             _readerIsClosed = true;
             _connectionContext = null;
             connectionLock.unlock();

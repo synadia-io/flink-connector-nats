@@ -153,11 +153,12 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         }
 
         // Walk the subject configs once: verify boundedness is consistent and
-        // accumulate the source reader's queue capacity. Per subject the
-        // contribution is batchSize + max(1, batchSize * thresholdPercent / 100)
-        // — i.e. the size of the next pull JNats issues when the threshold is
-        // crossed, summed across subjects so each split has room for one
-        // in-flight pull plus what's still buffered when its re-pull fires.
+        // accumulate the source reader's queue capacity. Per-subject
+        // contribution is batchSize (the new pull just delivered) +
+        // max(1, batchSize * thresholdPercent / 100) (the messages still
+        // buffered when the re-pull was triggered) — the peak simultaneous
+        // queue depth for that subject. Summed across subjects so each split
+        // has room for its in-flight pull plus its still-buffered tail.
         // Accumulator is long so a pathological mix of subjects can't silently
         // wrap an int; we range-check before narrowing.
         Boundedness boundedness = null;
