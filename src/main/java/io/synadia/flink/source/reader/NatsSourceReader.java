@@ -90,7 +90,12 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
             return InputStatus.NOTHING_AVAILABLE;
         }
         output.collect(sourceConverter.convert(m));
-        return queue.isEmpty() ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
+
+        // 1. This just is faster than checking the queue size as the queue size check locks
+        // 2. It might give false positives, but that's fine
+        return queue.getAvailabilityFuture() == FutureCompletingBlockingQueue.AVAILABLE
+            ? InputStatus.MORE_AVAILABLE
+            : InputStatus.NOTHING_AVAILABLE;
     }
 
     @Override
