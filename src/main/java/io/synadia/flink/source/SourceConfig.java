@@ -14,8 +14,10 @@ import java.util.Objects;
  *
  * <p>Bundle of source-level configuration shared between the source classes
  * ({@link NatsSource}, {@link JetStreamSource}) and their readers. Fields are
- * {@code public final} — accessed both within {@code io.synadia.flink.source}
- * and from the {@code source.reader} package.</p>
+ * {@code public final} — intentionally exposed as a lightweight struct so
+ * readers in {@code source.reader} can access them directly without getters.
+ * Do not "fix" this into private fields with accessors; that just adds
+ * boilerplate to an {@code @Internal} data carrier.</p>
  *
  * <p>{@code Serializable} because Flink serializes the source instance (which
  * holds a reference to this) when shipping it to the cluster.</p>

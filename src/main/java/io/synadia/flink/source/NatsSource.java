@@ -20,6 +20,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -165,5 +166,29 @@ public class NatsSource<OutputT> implements
             ", sourceConverter=" + sourceConverter.getClass().getCanonicalName() +
             ", connectionFactory=" + connectionFactory +
             '}';
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof NatsSource)) return false;
+
+        // id is intentionally excluded — it's a generated per-instance
+        // identifier; two structurally-equal sources should still compare
+        // equal even though their ids differ.
+        NatsSource<?> that = (NatsSource<?>) o;
+        return Objects.equals(config, that.config)
+            && subjects.equals(that.subjects)
+            && sourceConverter.getClass().equals(that.sourceConverter.getClass())
+            && Objects.equals(connectionFactory, that.connectionFactory);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hashCode(config);
+        result = 31 * result + subjects.hashCode();
+        result = 31 * result + Objects.hashCode(sourceConverter.getClass());
+        result = 31 * result + Objects.hashCode(connectionFactory);
+        return result;
     }
 }
