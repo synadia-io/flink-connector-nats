@@ -9,6 +9,7 @@ import io.synadia.flink.message.SourceConverter;
 import io.synadia.flink.utils.BuilderBase;
 import io.synadia.flink.utils.YamlUtils;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,18 +24,12 @@ import static io.synadia.flink.utils.Constants.SOURCE_QUEUE_CAPACITY;
 public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceBuilder<OutputT>> {
 
     /**
-     * Default element queue capacity for the source reader. The NATS dispatcher
-     * pushes messages with no flow control on our side, so size generously
-     * rather than at Flink's ELEMENT_QUEUE_CAPACITY default of 2.
+     * Default element queue capacity for the source reader. Modest — the NATS
+     * dispatcher pushes with no flow control, but most workloads drain fast
+     * enough that a large buffer is wasted memory; users who need more can set
+     * it via {@link #sourceQueueCapacity(int)}.
      */
-    public static final int DEFAULT_SOURCE_QUEUE_CAPACITY = 1024;
-
-    /**
-     * Minimum accepted source queue capacity. Below this the NATS dispatcher
-     * is liable to block its own thread on {@code queue.put} during brief
-     * consumer slowdowns, since it has no flow control.
-     */
-    public static final int MIN_SOURCE_QUEUE_CAPACITY = 32;
+    public static final int DEFAULT_SOURCE_QUEUE_CAPACITY = 100;
 
     private int sourceQueueCapacity = DEFAULT_SOURCE_QUEUE_CAPACITY;
 
@@ -110,21 +105,16 @@ public class NatsSourceBuilder<OutputT> extends BuilderBase<OutputT, NatsSourceB
 
     /**
      * Set the source reader's element queue capacity. Defaults to
-     * {@link #DEFAULT_SOURCE_QUEUE_CAPACITY}; the NATS dispatcher pushes with
-     * no flow control, so size generously. Must be at least
-     * {@link #MIN_SOURCE_QUEUE_CAPACITY}.
+     * {@link #DEFAULT_SOURCE_QUEUE_CAPACITY}. Values below Flink's
+     * {@code SourceReaderOptions.ELEMENT_QUEUE_CAPACITY} default are silently
+     * raised to it — the setter doesn't throw.
      * @param sourceQueueCapacity the element queue capacity
      * @return the builder
-     * @throws IllegalArgumentException if {@code sourceQueueCapacity} is below
-     *     {@link #MIN_SOURCE_QUEUE_CAPACITY}
      */
     public NatsSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
-        if (sourceQueueCapacity < MIN_SOURCE_QUEUE_CAPACITY) {
-            throw new IllegalArgumentException(
-                "sourceQueueCapacity must be >= " + MIN_SOURCE_QUEUE_CAPACITY
-                    + " (got " + sourceQueueCapacity + ")");
-        }
-        this.sourceQueueCapacity = sourceQueueCapacity;
+        this.sourceQueueCapacity = Math.max(
+            SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue(),
+            sourceQueueCapacity);
         return this;
     }
 

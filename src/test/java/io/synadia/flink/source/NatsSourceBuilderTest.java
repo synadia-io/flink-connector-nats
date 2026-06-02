@@ -6,6 +6,7 @@ package io.synadia.flink.source;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.TestServerContext;
 import io.synadia.flink.message.Utf8StringSourceConverter;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -316,35 +317,45 @@ class NatsSourceBuilderTest extends TestBase {
     }
 
     @Test
-    void testSourceQueueCapacity_belowMinimumThrows() throws Exception {
-        NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
+    void testSourceQueueCapacity_belowFlinkDefaultClamps() throws Exception {
+        int flinkDefault = SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue();
+
+        // Setter with a sub-floor value silently raises to Flink's default,
+        // doesn't throw.
+        NatsSource<String> low = new NatsSourceBuilder<String>()
             .subjects(subject())
             .sourceConverter(new Utf8StringSourceConverter())
-            .connectionProperties(defaultConnectionProperties(ctx.url));
-
-        // Directly via the setter.
-        assertThrows(IllegalArgumentException.class,
-            () -> builder.sourceQueueCapacity(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY - 1));
-        assertThrows(IllegalArgumentException.class,
-            () -> builder.sourceQueueCapacity(0));
-        assertThrows(IllegalArgumentException.class,
-            () -> builder.sourceQueueCapacity(-1));
-
-        // Exactly at the minimum is fine.
-        NatsSource<String> source = builder
-            .sourceQueueCapacity(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY)
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(flinkDefault - 1)
             .build();
-        assertEquals(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY, source.config.sourceQueueCapacity);
+        assertEquals(flinkDefault, low.config.sourceQueueCapacity);
 
-        // A JSON file with a too-low source_queue_capacity also throws.
-        String badJson = source.toJson().replaceAll(
-            "\"source_queue_capacity\":\\d+",
+        NatsSource<String> zero = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(0)
+            .build();
+        assertEquals(flinkDefault, zero.config.sourceQueueCapacity);
+
+        NatsSource<String> negative = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .sourceQueueCapacity(-1)
+            .build();
+        assertEquals(flinkDefault, negative.config.sourceQueueCapacity);
+
+        // A JSON file with a too-low source_queue_capacity also clamps.
+        String badJson = negative.toJson().replaceAll(
+            "\"source_queue_capacity\":-?\\d+",
             "\"source_queue_capacity\":1");
-        String badJsonFile = writeToTempFile("nats-bad", "json", badJson);
-        assertThrows(IllegalArgumentException.class,
-            () -> new NatsSourceBuilder<String>()
-                .connectionProperties(defaultConnectionProperties(ctx.url))
-                .jsonConfigFile(badJsonFile));
+        String badJsonFile = writeToTempFile("nats-clamp", "json", badJson);
+        NatsSource<String> fromBadJson = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(badJsonFile)
+            .build();
+        assertEquals(flinkDefault, fromBadJson.config.sourceQueueCapacity);
     }
 
     @Test
