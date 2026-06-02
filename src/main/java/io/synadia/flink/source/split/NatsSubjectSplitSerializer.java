@@ -46,11 +46,11 @@ public class NatsSubjectSplitSerializer implements SimpleVersionedSerializer<Nat
     }
 
     public static void serializeV2(DataOutputView out, NatsSubjectSplit split) throws IOException {
-        if (split.splitId() == null) {
+        String id = split.splitId();
+        if (id == null) {
             throw new IOException("Split ID cannot be null");
         }
-
-        out.writeUTF(split.splitId());
+        out.writeUTF(id);   // use cached value
         out.writeInt(split.getCurrentMessages().size());
         for (Message message : split.getCurrentMessages()) {
             serializeNatsMessage(out, message);
