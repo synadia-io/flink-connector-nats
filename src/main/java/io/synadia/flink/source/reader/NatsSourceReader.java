@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.synadia.flink.utils.MiscUtils.figureCapacity;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -36,12 +35,18 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
     private final SourceConverter<OutputT> sourceConverter;
     private final List<NatsSubjectSplit> subbedSplits;
     private final FutureCompletingBlockingQueue<Message> queue;
-    private final int queueCapacity;
     private final ReentrantLock connectionLock;
 
     private Connection _connection;
     private Dispatcher dispatcher;
 
+    /**
+     * Construct the Nats Source Reader
+     * @param connectionFactory   the connection factory
+     * @param sourceConverter     the source converter
+     * @param readerContext       the context
+     * @param sourceQueueCapacity the element queue capacity
+     */
     public NatsSourceReader(ConnectionFactory connectionFactory,
                             SourceConverter<OutputT> sourceConverter,
                             SourceReaderContext readerContext,
@@ -50,17 +55,8 @@ public class NatsSourceReader<OutputT> implements SourceReader<OutputT, NatsSubj
         this.connectionFactory = connectionFactory;
         this.sourceConverter = sourceConverter;
         this.subbedSplits = new ArrayList<>();
-        this.queueCapacity = figureCapacity(readerContext, sourceQueueCapacity);
-        this.queue = new FutureCompletingBlockingQueue<>(queueCapacity);
+        this.queue = new FutureCompletingBlockingQueue<>(sourceQueueCapacity);
         this.connectionLock = new ReentrantLock();
-    }
-
-    /**
-     * The size the element queue was constructed with. Exposed for tests and
-     * diagnostics; the reader is {@link Internal @Internal}.
-     */
-    public int getQueueCapacity() {
-        return queueCapacity;
     }
 
     @Override

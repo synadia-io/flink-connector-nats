@@ -19,7 +19,8 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.util.*;
 
-import static io.synadia.flink.utils.Constants.*;
+import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
+import static io.synadia.flink.utils.Constants.SOURCE_CONVERTER_CLASS_NAME;
 import static io.synadia.flink.utils.MiscUtils.getClassName;
 
 /**
@@ -30,12 +31,35 @@ public class JetStreamSource<OutputT> implements
     Source<OutputT, JetStreamSplit, Collection<JetStreamSplit>>,
     ResultTypeQueryable<OutputT>
 {
-    public final JetStreamSourceConfig config;
+    /**
+     * Source-level configuration (boundedness, source queue capacity).
+     * See {@link SourceConfig}.
+     */
+    public final SourceConfig config;
+
+    /**
+     * the config by id map
+     */
     public final Map<String, JetStreamSubjectConfiguration> configById;
+
+    /**
+     * the source converter
+     */
     public final SourceConverter<OutputT> sourceConverter;
+
+    /**
+     * the connection factory
+     */
     public final ConnectionFactory connectionFactory;
 
-    JetStreamSource(JetStreamSourceConfig config,
+    /**
+     * Construct a JetStreamSource
+     * @param config the source-level configuration
+     * @param configById the config by id map
+     * @param sourceConverter the source converter
+     * @param connectionFactory the connection factory
+     */
+    JetStreamSource(SourceConfig config,
                     Map<String, JetStreamSubjectConfiguration> configById,
                     SourceConverter<OutputT> sourceConverter,
                     ConnectionFactory connectionFactory)
@@ -99,6 +123,10 @@ public class JetStreamSource<OutputT> implements
             '}';
     }
 
+    /**
+     * Get the JSON representation of the source
+     * @return the JSON
+     */
     public String toJson() {
         JsonValueUtils.ArrayBuilder ba = JsonValueUtils.arrayBuilder();
         for (String id : configById.keySet()) {
@@ -107,16 +135,16 @@ public class JetStreamSource<OutputT> implements
         JsonValueUtils.MapBuilder bm = JsonValueUtils.mapBuilder();
         bm.put(SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
         bm.put(JETSTREAM_SUBJECT_CONFIGURATIONS, ba.jv);
-        bm.put(SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
-        bm.put(CONSUMER_STRATEGY, config.consumerStrategy.toString());
         return bm.jv.toJson();
     }
 
+    /**
+     * Get the YAML representation of the source
+     * @return the YAML
+     */
     public String toYaml() {
         StringBuilder sb = YamlUtils.beginYaml();
         YamlUtils.addField(sb, 0, SOURCE_CONVERTER_CLASS_NAME, getClassName(sourceConverter));
-        YamlUtils.addField(sb, 0, SOURCE_QUEUE_CAPACITY, config.sourceQueueCapacity);
-        YamlUtils.addField(sb, 0, CONSUMER_STRATEGY, config.consumerStrategy.toString());
         YamlUtils.addField(sb, 0, JETSTREAM_SUBJECT_CONFIGURATIONS);
         for (String id : configById.keySet()) {
             sb.append(configById.get(id).toYaml(1));

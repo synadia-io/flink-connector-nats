@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.BaseConsumeOptions;
 import io.nats.client.support.DateTimeUtils;
 import io.synadia.flink.TestBase;
 import io.synadia.flink.message.AsciiStringSourceConverter;
@@ -197,58 +198,37 @@ class JetStreamSourceBuilderTest extends TestBase {
     }
 
     @Test
-    void testNonDefaultConfigRoundTrip() throws Exception {
-        // Builder with explicit non-default sourceQueueCapacity and consumerStrategy.
+    void testQueueCapacity_sumsBatchPlusRePullPerSubject() throws Exception {
+        // Two subjects at jnats defaults (batchSize=500, threshold=25%):
+        // per-subject contribution is 500 + max(1, 500*25/100) = 500 + 125 = 625.
+        int defaultPer = BaseConsumeOptions.DEFAULT_MESSAGE_COUNT
+            + Math.max(1, BaseConsumeOptions.DEFAULT_MESSAGE_COUNT
+                * BaseConsumeOptions.DEFAULT_THRESHOLD_PERCENT / 100);
+
         JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
             .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
             .sourceConverter(new AsciiStringSourceConverter())
-            .sourceQueueCapacity(64)
-            .consumerStrategy(ConsumerStrategy.Dispatched)
-            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
-                .streamName("S").subject("Sub").build())
+            .addSubjectConfigurations(
+                JetStreamSubjectConfiguration.builder().streamName("S").subject("a").build(),
+                JetStreamSubjectConfiguration.builder().streamName("S").subject("b").build())
             .build();
-        assertEquals(64, source.config.sourceQueueCapacity);
-        assertEquals(ConsumerStrategy.Dispatched, source.config.consumerStrategy);
-
-        // Round-trip via JSON.
-        String jsonFile = writeToTempFile("JetStreamSource", ".json", source.toJson());
-        JetStreamSource<String> fromJson = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .jsonConfigFile(jsonFile)
-            .build();
-        assertEquals(source.config, fromJson.config);
-
-        // Round-trip via YAML.
-        String yamlFile = writeToTempFile("JetStreamSource", ".yaml", source.toYaml());
-        JetStreamSource<String> fromYaml = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .yamlConfigFile(yamlFile)
-            .build();
-        assertEquals(source.config, fromYaml.config);
-
-        // Builder defaults: not setting either yields a -1 / Polled config.
-        JetStreamSource<String> defaults = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceConverter(new AsciiStringSourceConverter())
-            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
-                .streamName("S").subject("Sub").build())
-            .build();
-        assertEquals(-1, defaults.config.sourceQueueCapacity);
-        assertEquals(ConsumerStrategy.Polled, defaults.config.consumerStrategy);
-
-        // null → Polled normalization on the setter.
-        JetStreamSource<String> nulled = new JetStreamSourceBuilder<String>()
-            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
-            .sourceConverter(new AsciiStringSourceConverter())
-            .consumerStrategy(null)
-            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
-                .streamName("S").subject("Sub").build())
-            .build();
-        assertEquals(ConsumerStrategy.Polled, nulled.config.consumerStrategy);
+        assertEquals(2 * defaultPer, source.config.sourceQueueCapacity);
     }
 
     @Test
-    void testConstructionErrors() throws Exception {
+    void testQueueCapacity_rePullFloorsAtOne() throws Exception {
+        // batchSize=1 with default threshold yields rePull = max(1, 0) = 1.
+        JetStreamSource<String> source = new JetStreamSourceBuilder<String>()
+            .connectionPropertiesFile(TEST_CONNECTION_PROPERTIES_FILE)
+            .sourceConverter(new AsciiStringSourceConverter())
+            .addSubjectConfigurations(JetStreamSubjectConfiguration.builder()
+                .streamName("S").subject("one").batchSize(1).build())
+            .build();
+        assertEquals(2, source.config.sourceQueueCapacity);
+    }
+
+    @Test
+    void testConstructionErrors() {
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
             () -> new JetStreamSourceBuilder<String>()
                 .build());

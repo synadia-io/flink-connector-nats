@@ -54,7 +54,7 @@ class NatsSourceBuilderTest extends TestBase {
      * ```
      */
     @Test
-    void testBuildWithMinimumRequiredSettings() throws Exception {
+    void testBuildWithMinimumRequiredSettings() {
         String subject = subject();
 
         NatsSource<String> source = new NatsSourceBuilder<String>()
@@ -277,6 +277,74 @@ class NatsSourceBuilderTest extends TestBase {
             .build();
 
         assertNotNull(source, "Source with multiple subjects should not be null");
+    }
+
+    @Test
+    void testSourceQueueCapacity_roundTripsThroughJsonAndYaml() throws Exception {
+        String subject = subject();
+        NatsSource<String> source = new NatsSourceBuilder<String>()
+            .subjects(subject)
+            .sourceConverter(new Utf8StringSourceConverter())
+            .sourceQueueCapacity(2048)
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .build();
+        assertEquals(2048, source.config.sourceQueueCapacity);
+
+        String jsonFile = writeToTempFile("nats", "json", source.toJson());
+        NatsSource<String> fromJson = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(jsonFile)
+            .build();
+        assertEquals(2048, fromJson.config.sourceQueueCapacity);
+
+        String yamlFile = writeToTempFile("nats", "yaml", source.toYaml());
+        NatsSource<String> fromYaml = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .yamlConfigFile(yamlFile)
+            .build();
+        assertEquals(2048, fromYaml.config.sourceQueueCapacity);
+
+        // A file with no source_queue_capacity falls back to the builder default.
+        String defaultJson = source.toJson().replaceAll(",\"source_queue_capacity\":\\d+", "");
+        String defaultJsonFile = writeToTempFile("nats-default", "json", defaultJson);
+        NatsSource<String> defaults = new NatsSourceBuilder<String>()
+            .connectionProperties(defaultConnectionProperties(ctx.url))
+            .jsonConfigFile(defaultJsonFile)
+            .build();
+        assertEquals(NatsSourceBuilder.DEFAULT_SOURCE_QUEUE_CAPACITY,
+            defaults.config.sourceQueueCapacity);
+    }
+
+    @Test
+    void testSourceQueueCapacity_belowMinimumThrows() throws Exception {
+        NatsSourceBuilder<String> builder = new NatsSourceBuilder<String>()
+            .subjects(subject())
+            .sourceConverter(new Utf8StringSourceConverter())
+            .connectionProperties(defaultConnectionProperties(ctx.url));
+
+        // Directly via the setter.
+        assertThrows(IllegalArgumentException.class,
+            () -> builder.sourceQueueCapacity(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY - 1));
+        assertThrows(IllegalArgumentException.class,
+            () -> builder.sourceQueueCapacity(0));
+        assertThrows(IllegalArgumentException.class,
+            () -> builder.sourceQueueCapacity(-1));
+
+        // Exactly at the minimum is fine.
+        NatsSource<String> source = builder
+            .sourceQueueCapacity(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY)
+            .build();
+        assertEquals(NatsSourceBuilder.MIN_SOURCE_QUEUE_CAPACITY, source.config.sourceQueueCapacity);
+
+        // A JSON file with a too-low source_queue_capacity also throws.
+        String badJson = source.toJson().replaceAll(
+            "\"source_queue_capacity\":\\d+",
+            "\"source_queue_capacity\":1");
+        String badJsonFile = writeToTempFile("nats-bad", "json", badJson);
+        assertThrows(IllegalArgumentException.class,
+            () -> new NatsSourceBuilder<String>()
+                .connectionProperties(defaultConnectionProperties(ctx.url))
+                .jsonConfigFile(badJsonFile));
     }
 
     @Test

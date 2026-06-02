@@ -3,6 +3,7 @@
 
 package io.synadia.flink.source;
 
+import io.nats.client.ConsumeOptions;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SourceConverter;
@@ -15,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.synadia.flink.utils.Constants.CONSUMER_STRATEGY;
 import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
 
 /**
@@ -24,7 +24,6 @@ import static io.synadia.flink.utils.Constants.JETSTREAM_SUBJECT_CONFIGURATIONS;
  */
 public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStreamSourceBuilder<OutputT>> {
     private final Map<String, JetStreamSubjectConfiguration> configById = new HashMap<>();
-    private ConsumerStrategy consumerStrategy = ConsumerStrategy.Polled;
 
     /**
      * Construct a new JetStreamSourceBuilder instance
@@ -52,10 +51,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromJsonValue(config));
             }
         }
-        ConsumerStrategy cs = ConsumerStrategy.get(JsonValueUtils.readString(jv, CONSUMER_STRATEGY, null));
-        if (cs != null) {
-            consumerStrategy(cs);
-        }
         return this;
     }
 
@@ -72,10 +67,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             for (Map<String, Object> config : mapConfigs) {
                 addSubjectConfigurations(JetStreamSubjectConfiguration.fromMap(config));
             }
-        }
-        ConsumerStrategy cs = ConsumerStrategy.get(YamlUtils.readString(map, CONSUMER_STRATEGY, null));
-        if (cs != null) {
-            consumerStrategy(cs);
         }
         return this;
     }
@@ -96,28 +87,6 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
      */
     public JetStreamSourceBuilder<OutputT> sourceConverterClass(String sourceConverterClass) {
         return _sourceConverterClass(sourceConverterClass);
-    }
-
-    /**
-     * Set the source reader's element queue capacity. The reader floors the
-     * value at Flink's ELEMENT_QUEUE_CAPACITY (configured or compile-time
-     * default), so anything below that (-1 is conventional) yields the default.
-     * @param sourceQueueCapacity the element queue capacity
-     * @return The Builder
-     */
-    public JetStreamSourceBuilder<OutputT> sourceQueueCapacity(int sourceQueueCapacity) {
-        return _sourceQueueCapacity(sourceQueueCapacity);
-    }
-
-    /**
-     * Set the consumer strategy. Defaults to {@link ConsumerStrategy#Polled}.
-     * A null argument is treated as the default.
-     * @param consumerStrategy the consumer strategy
-     * @return the builder
-     */
-    public JetStreamSourceBuilder<OutputT> consumerStrategy(ConsumerStrategy consumerStrategy) {
-        this.consumerStrategy = consumerStrategy == null ? ConsumerStrategy.Polled : consumerStrategy;
-        return this;
     }
 
     /**
@@ -183,9 +152,14 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             throw new IllegalArgumentException("At least 1 managed subject configuration is required.");
         }
 
-        // check all the consume options of all the subject configs to
-        // make sure they are the same boundedness if they are supplied
+        // Walk the subject configs once: verify boundedness is consistent and
+        // accumulate the source reader's queue capacity. Per subject the
+        // contribution is batchSize + max(1, batchSize * thresholdPercent / 100)
+        // — i.e. the size of the next pull JNats issues when the threshold is
+        // crossed, summed across subjects so each split has room for one
+        // in-flight pull plus what's still buffered when its re-pull fires.
         Boundedness boundedness = null;
+        int queueCapacity = 0;
         for (JetStreamSubjectConfiguration msc : configById.values()) {
             if (boundedness == null) {
                 boundedness = msc.boundedness;
@@ -193,9 +167,12 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             else if (boundedness != msc.boundedness) {
                 throw new IllegalArgumentException("All boundedness must be the same.");
             }
+            ConsumeOptions co = msc.serializableConsumeOptions.getConsumeOptions();
+            int batchSize = co.getBatchSize();
+            queueCapacity += batchSize + Math.max(1, batchSize * co.getThresholdPercent() / 100);
         }
 
-        JetStreamSourceConfig config = new JetStreamSourceConfig(boundedness, sourceQueueCapacity, consumerStrategy);
+        SourceConfig config = new SourceConfig(boundedness, queueCapacity);
         return new JetStreamSource<>(config, configById, sourceConverter, connectionFactory);
     }
 }
