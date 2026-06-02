@@ -6,6 +6,7 @@ package io.synadia.flink.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.Boundedness;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -15,9 +16,14 @@ import java.util.Objects;
  * ({@link NatsSource}, {@link JetStreamSource}) and their readers. Fields are
  * {@code public final} — accessed both within {@code io.synadia.flink.source}
  * and from the {@code source.reader} package.</p>
+ *
+ * <p>{@code Serializable} because Flink serializes the source instance (which
+ * holds a reference to this) when shipping it to the cluster.</p>
  */
 @Internal
-public class SourceConfig {
+public class SourceConfig implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     /** Boundedness of the source. */
     public final Boundedness boundedness;
 
