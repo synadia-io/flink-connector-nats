@@ -14,6 +14,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Needed to push the release tag back to the repo using the default token.
+    permissions:
+      contents: write
     env:
       BUILD_EVENT: 'release'
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -49,10 +52,40 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: V2-Main
+      - name: Read release version
+        id: version
+        run: |
+          # Pull `def jarVersion = "X.Y.Z"` out of build.gradle and expose it as
+          # a step output for the tag step below.
+          VERSION=$(grep -E '^def jarVersion' build.gradle | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not parse jarVersion from build.gradle"
+            exit 1
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION"
+      - name: Fail if tag already exists
+        run: |
+          # Refuse to publish over an existing tag (forgot to bump jarVersion,
+          # or accidentally clicked Run twice).
+          VERSION='${{ steps.version.outputs.value }}'
+          if git ls-remote --tags --exit-code origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists on origin. Bump jarVersion in build.gradle on V2-Main before re-running."
+            exit 1
+          fi
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test
       - name: Verify, Sign and Publish Release
         run: ./gradlew -i signArchives signMavenJavaPublication publishToSonatype closeAndReleaseSonatypeStagingRepository
+      - name: Tag V2-Main with the release version
+        run: |
+          # Publish succeeded — tag the V2-Main commit we just built and push.
+          # Using an annotated tag so the release carries author/date metadata.
+          VERSION='${{ steps.version.outputs.value }}'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
       - name: Clean up
         if: always()
         run: pkill -9 nats-server 2>/dev/null || true
