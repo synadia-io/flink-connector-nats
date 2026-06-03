@@ -1,4 +1,4 @@
-name: Build a V2 Snapshot
+name: Build a V2 Main (Snapshot)
 
 # SNAPSHOT build for the V2 maintenance line. Always builds V2-Main.
 # Runs automatically on every push to V2-Main (e.g. when a V2-* feature branch
