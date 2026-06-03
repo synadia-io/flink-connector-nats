@@ -34,11 +34,8 @@ public class NatsSubjectCheckpointSerializer implements SimpleVersionedSerialize
     public byte[] serialize(Collection<NatsSubjectSplit> splits) throws IOException {
         int startSize = 4; // account for first value number of splits
         for (NatsSubjectSplit split : splits) {
-            String id = split.splitId();
-            if (id == null) {
-                throw new IOException("Split ID cannot be null");
-            }
-            startSize += id.length();
+            // splitId is a subject and is NEVER null
+            startSize += split.splitId().length();
         }
         final DataOutputSerializer out = new DataOutputSerializer(startSize);
         out.writeInt(splits.size());
