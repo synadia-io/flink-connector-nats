@@ -99,7 +99,14 @@ public class ConnectionFactory implements Serializable {
     static final String PFX = "io.nats.client.";
     static final int PFX_LEN = PFX.length();
 
-    private static String getPropertyValue(Properties props, String key) {
+    /**
+     * Look up a property tolerating the duality of jnats key conventions:
+     * with the {@code io.nats.client.} prefix or without, and with dots or
+     * underscores. Package-private so tests can exercise the non-prefix /
+     * underscore-substitution branches directly — the only internal caller
+     * ({@link #getOptions(Properties)}) always passes the prefixed form.
+     */
+    static String getPropertyValue(Properties props, String key) {
         String value = emptyAsNull(props.getProperty(key));
         if (value != null) {
             return value;

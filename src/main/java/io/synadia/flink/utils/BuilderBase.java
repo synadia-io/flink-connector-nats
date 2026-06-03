@@ -244,7 +244,17 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      */
     protected JsonValue _jsonConfigFile(String jsonFilePath) throws IOException {
         JsonValue jv = JsonParser.parse(readAllBytes(jsonFilePath));
-        _config(new ConfigurationAdapter() {
+        _config(jsonAdapter(jv));
+        return jv;
+    }
+
+    /**
+     * Build a {@link ConfigurationAdapter} backed by a parsed JSON value.
+     * Package-private so tests can exercise the adapter directly (including
+     * {@code getInt}, which {@link #_config} doesn't currently call).
+     */
+    static ConfigurationAdapter jsonAdapter(final JsonValue jv) {
+        return new ConfigurationAdapter() {
             @Override
             public List<String> getList(String key) {
                 return JsonValueUtils.readStringList(jv, key);
@@ -259,8 +269,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             public int getInt(String key, int defaultValue) {
                 return JsonValueUtils.readInteger(jv, key, defaultValue);
             }
-        });
-        return jv;
+        };
     }
 
     /**
@@ -271,7 +280,17 @@ public abstract class BuilderBase<SerialT, BuilderT> {
      */
     protected Map<String, Object> _yamlConfigFile(String yamlFilePath) throws IOException {
         Map<String, Object> map = new Yaml().load(getInputStream(yamlFilePath));
-        _config(new ConfigurationAdapter() {
+        _config(yamlAdapter(map));
+        return map;
+    }
+
+    /**
+     * Build a {@link ConfigurationAdapter} backed by a parsed YAML map.
+     * Package-private so tests can exercise the adapter directly (including
+     * {@code getInt}, which {@link #_config} doesn't currently call).
+     */
+    static ConfigurationAdapter yamlAdapter(final Map<String, Object> map) {
+        return new ConfigurationAdapter() {
             @Override
             public List<String> getList(String key) {
                 return YamlUtils.readArrayAsStrings(map, key);
@@ -286,8 +305,7 @@ public abstract class BuilderBase<SerialT, BuilderT> {
             public int getInt(String key, int defaultValue) {
                 return YamlUtils.readInteger(map, key, defaultValue);
             }
-        });
-        return map;
+        };
     }
 
     /**

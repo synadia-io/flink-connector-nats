@@ -281,6 +281,46 @@ class ConnectionFactoryTest extends TestBase {
     }
 
     /**
+     * Direct coverage for {@link ConnectionFactory#getPropertyValue}, which
+     * handles the jnats key duality (prefixed / non-prefixed / underscore /
+     * dot). The only internal caller passes a prefixed key, so these branches
+     * are exercised directly.
+     */
+    @Test
+    void testGetPropertyValue_duality() {
+        // 1. Direct hit on the exact key.
+        Properties direct = new Properties();
+        direct.setProperty("foo", "v1");
+        assertEquals("v1", ConnectionFactory.getPropertyValue(direct, "foo"));
+
+        // 2. Prefixed lookup-key, value stored under the non-prefixed form.
+        Properties pfxAsks = new Properties();
+        pfxAsks.setProperty("reconnect.max", "3");
+        assertEquals("3", ConnectionFactory.getPropertyValue(pfxAsks, "io.nats.client.reconnect.max"));
+
+        // 3. Non-prefixed lookup-key, value stored under the prefixed form.
+        //    Exercises the "value = props.getProperty(PFX + key)" branch.
+        Properties pfxStored = new Properties();
+        pfxStored.setProperty("io.nats.client.reconnect.max", "5");
+        assertEquals("5", ConnectionFactory.getPropertyValue(pfxStored, "reconnect.max"));
+
+        // 4. Non-prefixed lookup-key with underscore, value stored with dots
+        //    under the prefixed form. Exercises the underscore→dot recursion.
+        Properties underscore = new Properties();
+        underscore.setProperty("io.nats.client.reconnect.max", "7");
+        assertEquals("7", ConnectionFactory.getPropertyValue(underscore, "reconnect_max"));
+
+        // 5. Non-prefixed lookup-key without underscore, not found anywhere —
+        //    exercises the final fall-through "return value" (null).
+        Properties empty = new Properties();
+        assertNull(ConnectionFactory.getPropertyValue(empty, "missing"));
+
+        // 6. Non-prefixed lookup-key with underscore, not found even after
+        //    underscore→dot recursion — exercises the recursive null path.
+        assertNull(ConnectionFactory.getPropertyValue(empty, "still_missing"));
+    }
+
+    /**
      * Tests error handling when the Properties file is malformed.
      * Verifies that:
      * 1. IOException is thrown for malformed properties

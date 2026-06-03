@@ -35,6 +35,9 @@ public class NatsSubjectSplit implements SourceSplit {
      * @param currentMessages the messages that are currently part of the split
      */
     public NatsSubjectSplit(String subject, List<Message> currentMessages){
+        if (subject == null) {
+            throw new IllegalArgumentException("Subject cannot be null");
+        }
         this.subject = subject;
 
         // Synchronization is required because record emission and snapshotState occur on different threads.
