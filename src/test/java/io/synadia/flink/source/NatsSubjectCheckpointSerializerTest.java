@@ -97,9 +97,8 @@ class NatsSubjectCheckpointSerializerTest {
     }
 
     @Test
-    void serialize_nullSplitIdThrows() {
-        Collection<NatsSubjectSplit> bad = Collections.singletonList(new NatsSubjectSplit(null));
-        IOException io = assertThrows(IOException.class, () -> SER.serialize(bad));
-        assertTrue(io.getMessage().contains("Split ID cannot be null"), io.getMessage());
+    void nullSplitIdThrows() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> new NatsSubjectSplit(null));
+        assertTrue(e.getMessage().contains("Subject cannot be null"), e.getMessage());
     }
 }
