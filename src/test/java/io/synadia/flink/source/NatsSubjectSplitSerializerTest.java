@@ -9,7 +9,6 @@ import io.nats.client.impl.NatsMessage;
 import io.synadia.flink.source.split.NatsSubjectSplit;
 import io.synadia.flink.source.split.NatsSubjectSplitSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputView;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -125,21 +124,10 @@ class NatsSubjectSplitSerializerTest {
     }
 
     @Test
-    void serialize_nullSplitIdThrows() {
+    void nullSplitIdThrows() {
         // Public path — the up-front guard in serialize() reports IOException
         // rather than NPE on the sizing call.
-        NatsSubjectSplit nullId = new NatsSubjectSplit(null);
-        IOException io = assertThrows(IOException.class, () -> SER.serialize(nullId));
-        assertTrue(io.getMessage().contains("Split ID cannot be null"), io.getMessage());
-    }
-
-    @Test
-    void serializeV2_nullSplitIdThrows() {
-        // Defense-in-depth — the same guard inside serializeV2 still fires for
-        // callers that reach the helper directly.
-        DataOutputView out = new DataOutputSerializer(16);
-        NatsSubjectSplit nullId = new NatsSubjectSplit(null);
-        assertThrows(IOException.class,
-            () -> NatsSubjectSplitSerializer.serializeV2(out, nullId));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> new NatsSubjectSplit(null));
+        assertTrue(e.getMessage().contains("Subject cannot be null"), e.getMessage());
     }
 }
