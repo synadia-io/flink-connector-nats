@@ -3,7 +3,6 @@
 
 package io.synadia.flink.source;
 
-import io.nats.client.ConsumeOptions;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.synadia.flink.message.SourceConverter;
@@ -154,13 +153,15 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
 
         // Walk the subject configs once: verify boundedness is consistent and
         // accumulate the source reader's queue capacity. Per-subject
-        // contribution is batchSize (the new pull just delivered) +
-        // max(1, batchSize * thresholdPercent / 100) (the messages still
-        // buffered when the re-pull was triggered) — the peak simultaneous
-        // queue depth for that subject. Summed across subjects so each split
-        // has room for its in-flight pull plus its still-buffered tail.
-        // Accumulator is long so a pathological mix of subjects can't silently
-        // wrap an int; we range-check before narrowing.
+        // contribution is batchSize: the pull engine keeps at most batchSize
+        // messages outstanding from the server, so one full batch per subject
+        // is all the buffer needed to keep messages flowing. Summed across
+        // subjects since they share one reader queue, giving each split room
+        // for a full concurrent batch. (The queue is blocking, so this is a
+        // throughput buffer, not a correctness bound — a smaller queue just
+        // parks the pull dispatcher in put() more often.) Accumulator is long
+        // so a pathological mix of subjects can't silently wrap an int; we
+        // range-check before narrowing.
         Boundedness boundedness = null;
         long queueCapacity = 0L;
         for (JetStreamSubjectConfiguration msc : configById.values()) {
@@ -170,9 +171,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
             else if (boundedness != msc.boundedness) {
                 throw new IllegalArgumentException("All boundedness must be the same.");
             }
-            ConsumeOptions co = msc.serializableConsumeOptions.getConsumeOptions();
-            long batchSize = co.getBatchSize();
-            queueCapacity += batchSize + Math.max(1L, batchSize * co.getThresholdPercent() / 100);
+            queueCapacity += msc.serializableConsumeOptions.getConsumeOptions().getBatchSize();
         }
 
         if (queueCapacity > Integer.MAX_VALUE) {
