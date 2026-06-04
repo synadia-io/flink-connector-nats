@@ -177,7 +177,7 @@ public class JetStreamSourceBuilder<OutputT> extends BuilderBase<OutputT, JetStr
         if (queueCapacity > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(
                 "Computed source queue capacity " + queueCapacity
-                    + " exceeds Integer.MAX_VALUE; reduce the per-subject batchSize / thresholdPercent.");
+                    + " exceeds Integer.MAX_VALUE; reduce the per-subject batchSize.");
         }
 
         SourceConfig config = new SourceConfig(boundedness, (int) queueCapacity);
