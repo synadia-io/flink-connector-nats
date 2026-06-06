@@ -295,7 +295,8 @@ The source can be configured in code or from files on JSON or YAML format. It su
       "max_messages_to_read": 10000,
       "ack_behavior":  "NoAck",
       "batch_size": 100,
-      "threshold_percent": 25
+      "threshold_percent": 25,
+      "max_ack_pending": 5000
     },
     {
       "stream_name": "streamName",
