@@ -158,10 +158,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         JsonUtils.addEnumWhenNot(sb, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
         JsonUtils.addFieldAsNanos(sb, ACK_WAIT, ackWait);
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);
-
-        if (maxAckPending > 0) {
-            JsonUtils.addFieldWhenGtZero(sb, MAX_ACK_PENDING, maxAckPending);
-        }
+        JsonUtils.addFieldWhenGtZero(sb, MAX_ACK_PENDING, maxAckPending);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
@@ -191,10 +188,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
         YamlUtils.addEnumWhenNot(sb, indentLevel, ACK_BEHAVIOR, ackBehavior, AckBehavior.NoAck);
         YamlUtils.addFieldAsNanos(sb, indentLevel, ACK_WAIT, ackWait);
         YamlUtils.addFieldAsNanos(sb, indentLevel, INACTIVE_THRESHOLD, inactiveThreshold);
-
-        if (maxAckPending > 0) {
-            YamlUtils.addFieldGtZero(sb, indentLevel, MAX_ACK_PENDING, maxAckPending);
-        }
+        YamlUtils.addFieldGtZero(sb, indentLevel, MAX_ACK_PENDING, maxAckPending);
 
         ConsumeOptions co = serializableConsumeOptions.getConsumeOptions();
         if (co.getBatchSize() != DEFAULT_MESSAGE_COUNT) {
@@ -258,7 +252,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .ackBehavior(AckBehavior.get(JsonValueUtils.readString(jv, ACK_BEHAVIOR)))
             .ackWait(JsonValueUtils.readNanos(jv, ACK_WAIT))
             .inactiveThreshold(JsonValueUtils.readNanos(jv, INACTIVE_THRESHOLD))
-            .maxAckPending(JsonValueUtils.readInteger(jv, MAX_ACK_PENDING, -1))
+            .maxAckPending(JsonValueUtils.readLong(jv, MAX_ACK_PENDING, -1))
             .build();
     }
 
@@ -282,7 +276,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
             .ackBehavior(AckBehavior.get(YamlUtils.readString(map, ACK_BEHAVIOR)))
             .ackWait(YamlUtils.readNanos(map, ACK_WAIT))
             .inactiveThreshold(YamlUtils.readNanos(map, INACTIVE_THRESHOLD))
-            .maxAckPending(YamlUtils.readInteger(map, MAX_ACK_PENDING, -1))
+            .maxAckPending(YamlUtils.readLong(map, MAX_ACK_PENDING, -1))
             .build();
     }
 
@@ -483,6 +477,7 @@ public class JetStreamSubjectConfiguration implements JsonSerializable, Serializ
          * Set the maximum number of unacknowledged messages the NATS server will allow for this consumer.
          * This directly maps to the NATS JetStream consumer max_ack_pending configuration.
          * Without this, the server default (1000) is used and messages will pile up when production is fast.
+         * Note: This is not applicable when ackBehavior is set to AckBehavior.NoAck or AckBehavior.NoAckUnordered
          *
          * @param maxAckPending the max ack pending value, less than 1 means server default
          * @return the builder
