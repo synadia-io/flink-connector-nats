@@ -39,6 +39,7 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
         assertNull(config1.ackWait);
         assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, config1.boundedness);
         assertNull(config1.deliverPolicy);
+        assertEquals(-1, config1.maxAckPending);
 
         JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
             .streamName(TEST_STREAM)
@@ -1207,5 +1208,230 @@ public class JetStreamSubjectConfigurationTest extends TestBase {
 
         assertNull(config.durableName);
         assertEquals(AckBehavior.NoAck, config.ackBehavior);
+    }
+
+    // ========== maxAckPending Tests ==========
+
+    @Test
+    void testMaxAckPendingBuilderSetsAndNormalizes() {
+        // Default value is -1
+        JetStreamSubjectConfiguration configDefault = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .build();
+        assertEquals(-1, configDefault.maxAckPending);
+
+        // Value < 1 normalizes to -1
+        JetStreamSubjectConfiguration configZero = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(0)
+                .build();
+        assertEquals(-1, configZero.maxAckPending);
+
+        JetStreamSubjectConfiguration configNegative = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(-5)
+                .build();
+        assertEquals(-1, configNegative.maxAckPending);
+
+        // Valid value
+        JetStreamSubjectConfiguration configValid = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(500)
+                .build();
+        assertEquals(500, configValid.maxAckPending);
+    }
+
+    @Test
+    void testJsonSerializationWithMaxAckPending() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(200)
+                .build();
+
+        String json = config.toJson();
+        assertTrue(json.contains("\"max_ack_pending\":200"));
+    }
+
+    @Test
+    void testJsonSerializationWithoutMaxAckPending() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .build();
+
+        String json = config.toJson();
+        assertFalse(json.contains("max_ack_pending"));
+    }
+
+    @Test
+    void testYamlSerializationWithMaxAckPending() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(300)
+                .build();
+
+        String yaml = config.toYaml(0);
+        assertTrue(yaml.contains("max_ack_pending: 300"));
+    }
+
+    @Test
+    void testYamlSerializationWithoutMaxAckPending() {
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .build();
+
+        String yaml = config.toYaml(0);
+        assertFalse(yaml.contains("max_ack_pending"));
+    }
+
+    @Test
+    void testJsonDeserializationWithMaxAckPending() throws JsonParseException {
+        String json = "{"
+                + "\"stream_name\":\"" + TEST_STREAM + "\","
+                + "\"subject\":\"" + TEST_SUBJECT + "\","
+                + "\"max_ack_pending\":150"
+                + "}";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromJson(json);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertEquals(150, config.maxAckPending);
+    }
+
+    @Test
+    void testJsonDeserializationWithoutMaxAckPending() throws JsonParseException {
+        String json = "{"
+                + "\"stream_name\":\"" + TEST_STREAM + "\","
+                + "\"subject\":\"" + TEST_SUBJECT + "\""
+                + "}";
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromJson(json);
+
+        assertEquals(-1, config.maxAckPending);
+    }
+
+    @Test
+    void testMapDeserializationWithMaxAckPending() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("stream_name", TEST_STREAM);
+        map.put("subject", TEST_SUBJECT);
+        map.put("max_ack_pending", 250L);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
+
+        assertEquals(TEST_STREAM, config.streamName);
+        assertEquals(TEST_SUBJECT, config.subject);
+        assertEquals(250, config.maxAckPending);
+    }
+
+    @Test
+    void testMapDeserializationWithoutMaxAckPending() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("stream_name", TEST_STREAM);
+        map.put("subject", TEST_SUBJECT);
+
+        JetStreamSubjectConfiguration config = JetStreamSubjectConfiguration.fromMap(map);
+
+        assertEquals(-1, config.maxAckPending);
+    }
+
+    @Test
+    void testCopyMethodPreservesMaxAckPending() {
+        JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject("original.subject")
+                .ackBehavior(AckBehavior.AckAll)
+                .maxAckPending(400)
+                .build();
+
+        JetStreamSubjectConfiguration copy = original.copy("new.subject");
+
+        assertEquals("new.subject", copy.subject);
+        assertEquals(TEST_STREAM, copy.streamName);
+        assertEquals(AckBehavior.AckAll, copy.ackBehavior);
+        assertEquals(400, copy.maxAckPending);
+    }
+
+    @Test
+    void testBuilderCopyMethodPreservesMaxAckPending() {
+        JetStreamSubjectConfiguration original = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject("original.subject")
+                .ackBehavior(AckBehavior.AllButDoNotAck)
+                .maxAckPending(600)
+                .maxMessagesToRead(100)
+                .build();
+
+        JetStreamSubjectConfiguration copy = JetStreamSubjectConfiguration.builder()
+                .copy(original)
+                .subject("copied.subject")
+                .build();
+
+        assertEquals("copied.subject", copy.subject);
+        assertEquals(TEST_STREAM, copy.streamName);
+        assertEquals(AckBehavior.AllButDoNotAck, copy.ackBehavior);
+        assertEquals(600, copy.maxAckPending);
+        assertEquals(100, copy.maxMessagesToRead);
+    }
+
+    @Test
+    void testMaxAckPendingIsIncludedInChecksum() {
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(100)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(200)
+                .build();
+
+        // Different maxAckPending values should result in different IDs (checksums)
+        assertNotEquals(config1.id, config2.id);
+    }
+
+    @Test
+    void testEqualsAndHashCodeWithMaxAckPending() {
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(500)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(500)
+                .build();
+
+        assertEquals(config1, config2);
+        assertEquals(config1.hashCode(), config2.hashCode());
+    }
+
+    @Test
+    void testNotEqualsWithDifferentMaxAckPending() {
+        JetStreamSubjectConfiguration config1 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(100)
+                .build();
+
+        JetStreamSubjectConfiguration config2 = JetStreamSubjectConfiguration.builder()
+                .streamName(TEST_STREAM)
+                .subject(TEST_SUBJECT)
+                .maxAckPending(200)
+                .build();
+
+        assertNotEquals(config1, config2);
     }
 }

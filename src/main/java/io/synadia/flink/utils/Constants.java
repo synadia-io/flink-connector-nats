@@ -116,6 +116,11 @@ public interface Constants {
      */
     String THRESHOLD_PERCENT = "threshold_percent";
 
+    /**
+     * JetStreamSubjectConfiguration JSON / YAML Configuration Field Name Constant
+     */
+    String MAX_ACK_PENDING = "max_ack_pending";
+
     // ===================================================================================
     // Sink and Source JSON / YAML Configuration Value Constants
     // ===================================================================================
