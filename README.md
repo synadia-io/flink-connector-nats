@@ -2,7 +2,9 @@
 
 # Synadia NATS to Flink Connector
 
-**Current Release**: 3.0.2 &nbsp; **Current Snapshot**: 3.0.3-SNAPSHOT
+**Current Release**: 3.0.4 &nbsp; **Current Snapshot**: 3.0.5-SNAPSHOT
+
+**Current V2 Release**: 2.3.3 &nbsp; **Current V2 Snapshot**: 2.3.4-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.synadia/flink-connector-nats)
